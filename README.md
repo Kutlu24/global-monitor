@@ -11,7 +11,7 @@ project's real differentiation is putting them together.
 A separate **Major Economies** module also compares the world's top 20 advanced economies
 individually, country by country, for people who want to look past the bloc level.
 
-## Status: Milestones 1-3 done, Milestone 5 (deployment) started early
+## Status: Milestones 1-4 done, Milestone 5 (deployment) started early
 
 **Publicly live** at https://global-monitor-render-relay.onrender.com (see "Deployment" below).
 
@@ -73,10 +73,25 @@ output baked into the reasoning below) rather than guessing at a chart type or p
   4-color map). 61 total static pages, all verified rendering real data inside the actual Docker
   image.
 
+## Milestone 4 — done
+
+schema.org/Dataset JSON-LD (with canonical `<link>`) on every bloc/compare/country page,
+GLM-primary/Ollama-fallback synthesis text (`synthesis.py`) hash-diff cached per page so the LLM
+is only called when a page's underlying numbers actually change, plus a chunked sitemap
+(`sitemap-index.xml` → blocs/compare/dimensions) and `robots.txt` with real `lastmod` from
+`/api/last-updated`. `SITE_URL`/`GLOBAL_MONITOR_DOMAIN` points at the live relay address
+(`https://global-monitor-render-relay.onrender.com`) so these URLs are correct now, not just once
+a domain is purchased.
+
+Three real bugs surfaced only by a genuine fresh-container-boot test (not by build exit codes):
+`list_blocs()` was missing the `synthesis` field the plural endpoint's callers actually use; no
+`.dockerignore` existed, so a stale local `frontend/dist` could get baked into the image; and the
+`StaticFiles` mount was gated on `dist/` existing at import time, which 404ed the whole site
+forever on a truly fresh boot until fixed with `check_dir=False` (self-heals once the first build
+finishes, no restart needed).
+
 ## Not yet built (see the project plan for the full build order)
 
-- **Milestone 4**: schema.org/Dataset markup, GLM/Ollama-generated comparison text, canonical
-  tags, chunked sitemap.
 - **Milestone 5, remainder**: a real purchased domain (currently live only at the Render relay's
   own `.onrender.com` address).
 
