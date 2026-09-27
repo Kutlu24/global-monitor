@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import logging
 import subprocess
+from datetime import datetime
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
@@ -46,10 +47,10 @@ def _run_and_maybe_rebuild(sources: list[str]) -> None:
 def _run_tension_and_maybe_rebuild() -> None:
     """Separate, much more frequent job than the structural-indicator ones
     above - tension.py's GDELT data is hours-scale, not annual/quarterly
-    (see its own module docstring). pipeline.run_all() already calls this
-    once too (so a fresh boot has tension data immediately), but the
-    ongoing refresh needs its own cadence, independent of the daily/weekly
-    World Bank/Comtrade/UNDP/SIPRI cycle."""
+    (see its own module docstring). The ongoing refresh needs its own
+    cadence, independent of the daily/weekly World Bank/Comtrade/UNDP/SIPRI
+    cycle - see start()'s own comment on why this ALSO needs to fire
+    immediately on every boot, not just every 2 hours."""
     count = pipeline.run_tension()
     logger.info("scheduled tension refresh -> %s scope(s) updated", count)
     if count > 0:
@@ -62,7 +63,17 @@ def start(scheduler: AsyncIOScheduler | None = None) -> AsyncIOScheduler:
                        id="daily-ingest", replace_existing=True)
     scheduler.add_job(_run_and_maybe_rebuild, "cron", day_of_week="mon", hour=4,
                        kwargs={"sources": ["undp_hdi", "sipri"]}, id="weekly-ingest", replace_existing=True)
+    # next_run_time=now: an interval trigger's default first run is
+    # now+interval, not immediate - confirmed live (2026-09-27), this left
+    # tension.py's in-memory `_last_events` cache (needed by the ad-hoc
+    # two-country query endpoint) empty for up to 2 hours after every
+    # container boot/restart. pipeline.run_all() at the entrypoint's own
+    # "ingest all" call does populate the DB-persisted bloc/pair scores
+    # immediately, but that runs as a SEPARATE CLI subprocess - it can
+    # never reach this server process's own in-memory cache. Firing this
+    # job immediately, in-process, on every start is the only way to fix
+    # that gap, not just widen it.
     scheduler.add_job(_run_tension_and_maybe_rebuild, "interval", hours=2,
-                       id="tension-refresh", replace_existing=True)
+                       id="tension-refresh", replace_existing=True, next_run_time=datetime.now())
     scheduler.start()
     return scheduler

@@ -27,12 +27,19 @@ for i in $(seq 1 60); do
   sleep 1
 done
 
-# First boot / fresh volume only - subsequent rebuilds are triggered by
-# scheduler.py itself (Milestone 2) or POST /api/admin/rebuild, from
-# inside the already-running process, after real ETL changes.
+# Always rebuild after this, unconditionally - NOT "only if dist/ doesn't
+# exist yet". That guard was fine before tension.py existed: every
+# scheduled job used a cron trigger that couldn't possibly fire before
+# this line ran. tension-refresh (scheduler.py) deliberately fires
+# IMMEDIATELY on every boot too (in-process, to populate its own in-memory
+# GDELT cache - see that file's own comment) - it can finish and trigger
+# its own rebuild well before this slower "ingest all" (worldbank +
+# comtrade + undp + sipri, with real rate-limit delays) completes,
+# creating dist/index.html early with only partial/stale data. The old
+# guard would then skip rebuilding here even though "ingest all" just
+# finished with the actually-complete, fresh dataset - confirmed live
+# (2026-09-27) as a real race, not a hypothetical one.
 su -s /bin/sh user -c "python -m global_monitor.cli ingest all" || true
-if [ ! -f "$HOME/app/frontend/dist/index.html" ]; then
-  su -s /bin/sh user -c "cd $HOME/app/frontend && API_URL=http://127.0.0.1:${PORT:-7860} npm run build"
-fi
+su -s /bin/sh user -c "cd $HOME/app/frontend && API_URL=http://127.0.0.1:${PORT:-7860} npm run build"
 
 wait "$UVICORN_PID"
