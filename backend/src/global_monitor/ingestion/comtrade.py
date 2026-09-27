@@ -74,19 +74,35 @@ def reset_breaker() -> None:
 
 
 @lru_cache(maxsize=None)
+def _reporter_table():
+    """Comtrade's own reference/metadata endpoint - NOT the rate-limited
+    previewFinalData quota, safe to call once and cache for the process
+    lifetime."""
+    return comtradeapicall.getReference("reporter")
+
+
+@lru_cache(maxsize=None)
 def _country_code(iso3: str) -> str | None:
-    """Comtrade's own reporter/partner codes are numeric M49, not ISO3 -
-    convertCountryIso3ToCode sometimes returns multiple comma-separated
-    codes for one country (e.g. USA -> "840,842,841") - the first is used
-    as this project's one canonical code per country, consistently, so
-    the same code is always used as both a reporter and a partner id."""
-    try:
-        codes = comtradeapicall.convertCountryIso3ToCode(iso3)
-    except Exception:
-        return None
-    if not codes:
-        return None
-    return codes.split(",")[0]
+    """Comtrade's own reporter codes are numeric, not ISO3, and
+    convertCountryIso3ToCode's comma-separated list is ORDERED
+    UNRELIABLY - confirmed live (2026-09-27): for DEU it returns
+    "280,276" with 280 being the pre-1990 "Fed. Rep. of Germany" entity
+    (expired), and for USA/CHE it returns "840,756" as the FIRST code,
+    neither of which exists at all in Comtrade's own reporter table
+    (840/756 are ISO 3166-1 numeric codes, not Comtrade reporter codes -
+    previewFinalData silently returns empty for them, never an error).
+    This silently dropped all trade data for the US, Germany, and
+    Switzerland from every ingest run until fixed. Resolve properly
+    instead: look up the CURRENT (non-expired) entry for this iso3 in
+    Comtrade's own reporter reference table."""
+    table = _reporter_table()
+    matches = table[table["reporterCodeIsoAlpha3"] == iso3]
+    current = matches[matches["entryExpiredDate"].isna()]
+    if not current.empty:
+        return str(current.iloc[0]["reporterCode"])
+    if not matches.empty:
+        return str(matches.iloc[0]["reporterCode"])
+    return None
 
 
 def fetch_world_totals(iso3_list: list[str], period: str) -> list[Observation]:

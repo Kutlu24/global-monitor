@@ -94,6 +94,14 @@ export default function MetricCompareBars({ a, b, metrics }: Props) {
         .gm-metric-tile { text-align: center; }
         .gm-metric-label { font-size: 0.85rem; margin-bottom: 0.5rem; }
         .gm-bar-value { fill: currentColor; }
+        /* Value labels are wider than the bars they sit above (the SVG's
+           own width is sized to just the bars, for centering) - without
+           this an SVG's default overflow:hidden clips both ends of every
+           label (confirmed live: "$460.6B" rendered as "160.6B", "$30.77T"
+           as "$30.77"). The surrounding .gm-metric-tile grid column
+           (minmax(140px, 1fr)) has ample spare width for the label to
+           spill into, so this is visually safe, not just a clip disabled. */
+        .gm-compare-bars svg { overflow: visible; }
       `}</style>
       <div className="gm-legend" role="list" aria-label="Series">
         <span className="gm-legend-item" role="listitem">
