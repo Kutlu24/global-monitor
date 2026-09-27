@@ -1,6 +1,6 @@
 """FastAPI backend for Global Monitor. Two jobs: (1) own the ETL/data
-pipeline (see ingestion/, aggregate.py, cli.py), (2) expose the minimal
-JSON API the Astro frontend calls **at build time** (see
+pipeline (see pipeline.py, ingestion/, aggregate.py, scheduler.py), (2)
+expose the minimal JSON API the Astro frontend calls **at build time** (see
 frontend/src/lib/data.ts) - not a client-facing API in the browser sense,
 though nothing stops it from being read directly. The built Astro output
 is mounted last, at "/", via StaticFiles - see the bottom of this file.
@@ -8,16 +8,24 @@ is mounted last, at "/", via StaticFiles - see the bottom of this file.
 from __future__ import annotations
 
 import subprocess
+from contextlib import asynccontextmanager
 from dataclasses import asdict
 
 from fastapi import FastAPI, Header, HTTPException
 from fastapi.staticfiles import StaticFiles
 
-from .. import aggregate, blocs, db, metrics
+from .. import db, major_economies, pipeline, scheduler
 from ..config import frontend_dir, settings
-from ..ingestion import worldbank
 
-app = FastAPI(title="Global Monitor")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    sched = scheduler.start()
+    yield
+    sched.shutdown(wait=False)
+
+
+app = FastAPI(title="Global Monitor", lifespan=lifespan)
 
 
 @app.get("/api/health")
@@ -48,10 +56,35 @@ def list_metrics() -> list[dict]:
     return [asdict(m) for m in db.get_metrics()]
 
 
+@app.get("/api/countries")
+def list_countries() -> list[dict]:
+    """The 'major economies' country-comparison module (see
+    major_economies.py) - a SEPARATE concept from bloc comparison. Each
+    country's OWN latest observations, not a bloc aggregate."""
+    return [_country_payload(iso3) for iso3 in major_economies.all_iso3()]
+
+
+@app.get("/api/countries/{iso3}")
+def get_country(iso3: str) -> dict:
+    iso3 = iso3.upper()
+    if iso3 not in major_economies.all_iso3():
+        raise HTTPException(404, f"No such tracked major economy: {iso3!r}")
+    return _country_payload(iso3)
+
+
+def _country_payload(iso3: str) -> dict:
+    metrics_values: dict[str, dict] = {}
+    for metric in db.get_metrics():
+        obs = db.latest_observation(iso3, metric.metric_id)
+        if obs is not None and obs.value is not None:
+            metrics_values[metric.metric_id] = {"value": obs.value, "period": obs.period}
+    return {"iso3": iso3, "name": major_economies.country_name(iso3), "metrics": metrics_values}
+
+
 def _bloc_aggregates_payload(bloc_id: str) -> dict[str, dict]:
     """Latest value per metric for one bloc - {metric_id: {value, period,
     member_count}} - the shape the frontend's build-time fetch consumes
-    directly for the walking-skeleton homepage."""
+    directly."""
     payload: dict[str, dict] = {}
     for metric in db.get_metrics():
         latest = db.latest_bloc_aggregate(bloc_id, metric.metric_id)
@@ -64,7 +97,7 @@ def _bloc_aggregates_payload(bloc_id: str) -> dict[str, dict]:
 
 def _check_admin_token(authorization: str | None) -> None:
     if not settings.admin_token:
-        raise HTTPException(503, "GLOBAL_MONITOR_ADMIN_TOKEN is not configured")
+        raise HTTPException(503, "ADMIN_TOKEN is not configured")
     expected = f"Bearer {settings.admin_token}"
     if authorization != expected:
         raise HTTPException(401, "Invalid or missing admin token")
@@ -72,21 +105,16 @@ def _check_admin_token(authorization: str | None) -> None:
 
 @app.post("/api/admin/rebuild")
 def admin_rebuild(authorization: str | None = Header(default=None)) -> dict:
-    """Manual trigger for 'run ETL, re-aggregate, rebuild the static site' -
-    for forcing a rebuild after e.g. manually fixing a SIPRI parse issue
-    (`cli.py ingest sipri`). The scheduler (Milestone 2) does this
-    automatically after any run that actually changes values; this exists
-    for the human-in-the-loop case that doesn't wait for the schedule."""
+    """Manual trigger for 'run every ETL source, re-aggregate, rebuild the
+    static site' - for forcing a rebuild after e.g. manually fixing a SIPRI
+    parse issue. scheduler.py does this automatically on its own cadence;
+    this exists for the human-in-the-loop case that doesn't wait for it."""
     _check_admin_token(authorization)
-    blocs.seed()
-    metrics.seed()
-    observations = worldbank.fetch(blocs.all_tracked_iso3())
-    db.upsert_observations(observations)
-    aggregate.aggregate_all()
-    result = subprocess.run(["npm", "run", "build"], cwd=frontend_dir(), capture_output=True, text=True)
-    if result.returncode != 0:
-        raise HTTPException(500, f"astro build failed:\n{result.stderr[-2000:]}")
-    return {"status": "rebuilt", "observations_ingested": len(observations)}
+    results = pipeline.run_all()
+    build = subprocess.run(["npm", "run", "build"], cwd=frontend_dir(), capture_output=True, text=True)
+    if build.returncode != 0:
+        raise HTTPException(500, f"astro build failed:\n{build.stderr[-2000:]}")
+    return {"status": "rebuilt", "ingest_results": results}
 
 
 _FRONTEND_DIST_DIR = frontend_dir() / "dist"

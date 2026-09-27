@@ -3,8 +3,8 @@ the economic and most of the social dimension (GDP, population, trade %
 GDP, health/education indicators) plus one of the two sanctioned military
 series (military expenditure % GDP, alongside SIPRI's own numbers).
 
-Milestone 1 scope: GDP and population only, to prove the pipeline end to
-end. Remaining indicators land in Milestone 2 (see the project plan).
+Every indicator code below was verified live against the real API
+(2026-09-27) before being added here.
 """
 from __future__ import annotations
 
@@ -15,11 +15,15 @@ from ..models import Observation
 
 BASE_URL = "https://api.worldbank.org/v2"
 
-# metric_id -> World Bank indicator code. Population doubles as the
-# weight_metric_id for weighted_mean metrics elsewhere (see metrics.py).
+# metric_id -> World Bank indicator code. Population and GDP double as the
+# weight_metric_id for weighted_mean ratio metrics elsewhere (see metrics.py).
 INDICATORS: dict[str, str] = {
     "gdp_current_usd": "NY.GDP.MKTP.CD",
     "population_total": "SP.POP.TOTL",
+    "military_exp_pct_gdp": "MS.MIL.XPND.GD.ZS",
+    "trade_pct_gdp": "NE.TRD.GNFS.ZS",
+    "life_expectancy_years": "SP.DYN.LE00.IN",
+    "secondary_enrollment_pct": "SE.SEC.ENRR",
 }
 
 

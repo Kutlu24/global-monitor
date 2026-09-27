@@ -1,0 +1,41 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import { getCountries } from "../../lib/data";
+
+const countries = await getCountries();
+
+function fmt(value: number | undefined, kind: "usd" | "people" | "pct" | "years" | "index"): string {
+  if (value === undefined) return "—";
+  switch (kind) {
+    case "usd": return `$${(value / 1e9).toFixed(1)}B`;
+    case "people": return `${(value / 1e6).toFixed(1)}M`;
+    case "pct": return `${value.toFixed(1)}%`;
+    case "years": return `${value.toFixed(1)}y`;
+    case "index": return value.toFixed(3);
+  }
+}
+---
+<BaseLayout title="Major Economies" description="The world's top 20 advanced economies, compared country by country - a separate module from Global Monitor's bloc-vs-bloc comparisons.">
+  <main>
+    <p><a href="/">&larr; Global Monitor</a></p>
+    <h1>Major Economies</h1>
+    <p>The 20 largest advanced economies (IMF classification), compared individually - not aggregated
+       into a bloc. See the <a href="/">bloc comparisons</a> for BRICS+/EU/US/USMCA instead.</p>
+    <table>
+      <thead>
+        <tr><th>Country</th><th>GDP</th><th>Population</th><th>Military exp. (% GDP)</th><th>HDI</th></tr>
+      </thead>
+      <tbody>
+        {countries.map((c) => (
+          <tr>
+            <td><a href={`/country/${c.iso3.toLowerCase()}/`}>{c.name}</a></td>
+            <td>{fmt(c.metrics.gdp_current_usd?.value, "usd")}</td>
+            <td>{fmt(c.metrics.population_total?.value, "people")}</td>
+            <td>{fmt(c.metrics.military_exp_pct_gdp?.value, "pct")}</td>
+            <td>{fmt(c.metrics.hdi?.value, "index")}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </main>
+</BaseLayout>

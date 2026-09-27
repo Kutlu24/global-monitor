@@ -34,3 +34,24 @@ export function getBlocs(): Promise<Bloc[]> {
 export function getBloc(blocId: string): Promise<Bloc> {
   return getJSON<Bloc>(`/api/blocs/${blocId}`);
 }
+
+export interface CountryMetricValue {
+  value: number;
+  period: string;
+}
+
+export interface Country {
+  iso3: string;
+  name: string;
+  metrics: Record<string, CountryMetricValue>;
+}
+
+// The "major economies" country-comparison module - a SEPARATE concept
+// from bloc comparison (see backend/src/global_monitor/major_economies.py).
+export function getCountries(): Promise<Country[]> {
+  return getJSON<Country[]>("/api/countries");
+}
+
+export function getCountry(iso3: string): Promise<Country> {
+  return getJSON<Country>(`/api/countries/${iso3}`);
+}

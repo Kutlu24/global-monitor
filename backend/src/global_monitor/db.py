@@ -236,6 +236,26 @@ def get_observations(metric_id: str, iso3_list: list[str], period: str | None = 
         return [Observation(**dict(r)) for r in rows]
 
 
+def get_trade_flows(bloc_id: str, metric_id: str) -> list[BlocTradeFlow]:
+    with _conn() as conn:
+        rows = conn.execute(
+            """SELECT bloc_id, reporter_iso3, partner_iso3, metric_id, period, value, fetched_at
+               FROM bloc_trade_flows WHERE bloc_id = ? AND metric_id = ?""",
+            (bloc_id, metric_id),
+        ).fetchall()
+        return [BlocTradeFlow(**dict(r)) for r in rows]
+
+
+def latest_observation(iso3: str, metric_id: str) -> Observation | None:
+    with _conn() as conn:
+        row = conn.execute(
+            """SELECT iso3, metric_id, period, value, fetched_at FROM observations
+               WHERE iso3 = ? AND metric_id = ? ORDER BY period DESC LIMIT 1""",
+            (iso3, metric_id),
+        ).fetchone()
+        return Observation(**dict(row)) if row else None
+
+
 def get_bloc_aggregates(bloc_id: str) -> list[BlocAggregate]:
     with _conn() as conn:
         rows = conn.execute(

@@ -1,0 +1,41 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import { getCountries } from "../../lib/data";
+
+export async function getStaticPaths() {
+  const countries = await getCountries();
+  return countries.map((c) => ({ params: { iso3: c.iso3.toLowerCase() }, props: { country: c } }));
+}
+
+const { country } = Astro.props;
+
+const ROWS: [string, string, (v: number) => string][] = [
+  ["gdp_current_usd", "GDP (current US$)", (v) => `$${(v / 1e9).toFixed(1)}B`],
+  ["population_total", "Population", (v) => `${(v / 1e6).toFixed(1)}M`],
+  ["military_exp_pct_gdp", "Military expenditure (% of GDP)", (v) => `${v.toFixed(1)}%`],
+  ["military_exp_usd", "Military expenditure (current US$)", (v) => `$${(v / 1e9).toFixed(1)}B`],
+  ["trade_pct_gdp", "Trade (% of GDP)", (v) => `${v.toFixed(1)}%`],
+  ["trade_exports_world_usd", "Exports to the world", (v) => `$${(v / 1e9).toFixed(1)}B`],
+  ["trade_imports_world_usd", "Imports from the world", (v) => `$${(v / 1e9).toFixed(1)}B`],
+  ["life_expectancy_years", "Life expectancy at birth", (v) => `${v.toFixed(1)} years`],
+  ["secondary_enrollment_pct", "Secondary school enrollment", (v) => `${v.toFixed(1)}%`],
+  ["hdi", "Human Development Index", (v) => v.toFixed(3)],
+];
+---
+<BaseLayout title={country.name} description={`Economic, trade, social, and military data for ${country.name}.`}>
+  <main>
+    <p><a href="/countries/">&larr; Major Economies</a></p>
+    <h1>{country.name}</h1>
+    <dl>
+      {ROWS.map(([metricId, label, format]) => {
+        const m = country.metrics[metricId];
+        return m ? (
+          <>
+            <dt>{label} ({m.period})</dt>
+            <dd>{format(m.value)}</dd>
+          </>
+        ) : null;
+      })}
+    </dl>
+  </main>
+</BaseLayout>
