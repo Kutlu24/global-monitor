@@ -8,8 +8,13 @@ import sqlite3
 from contextlib import contextmanager
 from datetime import datetime, timezone
 
+import json
+
 from .config import db_path
-from .models import Bloc, BlocAggregate, BlocMembership, BlocTradeFlow, Country, Metric, Observation, SynthesisText
+from .models import (
+    Bloc, BlocAggregate, BlocMembership, BlocTradeFlow, Country, Metric, Observation,
+    SynthesisText, TensionScore,
+)
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS blocs (
@@ -75,6 +80,21 @@ CREATE TABLE IF NOT EXISTS synthesis_text (
     generated_at TEXT NOT NULL,
     provider TEXT NOT NULL,
     model TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS tension_scores (
+    scope TEXT PRIMARY KEY,
+    window_hours REAL NOT NULL,
+    n_events INTEGER NOT NULL,
+    mean_goldstein REAL,
+    mean_tone REAL,
+    verbal_cooperation INTEGER NOT NULL,
+    material_cooperation INTEGER NOT NULL,
+    verbal_conflict INTEGER NOT NULL,
+    material_conflict INTEGER NOT NULL,
+    conflict_share REAL,
+    goldstein_delta REAL,
+    examples_json TEXT NOT NULL DEFAULT '[]',
+    computed_at TEXT NOT NULL
 );
 """
 
@@ -277,13 +297,71 @@ def upsert_synthesis(s: SynthesisText) -> None:
         )
 
 
-def latest_data_update() -> str | None:
-    """The most recent computed_at across every bloc_aggregate - used as a
-    single, real, site-wide sitemap `lastmod` (accurate for a data site
-    where every page's numbers come from the same ingest run, and far
-    simpler than tracking one timestamp per URL for the same result)."""
+_TENSION_COLUMNS = (
+    "scope, window_hours, n_events, mean_goldstein, mean_tone, verbal_cooperation, "
+    "material_cooperation, verbal_conflict, material_conflict, conflict_share, "
+    "goldstein_delta, examples_json, computed_at"
+)
+
+
+def _row_to_tension_score(row: sqlite3.Row) -> TensionScore:
+    data = dict(row)
+    examples = json.loads(data.pop("examples_json"))
+    return TensionScore(**data, examples=examples)
+
+
+def get_tension_score(scope: str) -> TensionScore | None:
     with _conn() as conn:
-        row = conn.execute("SELECT MAX(computed_at) AS m FROM bloc_aggregates").fetchone()
+        row = conn.execute(
+            f"SELECT {_TENSION_COLUMNS} FROM tension_scores WHERE scope = ?", (scope,)
+        ).fetchone()
+        return _row_to_tension_score(row) if row else None
+
+
+def get_all_tension_scores() -> list[TensionScore]:
+    with _conn() as conn:
+        rows = conn.execute(f"SELECT {_TENSION_COLUMNS} FROM tension_scores").fetchall()
+        return [_row_to_tension_score(r) for r in rows]
+
+
+def upsert_tension_score(s: TensionScore) -> None:
+    with _conn() as conn:
+        conn.execute(
+            """INSERT INTO tension_scores
+                   (scope, window_hours, n_events, mean_goldstein, mean_tone, verbal_cooperation,
+                    material_cooperation, verbal_conflict, material_conflict, conflict_share,
+                    goldstein_delta, examples_json, computed_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+               ON CONFLICT(scope) DO UPDATE SET
+                   window_hours=excluded.window_hours, n_events=excluded.n_events,
+                   mean_goldstein=excluded.mean_goldstein, mean_tone=excluded.mean_tone,
+                   verbal_cooperation=excluded.verbal_cooperation,
+                   material_cooperation=excluded.material_cooperation,
+                   verbal_conflict=excluded.verbal_conflict,
+                   material_conflict=excluded.material_conflict,
+                   conflict_share=excluded.conflict_share, goldstein_delta=excluded.goldstein_delta,
+                   examples_json=excluded.examples_json, computed_at=excluded.computed_at""",
+            (s.scope, s.window_hours, s.n_events, s.mean_goldstein, s.mean_tone,
+             s.verbal_cooperation, s.material_cooperation, s.verbal_conflict, s.material_conflict,
+             s.conflict_share, s.goldstein_delta, json.dumps(s.examples), s.computed_at),
+        )
+
+
+def latest_data_update() -> str | None:
+    """The most recent computed_at across every bloc_aggregate AND every
+    tension_score - used as a single, real, site-wide sitemap `lastmod`.
+    Since tension.py refreshes every ~2h (see scheduler.py) while
+    bloc_aggregates only changes daily/weekly, this value will usually
+    reflect the tension refresh - an honest reading of "the site's data was
+    genuinely updated at this time," even for pages whose own numbers
+    didn't move that particular cycle."""
+    with _conn() as conn:
+        row = conn.execute(
+            "SELECT MAX(m) AS m FROM ("
+            "  SELECT MAX(computed_at) AS m FROM bloc_aggregates"
+            "  UNION ALL SELECT MAX(computed_at) FROM tension_scores"
+            ")"
+        ).fetchone()
         return row["m"] if row else None
 
 

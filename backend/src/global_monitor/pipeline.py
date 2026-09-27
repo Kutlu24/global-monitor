@@ -79,4 +79,29 @@ def run_all(sources: list[str] | None = None) -> dict[str, int]:
         synthesis.generate_all()
     except Exception:
         logger.exception("synthesis generation failed - leaving prior text in place, not crashing the ingest run")
+    run_tension()
     return results
+
+
+def run_tension() -> int:
+    """Refreshes the real-time GDELT-derived tension module (tension.py) -
+    called both from run_all() (so a fresh container boot has tension data
+    immediately, not just after the first scheduled 2-hourly tick) AND from
+    scheduler.py's own separate, more frequent job - hours-scale data needs
+    a much shorter refresh cadence than the daily/weekly structural
+    indicators above, so it isn't gated on SOURCES/run_source at all."""
+    from . import tension
+
+    try:
+        count = tension.refresh_all()
+    except Exception:
+        logger.exception("tension refresh failed, leaving prior tension data in place")
+        return 0
+    if count == 0:
+        return 0
+    try:
+        bloc_by_id = {b.bloc_id: b for b in db.get_blocs()}
+        synthesis.generate_tension_synthesis(bloc_by_id)
+    except Exception:
+        logger.exception("tension synthesis failed - leaving prior text in place")
+    return count

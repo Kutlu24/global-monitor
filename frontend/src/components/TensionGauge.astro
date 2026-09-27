@@ -1,0 +1,43 @@
+---
+import { TENSION_DIVERGING } from "../lib/colors";
+
+interface Props {
+  value: number | null;
+  label?: string;
+}
+const { value, label } = Astro.props;
+const DOMAIN = 10; // Goldstein scale: -10 (most conflictual) .. +10 (most cooperative)
+const clamped = value == null ? 0 : Math.max(-DOMAIN, Math.min(DOMAIN, value));
+const halfPct = (Math.abs(clamped) / DOMAIN) * 50; // 0..50, distance from center
+const isPositive = clamped >= 0;
+const color = isPositive ? TENSION_DIVERGING.cooperation.dark : TENSION_DIVERGING.conflict.dark;
+---
+<!-- A diverging bar, not a sequential one - the dataviz skill's fixed
+     blue<->red diverging pair with a neutral zero, since Goldstein is a
+     genuinely bipolar scale (a real negative pole, not "low magnitude"). -->
+<div class="gm-tension-gauge">
+  {label && <div class="gm-tension-gauge-label">{label}</div>}
+  <div class="gm-tension-track">
+    <div class="gm-tension-zero"></div>
+    {value != null && (
+      <div
+        class="gm-tension-fill"
+        style={{ left: isPositive ? "50%" : `${50 - halfPct}%`, width: `${halfPct}%`, background: color }}
+      />
+    )}
+  </div>
+  <div class="gm-tension-scale">
+    <span>Conflict (&minus;10)</span>
+    <span class="gm-tension-value">{value != null ? value.toFixed(2) : "N/A"}</span>
+    <span>Cooperation (+10)</span>
+  </div>
+</div>
+<style>
+  .gm-tension-gauge { margin: var(--space-3) 0; }
+  .gm-tension-gauge-label { font-size: 0.85rem; font-weight: 600; margin-bottom: var(--space-2); color: var(--ink); }
+  .gm-tension-track { position: relative; height: 10px; background: var(--hairline); border-radius: 999px; overflow: hidden; }
+  .gm-tension-zero { position: absolute; left: 50%; top: 0; bottom: 0; width: 2px; background: var(--ink-muted); transform: translateX(-1px); z-index: 1; }
+  .gm-tension-fill { position: absolute; top: 0; bottom: 0; border-radius: 999px; }
+  .gm-tension-scale { display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--ink-muted); margin-top: var(--space-2); }
+  .gm-tension-value { font-family: var(--font-mono); font-weight: 700; color: var(--ink); }
+</style>

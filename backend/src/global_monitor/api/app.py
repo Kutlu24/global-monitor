@@ -125,6 +125,44 @@ def last_updated() -> dict:
     return {"last_updated": db.latest_data_update()}
 
 
+def _tension_payload(score) -> dict:
+    return {
+        "scope": score.scope, "window_hours": score.window_hours, "n_events": score.n_events,
+        "mean_goldstein": score.mean_goldstein, "mean_tone": score.mean_tone,
+        "verbal_cooperation": score.verbal_cooperation, "material_cooperation": score.material_cooperation,
+        "verbal_conflict": score.verbal_conflict, "material_conflict": score.material_conflict,
+        "conflict_share": score.conflict_share, "goldstein_delta": score.goldstein_delta,
+        "examples": score.examples, "computed_at": score.computed_at,
+        "synthesis": _synthesis_payload(f"tension:{score.scope}"),
+    }
+
+
+@app.get("/api/tension")
+def list_tension() -> list[dict]:
+    """Real-time (GDELT-derived) conflict/cooperation scores, one row per
+    bloc plus one per bloc-pair - see tension.py's own docstring for where
+    this comes from. Consumed at Astro build time the same way every other
+    endpoint here is; the frontend rebuilds every ~2h to pick up fresh
+    values (scheduler.py's tension-refresh job), not just daily."""
+    return [_tension_payload(s) for s in db.get_all_tension_scores()]
+
+
+@app.get("/api/tension/bloc/{bloc_id}")
+def get_tension_bloc(bloc_id: str) -> dict:
+    score = db.get_tension_score(f"bloc:{bloc_id}")
+    if score is None:
+        raise HTTPException(404, f"No tension data yet for bloc {bloc_id!r}")
+    return _tension_payload(score)
+
+
+@app.get("/api/tension/pair/{bloc_a}/{bloc_b}")
+def get_tension_pair(bloc_a: str, bloc_b: str) -> dict:
+    score = db.get_tension_score(f"pair:{bloc_a}-{bloc_b}")
+    if score is None:
+        raise HTTPException(404, f"No tension data yet for pair {bloc_a!r}-{bloc_b!r}")
+    return _tension_payload(score)
+
+
 def _synthesis_payload(page_key: str) -> dict | None:
     s = db.get_synthesis(page_key)
     if s is None:

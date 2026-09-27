@@ -1,0 +1,115 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import TensionGauge from "../../components/TensionGauge.astro";
+import { getTensionPair } from "../../lib/tension";
+import { getBlocs } from "../../lib/data";
+import { PAIRS } from "../../lib/pairs";
+import { datasetSchema } from "../../lib/schema";
+
+export async function getStaticPaths() {
+  const blocs = await getBlocs();
+  const blocById = Object.fromEntries(blocs.map((b) => [b.bloc_id, b]));
+  return Promise.all(
+    PAIRS.map(async (pair) => {
+      const score = await getTensionPair(pair.a, pair.b);
+      return { params: { pair: pair.slug }, props: { pair, score, a: blocById[pair.a], b: blocById[pair.b] } };
+    })
+  );
+}
+
+const { pair, score, a, b } = Astro.props;
+const nameA = a?.name ?? pair.a;
+const nameB = b?.name ?? pair.b;
+const description = `Real-time conflict/cooperation signal between ${nameA} and ${nameB}, from the GDELT 2.0 Event Database.`;
+const schema = score
+  ? datasetSchema({
+      name: `${nameA} vs ${nameB} — current tension`,
+      description,
+      url: new URL(`/tension/${pair.slug}/`, Astro.site).toString(),
+      apiPath: `/api/tension/pair/${pair.a}/${pair.b}`,
+    })
+  : undefined;
+
+const trend = score?.goldstein_delta;
+const trendLabel = trend == null ? null : trend > 0.1 ? "improving" : trend < -0.1 ? "worsening" : "steady";
+const conflictual = score?.examples.filter((e) => e.kind === "conflictual") ?? [];
+const cooperative = score?.examples.filter((e) => e.kind === "cooperative") ?? [];
+---
+<BaseLayout title={`${nameA} vs ${nameB} — Current Tension`} description={description} structuredData={schema}>
+  <a href="/tension/" class="gm-back-link">&larr; Current Tension</a>
+  <p class="gm-hero-eyebrow">Real-time module</p>
+  <h1>{nameA} vs {nameB}</h1>
+
+  {!score && (
+    <p>No tension data yet for this pair - it refreshes every few hours; check back shortly.</p>
+  )}
+
+  {score && (
+    <>
+      <div class="gm-viz-block">
+        <TensionGauge value={score.mean_goldstein} label={`Mean Goldstein score (last ${score.window_hours}h)`} />
+        <p class="gm-stat-label">
+          {score.n_events} bilateral events
+          {trendLabel && ` · trend: ${trendLabel} (${trend! > 0 ? "+" : ""}${trend!.toFixed(2)})`}
+        </p>
+      </div>
+
+      {score.synthesis && (
+        <div class="gm-synthesis">
+          <p class="gm-synthesis-label">Interpretation - not a forecast</p>
+          <p>{score.synthesis.text}</p>
+        </div>
+      )}
+
+      <table>
+        <thead><tr><th>Metric</th><th>Value</th></tr></thead>
+        <tbody>
+          <tr><td>Bilateral events (window)</td><td>{score.n_events}</td></tr>
+          <tr><td>Mean article tone</td><td>{score.mean_tone != null ? score.mean_tone.toFixed(1) : "N/A"} (-100..+100)</td></tr>
+          <tr><td>Conflict share</td><td>{score.conflict_share != null ? `${(score.conflict_share * 100).toFixed(0)}%` : "N/A"}</td></tr>
+          <tr><td>Verbal cooperation events</td><td>{score.verbal_cooperation}</td></tr>
+          <tr><td>Material cooperation events</td><td>{score.material_cooperation}</td></tr>
+          <tr><td>Verbal conflict events</td><td>{score.verbal_conflict}</td></tr>
+          <tr><td>Material conflict events</td><td>{score.material_conflict}</td></tr>
+        </tbody>
+      </table>
+
+      {conflictual.length > 0 && (
+        <>
+          <h2>Most conflictual real events</h2>
+          <ul>
+            {conflictual.map((e) => (
+              <li>
+                [{e.date}] {e.actor1 ?? "?"} &rarr; {e.actor2 ?? "?"}
+                {e.location && ` at ${e.location}`}
+                {e.goldstein != null && ` (Goldstein ${e.goldstein.toFixed(1)})`}
+                {e.source_url && <> — <a href={e.source_url} target="_blank" rel="noopener noreferrer">source</a></>}
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+
+      {cooperative.length > 0 && (
+        <>
+          <h2>Most cooperative real events</h2>
+          <ul>
+            {cooperative.map((e) => (
+              <li>
+                [{e.date}] {e.actor1 ?? "?"} &rarr; {e.actor2 ?? "?"}
+                {e.location && ` at ${e.location}`}
+                {e.goldstein != null && ` (Goldstein ${e.goldstein.toFixed(1)})`}
+                {e.source_url && <> — <a href={e.source_url} target="_blank" rel="noopener noreferrer">source</a></>}
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+
+      <p style="font-size: 0.85rem; color: var(--ink-muted);">
+        Computed from real GDELT events (fully automated coding - errors happen), not a curated or
+        verified source. Not a prediction or forecast; should not be the sole basis for any decision.
+      </p>
+    </>
+  )}
+</BaseLayout>

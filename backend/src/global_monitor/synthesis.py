@@ -157,6 +157,98 @@ _COMPARE_PAIRS = [(_COMPARE_BLOCS[i], _COMPARE_BLOCS[j])
 _DIMENSIONS = ["economic", "trade", "social", "military"]
 
 
+# --- Tension module (GDELT-derived, hours-scale) - see tension.py's own
+# docstring for where this data comes from. A stricter, GFCA-inherited
+# system prompt than the bloc/compare prompts above: this is live
+# geopolitical event data, not a slow structural indicator, so the
+# anti-fabrication rules are spelled out explicitly rather than relying on
+# "use only the real figures below" alone. ---
+
+_TENSION_SYSTEM_PROMPT = """You are a research assistant summarizing real, recent geopolitical \
+event data for a public data-dashboard reader. You will be given aggregate statistics and \
+specific example events, all computed directly from the GDELT 2.0 Event Database (a real, \
+automated global event-coding system - not a curated or verified source).
+
+Rules:
+- You are writing an INTERPRETATION of the data given, not a prediction or forecast. Never state \
+a probability of war, conflict, or any other outcome. Never invent a "confidence score."
+- Every specific claim must trace to a number or example event in the data provided. Do not add \
+outside knowledge, historical context, or claims about intentions/motives the data doesn't support.
+- Name the real limitations of this data plainly: GDELT is fully automated (event coding errors \
+are common), it over-represents English-language and Western media, the observation window is \
+short (hours), and event counts/tone reflect media coverage volume, not ground truth.
+- If the data is thin (few events, no examples), say so rather than filling the gap with speculation.
+- End with a short, explicit sentence that this is not a verified forecast and should not be the \
+sole basis for any decision.
+- 80-120 words. No markdown formatting.
+"""
+
+
+def _format_tension_example(ex: dict) -> str:
+    parts = [f"[{ex['date']}]"]
+    if ex.get("actor1") or ex.get("actor2"):
+        parts.append(f"{ex.get('actor1') or '?'} -> {ex.get('actor2') or '?'}")
+    if ex.get("location"):
+        parts.append(f"at {ex['location']}")
+    if ex.get("goldstein") is not None:
+        parts.append(f"Goldstein={ex['goldstein']:.1f}")
+    if ex.get("source_url"):
+        parts.append(f"source: {ex['source_url']}")
+    return " ".join(parts)
+
+
+def _tension_prompt(label: str, score) -> str:
+    lines = [
+        f"Subject: {label}",
+        f"Window: last {score.window_hours:.0f} hours",
+        f"Total matching events: {score.n_events}",
+        f"Mean Goldstein score (-10 conflictual .. +10 cooperative): "
+        f"{score.mean_goldstein:.2f}" if score.mean_goldstein is not None else "Mean Goldstein score: n/a",
+        f"Mean article tone (-100..+100, 0=neutral): "
+        f"{score.mean_tone:.2f}" if score.mean_tone is not None else "Mean article tone: n/a",
+        f"Event type breakdown: {score.verbal_cooperation} verbal-cooperation, "
+        f"{score.material_cooperation} material-cooperation, {score.verbal_conflict} verbal-conflict, "
+        f"{score.material_conflict} material-conflict"
+        + (f" (conflict share: {score.conflict_share:.0%})" if score.conflict_share is not None else ""),
+        f"Trend within window (second half mean Goldstein - first half): "
+        f"{score.goldstein_delta:+.2f}" if score.goldstein_delta is not None else "Trend: not enough dated events to compute",
+        "",
+        "Most conflictual real events in this window:",
+    ]
+    conflictual = [e for e in score.examples if e["kind"] == "conflictual"]
+    cooperative = [e for e in score.examples if e["kind"] == "cooperative"]
+    lines += [f"  - {_format_tension_example(e)}" for e in conflictual] or ["  (none)"]
+    lines += ["", "Most cooperative real events in this window:"]
+    lines += [f"  - {_format_tension_example(e)}" for e in cooperative] or ["  (none)"]
+    return f"{_TENSION_SYSTEM_PROMPT}\n\nData:\n\n" + "\n".join(lines) + "\n\nWrite the situational summary."
+
+
+def generate_tension_synthesis(bloc_by_id: dict) -> None:
+    """Separate from generate_all() - called from tension.py's own,
+    hours-scale refresh cycle (scheduler.py), never from the daily/weekly
+    ETL. page_key uses a `tension:` prefix so it never collides with the
+    structural bloc:/compare: keys above."""
+    for score in db.get_all_tension_scores():
+        if score.scope.startswith("bloc:"):
+            bloc_id = score.scope.removeprefix("bloc:")
+            bloc = bloc_by_id.get(bloc_id)
+            label = bloc.name if bloc else bloc_id
+        else:
+            a_id, b_id = score.scope.removeprefix("pair:").split("-", 1)
+            a, b = bloc_by_id.get(a_id), bloc_by_id.get(b_id)
+            label = f"{a.name if a else a_id} vs {b.name if b else b_id}"
+        # Deliberately excludes computed_at - that changes every refresh
+        # cycle regardless of whether the real numbers moved, which would
+        # defeat the whole point of the hash-diff gate (an LLM call every
+        # 2 hours even when nothing actually changed).
+        payload = {
+            "n_events": score.n_events, "mean_goldstein": score.mean_goldstein,
+            "mean_tone": score.mean_tone, "conflict_share": score.conflict_share,
+            "goldstein_delta": score.goldstein_delta, "examples": score.examples,
+        }
+        _maybe_generate(f"tension:{score.scope}", payload, _tension_prompt(label, score))
+
+
 def generate_all() -> None:
     blocs = db.get_blocs()
     for bloc in blocs:

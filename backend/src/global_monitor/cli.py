@@ -36,5 +36,15 @@ def seed_cmd() -> None:
     click.echo("seeded blocs, countries, membership, metrics")
 
 
+@cli.command("tension")
+def tension_cmd() -> None:
+    """Manually trigger the GDELT-derived tension refresh (tension.py) -
+    normally runs on its own 2-hourly schedule (scheduler.py); this is for
+    testing/debugging without waiting for the next tick."""
+    pipeline.seed()
+    count = pipeline.run_tension()
+    click.echo(f"tension: {count} scope(s) updated" if count else "tension: no scopes updated (GDELT fetch returned nothing?)")
+
+
 if __name__ == "__main__":
     cli()

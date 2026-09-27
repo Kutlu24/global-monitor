@@ -43,11 +43,26 @@ def _run_and_maybe_rebuild(sources: list[str]) -> None:
         _rebuild_frontend()
 
 
+def _run_tension_and_maybe_rebuild() -> None:
+    """Separate, much more frequent job than the structural-indicator ones
+    above - tension.py's GDELT data is hours-scale, not annual/quarterly
+    (see its own module docstring). pipeline.run_all() already calls this
+    once too (so a fresh boot has tension data immediately), but the
+    ongoing refresh needs its own cadence, independent of the daily/weekly
+    World Bank/Comtrade/UNDP/SIPRI cycle."""
+    count = pipeline.run_tension()
+    logger.info("scheduled tension refresh -> %s scope(s) updated", count)
+    if count > 0:
+        _rebuild_frontend()
+
+
 def start(scheduler: AsyncIOScheduler | None = None) -> AsyncIOScheduler:
     scheduler = scheduler or AsyncIOScheduler()
     scheduler.add_job(_run_and_maybe_rebuild, "cron", hour=3, kwargs={"sources": ["worldbank", "comtrade"]},
                        id="daily-ingest", replace_existing=True)
     scheduler.add_job(_run_and_maybe_rebuild, "cron", day_of_week="mon", hour=4,
                        kwargs={"sources": ["undp_hdi", "sipri"]}, id="weekly-ingest", replace_existing=True)
+    scheduler.add_job(_run_tension_and_maybe_rebuild, "interval", hours=2,
+                       id="tension-refresh", replace_existing=True)
     scheduler.start()
     return scheduler

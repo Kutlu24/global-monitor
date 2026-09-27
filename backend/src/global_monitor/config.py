@@ -28,6 +28,12 @@ class Settings(BaseSettings):
     comtrade_api_key: str | None = None
     wto_api_key: str | None = None
 
+    # GDELT 2.0 Event Database bulk export (tension.py) - static file
+    # downloads, no key, no rate limit (unlike GDELT's DOC 2.0 query API,
+    # which 429s aggressively - see ingestion/gdelt.py's own comment).
+    gdelt_base_url: str = "https://data.gdeltproject.org/gdeltv2"
+    tension_window_hours: float = 4.0
+
     # Gates POST /api/admin/rebuild - same shape as fundraising-assistant/
     # job-suche's ADMIN_USERNAME/ADMIN_PASSWORD gating, but this is a
     # single bearer token since there's no human login flow here, just a

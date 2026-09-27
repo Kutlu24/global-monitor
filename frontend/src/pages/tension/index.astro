@@ -1,0 +1,56 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import TensionGauge from "../../components/TensionGauge.astro";
+import { getAllTensionScores } from "../../lib/tension";
+import { getBlocs } from "../../lib/data";
+import { PAIRS } from "../../lib/pairs";
+
+const description =
+  "A real-time signal, not a forecast: current conflict/cooperation activity between BRICS+, the EU, the US, and USMCA, computed from the GDELT 2.0 Event Database.";
+
+const blocs = (await getBlocs()).filter((b) => b.bloc_id !== "brics5");
+const scores = await getAllTensionScores();
+const scoreByScope = new Map(scores.map((s) => [s.scope, s]));
+const blocById = Object.fromEntries(blocs.map((b) => [b.bloc_id, b]));
+---
+<BaseLayout title="Current Tension" description={description}>
+  <a href="/" class="gm-back-link">&larr; Global Monitor</a>
+  <p class="gm-hero-eyebrow">Real-time module</p>
+  <h1>Current Tension</h1>
+  <p class="gm-lede">
+    Ported from the standalone <em>Grounded Crisis Analysis</em> tool: real events from the
+    <a href="https://www.gdeltproject.org/" target="_blank" rel="noopener noreferrer">GDELT 2.0 Event Database</a>,
+    grouped by bloc membership, refreshed every few hours - not the annual/quarterly data the rest
+    of this site uses.
+  </p>
+  <p style="font-size: 0.9rem; color: var(--ink-muted);">
+    <strong>This is an interpretation of automated event data, not a forecast.</strong> GDELT is
+    fully automated (coding errors happen), over-represents English-language and Western media,
+    and the observation window is short (hours). Never the sole basis for any decision.
+  </p>
+
+  <h2>By bloc</h2>
+  <div class="gm-grid">
+    {blocs.map((bloc) => {
+      const score = scoreByScope.get(`bloc:${bloc.bloc_id}`);
+      return (
+        <div class="gm-card" style="cursor: default;">
+          <p class="gm-card-eyebrow">{bloc.name}</p>
+          <TensionGauge value={score?.mean_goldstein ?? null} />
+          <p class="gm-stat-label">{score ? `${score.n_events} events (last ${score.window_hours}h)` : "No data yet"}</p>
+        </div>
+      );
+    })}
+  </div>
+
+  <h2>Bilateral tension</h2>
+  <ul class="gm-link-list">
+    {PAIRS.map((p) => (
+      <li>
+        <a href={`/tension/${p.slug}/`}>
+          {blocById[p.a]?.name ?? p.a} vs {blocById[p.b]?.name ?? p.b}
+        </a>
+      </li>
+    ))}
+  </ul>
+</BaseLayout>

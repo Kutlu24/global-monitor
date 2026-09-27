@@ -38,3 +38,18 @@ export const STATUS_COLORS = {
   serious: "#ec835a",
   critical: "#d03b3b",
 } as const;
+
+// The dataviz skill's fixed diverging pair (blue<->red, gray midpoint) -
+// used for the Tension module's Goldstein gauge (-10 conflictual .. +10
+// cooperative), a genuinely bipolar scale with a meaningful zero, unlike
+// the bloc identity colors (categorical) or status tiers (discrete state).
+// Blue reuses the same hex as brics/brics5's own identity color and the
+// site's generic --accent - a deliberate choice per the skill's own "never
+// theme the diverging pair" rule, rather than picking a bespoke hue just to
+// dodge one bloc's color; the two only ever appear in different chart
+// contexts (a gauge bar vs. an identity swatch), not side by side.
+export const TENSION_DIVERGING = {
+  cooperation: { light: "#2a78d6", dark: "#3987e5" }, // blue
+  conflict: { light: "#e34948", dark: "#e66767" }, // red
+  neutral: { light: "#f0efec", dark: "#383835" },
+};
