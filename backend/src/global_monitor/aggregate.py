@@ -27,24 +27,31 @@ def _aggregate_sum(iso3_list: list[str], metric_id: str) -> list[tuple[str, floa
 def _aggregate_weighted_mean(
     iso3_list: list[str], metric_id: str, weight_metric_id: str
 ) -> list[tuple[str, float, int]]:
-    """weighted_mean = sum(value_i * weight_i) / sum(weight_i), only over
-    members that have BOTH values for the exact same period - a country
-    missing the weight metric for a given year is excluded from that
-    period's figure rather than guessed at, consistent with member_count's
-    whole point (transparency about coverage, never silent interpolation).
+    """weighted_mean = sum(value_i * weight_i) / sum(weight_i). The weight
+    (population) uses each country's LATEST known value regardless of
+    period, not an exact-period match against the metric's own period.
+
+    Confirmed live (2026-09-27): requiring an exact period match meant
+    HDI/life-expectancy/secondary-enrollment/military-%-GDP - all reported
+    by their sources for 2023/2024 - could NEVER match population, which is
+    only ever fetched for the current/latest year (2025) - producing an
+    empty aggregate (silent N/A) for these metrics on EVERY bloc, not just
+    one. Population changes slowly year to year, so weighting a
+    slightly-older metric by the latest known population is a reasonable
+    approximation - certainly better than no aggregate at all. A country
+    still missing the weight metric ENTIRELY (any period) is excluded, per
+    member_count's whole point (transparency about coverage, never silent
+    interpolation) - this only relaxes the PERIOD requirement, not the
+    presence requirement.
     """
     values = db.get_observations(metric_id, iso3_list)
-    weights = db.get_observations(weight_metric_id, iso3_list)
-    weight_by_key: dict[tuple[str, str], float] = {
-        (w.iso3, w.period): w.value for w in weights if w.value is not None
-    }
     by_period: dict[str, list[tuple[float, float]]] = defaultdict(list)
     for obs in values:
         if obs.value is None:
             continue
-        weight = weight_by_key.get((obs.iso3, obs.period))
-        if weight is not None and weight > 0:
-            by_period[obs.period].append((obs.value, weight))
+        weight_obs = db.latest_observation(obs.iso3, weight_metric_id)
+        if weight_obs is not None and weight_obs.value is not None and weight_obs.value > 0:
+            by_period[obs.period].append((obs.value, weight_obs.value))
 
     results = []
     for period, pairs in by_period.items():
