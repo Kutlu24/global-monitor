@@ -15,10 +15,17 @@ const { dimension, blocs } = Astro.props as { dimension: Dimension; blocs: Await
 const metrics = DIMENSION_METRICS[dimension];
 ---
 <BaseLayout title={`${DIMENSION_LABELS[dimension]} — all blocs`} description={`${DIMENSION_LABELS[dimension]} data for BRICS+, the EU, the US, and USMCA, side by side.`}>
-  <main>
-    <p><a href="/">&larr; Global Monitor</a></p>
-    <h1>{DIMENSION_LABELS[dimension]} — all blocs</h1>
+  <a href="/" class="gm-back-link">&larr; Global Monitor</a>
+  <p class="gm-hero-eyebrow">Cross-bloc view</p>
+  <h1>{DIMENSION_LABELS[dimension]} — all blocs</h1>
 
+  <ul class="gm-link-list">
+    {DIMENSIONS.filter((d) => d !== dimension).map((d) => (
+      <li><a href={`/dimension/${d}/`}>{DIMENSION_LABELS[d]}</a></li>
+    ))}
+  </ul>
+
+  <div class="gm-viz-block">
     <WorldMap
       client:visible
       highlights={blocs.map((bloc) => ({
@@ -27,8 +34,9 @@ const metrics = DIMENSION_METRICS[dimension];
         label: bloc.name,
       }))}
     />
+  </div>
 
-    <table>
+  <table>
       <thead>
         <tr>
           <th>Metric</th>
@@ -47,5 +55,4 @@ const metrics = DIMENSION_METRICS[dimension];
         ))}
       </tbody>
     </table>
-  </main>
 </BaseLayout>

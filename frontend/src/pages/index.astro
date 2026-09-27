@@ -3,8 +3,9 @@ import BaseLayout from "../layouts/BaseLayout.astro";
 import { getBlocs } from "../lib/data";
 import { PAIRS } from "../lib/pairs";
 import { DIMENSIONS, DIMENSION_LABELS } from "../lib/metrics";
+import { blocColor } from "../lib/colors";
 
-const blocs = await getBlocs();
+const blocs = (await getBlocs()).filter((b) => b.bloc_id !== "brics5");
 
 function formatUsd(value: number | null): string {
   if (value === null) return "—";
@@ -16,34 +17,53 @@ function formatPeople(value: number | null): string {
 }
 ---
 <BaseLayout title="Home" description="Global Monitor compares BRICS, the EU, the US, and USMCA across economic, trade, social, and military data.">
-  <main>
-    <h1>Global Monitor</h1>
-    <p>Bloc-vs-bloc comparison — economic, trade, social, and military data, kept in sync with official sources.</p>
-    <p>Looking for individual countries instead? See <a href="/countries/">Major Economies</a> — the top 20 advanced economies, compared one by one.</p>
-    <table>
-      <thead>
-        <tr><th>Bloc</th><th>GDP</th><th>Population</th><th>Members with data</th></tr>
-      </thead>
-      <tbody>
-        {blocs.map((bloc) => (
-          <tr>
-            <td><a href={`/bloc/${bloc.slug}/`}>{bloc.name}</a></td>
-            <td>{formatUsd(bloc.aggregates.gdp_current_usd?.value ?? null)}</td>
-            <td>{formatPeople(bloc.aggregates.population_total?.value ?? null)}</td>
-            <td>{bloc.aggregates.gdp_current_usd?.member_count ?? 0}</td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
+  <section class="gm-hero">
+    <p class="gm-hero-eyebrow">Bloc-vs-bloc comparison</p>
+    <h1>How the world's major blocs stack up</h1>
+    <p class="gm-lede">
+      Economic, trade, social, and military data for BRICS+, the EU, the US, and USMCA —
+      pulled from the World Bank, UN Comtrade, UNDP, and SIPRI and kept in sync automatically,
+      not a one-off snapshot.
+    </p>
+    <p>
+      Looking for individual countries instead? See <a href="/countries/">Major Economies</a> —
+      the world's top 20 advanced economies, compared one by one.
+    </p>
+  </section>
 
-    <h2>Compare two blocs</h2>
-    <ul>
-      {PAIRS.map((p) => <li><a href={`/compare/${p.slug}/`}>{p.a.toUpperCase()} vs {p.b.toUpperCase()}</a></li>)}
-    </ul>
+  <div class="gm-grid">
+    {blocs.map((bloc) => {
+      const gdp = bloc.aggregates.gdp_current_usd;
+      const pop = bloc.aggregates.population_total;
+      return (
+        <a href={`/bloc/${bloc.slug}/`} class="gm-card">
+          <span class="gm-card-eyebrow">
+            <span class="gm-swatch" style={{ background: blocColor(bloc.bloc_id).light }} />
+            {gdp?.member_count ?? 0} member{(gdp?.member_count ?? 0) === 1 ? "" : "s"} with data
+          </span>
+          <h3>{bloc.name}</h3>
+          <div class="gm-card-stats">
+            <div>
+              <div class="gm-stat-value">{formatUsd(gdp?.value ?? null)}</div>
+              <div class="gm-stat-label">GDP{gdp ? ` (${gdp.period})` : ""}</div>
+            </div>
+            <div>
+              <div class="gm-stat-value">{formatPeople(pop?.value ?? null)}</div>
+              <div class="gm-stat-label">Population{pop ? ` (${pop.period})` : ""}</div>
+            </div>
+          </div>
+        </a>
+      );
+    })}
+  </div>
 
-    <h2>By dimension</h2>
-    <ul>
-      {DIMENSIONS.map((d) => <li><a href={`/dimension/${d}/`}>{DIMENSION_LABELS[d]}</a></li>)}
-    </ul>
-  </main>
+  <h2>Compare two blocs</h2>
+  <ul class="gm-link-list">
+    {PAIRS.map((p) => <li><a href={`/compare/${p.slug}/`}>{p.a.toUpperCase()} vs {p.b.toUpperCase()}</a></li>)}
+  </ul>
+
+  <h2>By dimension</h2>
+  <ul class="gm-link-list">
+    {DIMENSIONS.map((d) => <li><a href={`/dimension/${d}/`}>{DIMENSION_LABELS[d]}</a></li>)}
+  </ul>
 </BaseLayout>

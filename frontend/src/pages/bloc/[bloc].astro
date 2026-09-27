@@ -19,50 +19,52 @@ const { bloc } = Astro.props;
 const historicalCounterpart = bloc.bloc_id === "brics" ? "brics5" : bloc.bloc_id === "brics5" ? "brics" : null;
 
 const comparePairs = PAIRS.filter((p) => p.a === bloc.bloc_id || p.b === bloc.bloc_id);
+const color = blocColor(bloc.bloc_id);
 ---
 <BaseLayout title={bloc.name} description={bloc.description}>
-  <main>
-    <p><a href="/">&larr; Global Monitor</a></p>
-    <h1>{bloc.name}</h1>
-    <p>{bloc.description}</p>
-    {historicalCounterpart && (
-      <p>
-        <a href={`/bloc/${historicalCounterpart}/`}>
-          {bloc.bloc_id === "brics" ? "See the original five-member BRICS instead →" : "See current BRICS+ (with the 2024-25 expansion) instead →"}
-        </a>
-      </p>
-    )}
+  <a href="/" class="gm-back-link">&larr; Global Monitor</a>
+  <p class="gm-card-eyebrow"><span class="gm-swatch" style={{ background: color.light }} /> Bloc profile</p>
+  <h1>{bloc.name}</h1>
+  <p class="gm-lede">{bloc.description}</p>
+  {historicalCounterpart && (
+    <p>
+      <a href={`/bloc/${historicalCounterpart}/`}>
+        {bloc.bloc_id === "brics" ? "See the original five-member BRICS instead →" : "See current BRICS+ (with the 2024-25 expansion) instead →"}
+      </a>
+    </p>
+  )}
 
-    <WorldMap client:visible highlights={[{ iso3: bloc.members ?? [], color: blocColor(bloc.bloc_id).light, label: bloc.name }]} />
+  <div class="gm-viz-block">
+    <WorldMap client:visible highlights={[{ iso3: bloc.members ?? [], color: color.light, label: bloc.name }]} />
+  </div>
 
-    <table>
-      <thead>
-        <tr><th>Metric</th><th>Value</th><th>Member coverage</th></tr>
-      </thead>
-      <tbody>
-        {ALL_METRICS.map((m) => {
-          const agg = bloc.aggregates[m.metric_id];
-          return (
-            <tr>
-              <td>{m.label}</td>
-              <td>{agg?.value != null ? `${m.format(agg.value)} (${agg.period})` : "N/A"}</td>
-              <td>{agg ? `${agg.member_count} member(s) with data` : "—"}</td>
-            </tr>
-          );
+  <table>
+    <thead>
+      <tr><th>Metric</th><th>Value</th><th>Member coverage</th></tr>
+    </thead>
+    <tbody>
+      {ALL_METRICS.map((m) => {
+        const agg = bloc.aggregates[m.metric_id];
+        return (
+          <tr>
+            <td>{m.label}</td>
+            <td>{agg?.value != null ? `${m.format(agg.value)} (${agg.period})` : "N/A"}</td>
+            <td>{agg ? `${agg.member_count} member(s) with data` : "—"}</td>
+          </tr>
+        );
+      })}
+    </tbody>
+  </table>
+
+  {comparePairs.length > 0 && (
+    <>
+      <h2>Compare</h2>
+      <ul class="gm-link-list">
+        {comparePairs.map((p) => {
+          const other = p.a === bloc.bloc_id ? p.b : p.a;
+          return <li><a href={`/compare/${p.slug}/`}>vs {other.toUpperCase()}</a></li>;
         })}
-      </tbody>
-    </table>
-
-    {comparePairs.length > 0 && (
-      <>
-        <h2>Compare</h2>
-        <ul>
-          {comparePairs.map((p) => {
-            const other = p.a === bloc.bloc_id ? p.b : p.a;
-            return <li><a href={`/compare/${p.slug}/`}>vs {other.toUpperCase()}</a></li>;
-          })}
-        </ul>
-      </>
-    )}
-  </main>
+      </ul>
+    </>
+  )}
 </BaseLayout>

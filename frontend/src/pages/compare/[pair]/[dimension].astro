@@ -32,13 +32,15 @@ function entityFor(bloc: typeof a) {
   title={`${a.name} vs ${b.name} — ${DIMENSION_LABELS[dimension]}`}
   description={`${DIMENSION_LABELS[dimension]} comparison between ${a.name} and ${b.name}.`}
 >
-  <main>
-    <p><a href={`/compare/${pair.slug}/`}>&larr; {a.name} vs {b.name}</a></p>
-    <h1>{a.name} vs {b.name} — {DIMENSION_LABELS[dimension]}</h1>
+  <a href={`/compare/${pair.slug}/`} class="gm-back-link">&larr; {a.name} vs {b.name}</a>
+  <p class="gm-hero-eyebrow">{DIMENSION_LABELS[dimension]}</p>
+  <h1>{a.name} vs {b.name} — {DIMENSION_LABELS[dimension]}</h1>
 
+  <div class="gm-viz-block">
     <MetricCompareBars client:visible a={entityFor(a)} b={entityFor(b)} metrics={metrics} />
+  </div>
 
-    <table>
+  <table>
       <thead>
         <tr><th>Metric</th><th>{a.name}</th><th>{b.name}</th></tr>
       </thead>
@@ -57,8 +59,7 @@ function entityFor(bloc: typeof a) {
       </tbody>
     </table>
 
-    <p>
-      <a href={`/dimension/${dimension}/`}>See {DIMENSION_LABELS[dimension].toLowerCase()} data across all blocs &rarr;</a>
-    </p>
-  </main>
+  <p>
+    <a href={`/dimension/${dimension}/`}>See {DIMENSION_LABELS[dimension].toLowerCase()} data across all blocs &rarr;</a>
+  </p>
 </BaseLayout>

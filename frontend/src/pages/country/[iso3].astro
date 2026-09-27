@@ -23,19 +23,23 @@ const ROWS: [string, string, (v: number) => string][] = [
 ];
 ---
 <BaseLayout title={country.name} description={`Economic, trade, social, and military data for ${country.name}.`}>
-  <main>
-    <p><a href="/countries/">&larr; Major Economies</a></p>
-    <h1>{country.name}</h1>
-    <dl>
+  <a href="/countries/" class="gm-back-link">&larr; Major Economies</a>
+  <p class="gm-hero-eyebrow">Major economy</p>
+  <h1>{country.name}</h1>
+  <table>
+    <thead>
+      <tr><th>Metric</th><th>Value</th></tr>
+    </thead>
+    <tbody>
       {ROWS.map(([metricId, label, format]) => {
         const m = country.metrics[metricId];
-        return m ? (
-          <>
-            <dt>{label} ({m.period})</dt>
-            <dd>{format(m.value)}</dd>
-          </>
-        ) : null;
+        return (
+          <tr>
+            <td>{label}</td>
+            <td>{m ? `${format(m.value)} (${m.period})` : "N/A"}</td>
+          </tr>
+        );
       })}
-    </dl>
-  </main>
+    </tbody>
+  </table>
 </BaseLayout>

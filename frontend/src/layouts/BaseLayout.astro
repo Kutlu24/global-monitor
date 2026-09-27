@@ -1,7 +1,10 @@
 ---
-// Milestone 1: plain layout. schema.org/Dataset JSON-LD injection and
-// canonical-tag logic land in Milestone 4 (see the project plan's SEO
-// section) - this file is the deliberate injection point for both.
+import "../styles/global.css";
+
+// schema.org/Dataset JSON-LD injection and canonical-tag logic land in
+// Milestone 4 (SEO layer) - the <link rel="canonical"> below is already
+// wired up; the structured-data <script> is this file's deliberate
+// injection point when that milestone lands.
 interface Props {
   title: string;
   description?: string;
@@ -18,6 +21,27 @@ const { title, description = "" } = Astro.props;
     <link rel="canonical" href={new URL(Astro.url.pathname, Astro.site)} />
   </head>
   <body>
-    <slot />
+    <header class="gm-header">
+      <div class="gm-container gm-header-inner">
+        <a href="/" class="gm-logo">Global Monitor</a>
+        <nav>
+          <ul class="gm-nav">
+            <li><a href="/">Blocs</a></li>
+            <li><a href="/dimension/economic/">Dimensions</a></li>
+            <li><a href="/countries/">Major Economies</a></li>
+          </ul>
+        </nav>
+      </div>
+    </header>
+    <div class="gm-container">
+      <main>
+        <slot />
+      </main>
+    </div>
+    <footer class="gm-footer">
+      <div class="gm-container">
+        Data from the World Bank, UN Comtrade, UNDP, and SIPRI, kept in sync automatically. Not affiliated with any of these organizations.
+      </div>
+    </footer>
   </body>
 </html>

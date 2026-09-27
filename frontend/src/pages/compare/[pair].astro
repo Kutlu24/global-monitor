@@ -28,10 +28,11 @@ function entityFor(bloc: typeof a) {
 }
 ---
 <BaseLayout title={`${a.name} vs ${b.name}`} description={`Compare ${a.name} and ${b.name} across economic, trade, social, and military data.`}>
-  <main>
-    <p><a href="/">&larr; Global Monitor</a></p>
-    <h1>{a.name} vs {b.name}</h1>
+  <a href="/" class="gm-back-link">&larr; Global Monitor</a>
+  <p class="gm-hero-eyebrow">Bloc comparison</p>
+  <h1>{a.name} vs {b.name}</h1>
 
+  <div class="gm-viz-block">
     <WorldMap
       client:visible
       highlights={[
@@ -39,15 +40,17 @@ function entityFor(bloc: typeof a) {
         { iso3: b.members ?? [], color: blocColor(b.bloc_id).light, label: b.name },
       ]}
     />
+  </div>
 
-    <h2>Overview</h2>
+  <h2>Overview</h2>
+  <div class="gm-viz-block">
     <MetricCompareBars client:visible a={entityFor(a)} b={entityFor(b)} metrics={DIMENSIONS.map((d) => HEADLINE_METRIC[d])} />
+  </div>
 
-    <h2>By dimension</h2>
-    <ul>
-      {DIMENSIONS.map((d) => (
-        <li><a href={`/compare/${pair.slug}/${d}/`}>{DIMENSION_LABELS[d]}</a></li>
-      ))}
-    </ul>
-  </main>
+  <h2>By dimension</h2>
+  <ul class="gm-link-list">
+    {DIMENSIONS.map((d) => (
+      <li><a href={`/compare/${pair.slug}/${d}/`}>{DIMENSION_LABELS[d]}</a></li>
+    ))}
+  </ul>
 </BaseLayout>

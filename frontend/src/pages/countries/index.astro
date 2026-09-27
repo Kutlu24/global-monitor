@@ -16,12 +16,12 @@ function fmt(value: number | undefined, kind: "usd" | "people" | "pct" | "years"
 }
 ---
 <BaseLayout title="Major Economies" description="The world's top 20 advanced economies, compared country by country - a separate module from Global Monitor's bloc-vs-bloc comparisons.">
-  <main>
-    <p><a href="/">&larr; Global Monitor</a></p>
-    <h1>Major Economies</h1>
-    <p>The 20 largest advanced economies (IMF classification), compared individually - not aggregated
-       into a bloc. See the <a href="/">bloc comparisons</a> for BRICS+/EU/US/USMCA instead.</p>
-    <table>
+  <a href="/" class="gm-back-link">&larr; Global Monitor</a>
+  <p class="gm-hero-eyebrow">Country-vs-country</p>
+  <h1>Major Economies</h1>
+  <p class="gm-lede">The 20 largest advanced economies (IMF classification), compared individually - not aggregated
+     into a bloc. See the <a href="/">bloc comparisons</a> for BRICS+/EU/US/USMCA instead.</p>
+  <table>
       <thead>
         <tr><th>Country</th><th>GDP</th><th>Population</th><th>Military exp. (% GDP)</th><th>HDI</th></tr>
       </thead>
@@ -37,5 +37,4 @@ function fmt(value: number | undefined, kind: "usd" | "people" | "pct" | "years"
         ))}
       </tbody>
     </table>
-  </main>
 </BaseLayout>
