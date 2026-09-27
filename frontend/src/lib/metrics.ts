@@ -64,7 +64,18 @@ export const DIMENSION_METRICS: Record<Dimension, MetricSpec[]> = {
   social: [
     { metric_id: "population_total", label: "Population", format: people, formatType: "people" },
     { metric_id: "life_expectancy_years", label: "Life expectancy at birth", format: years, formatType: "years" },
-    { metric_id: "secondary_enrollment_pct", label: "Secondary school enrollment", format: pct, formatType: "pct" },
+    // "(% gross)" is not decoration - this is the World Bank's actual
+    // GROSS enrollment ratio (SE.SEC.ENRR: total secondary enrollment of
+    // any age / population of the official secondary-school age group),
+    // not "share of eligible kids in school." It can and does exceed 100%
+    // (over-age/under-age/repeating students all count) - user question
+    // (2026-09-27): "EU'de secondary school enrollment yüzde 107 çıkmış
+    // saçma... yüzde 100 üzerinde oran olamaz" (this looks wrong, a
+    // percentage can't exceed 100%) - a real, accurate World Bank figure,
+    // not a bug, but the OLD label here dropped the "(% gross)" qualifier
+    // the backend's own Metric.name already has (metrics.py), so the page
+    // gave no hint why a plain "enrollment %" could read over 100.
+    { metric_id: "secondary_enrollment_pct", label: "Secondary school enrollment (% gross)", format: pct, formatType: "pct" },
     { metric_id: "hdi", label: "Human Development Index", format: index01, formatType: "index" },
   ],
   military: [

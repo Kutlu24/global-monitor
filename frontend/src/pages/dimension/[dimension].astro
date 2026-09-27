@@ -63,4 +63,13 @@ const schema = datasetSchema({
         ))}
       </tbody>
     </table>
+
+  {dimension === "social" && (
+    <p style="font-size: 0.85rem; color: var(--ink-muted); max-width: 68ch;">
+      "(% gross)" on secondary school enrollment is the World Bank's own Gross Enrollment Ratio -
+      total secondary enrollment of any age, divided by the population of the official
+      secondary-school age group. It can genuinely exceed 100% (over-age, under-age, and repeating
+      students all count) - not an error in this data.
+    </p>
+  )}
 </BaseLayout>
