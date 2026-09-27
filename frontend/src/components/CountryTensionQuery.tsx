@@ -1,6 +1,16 @@
 import { useState } from "react";
 import { TENSION_DIVERGING } from "../lib/colors";
 import type { CountryRef, TensionScore } from "../lib/tension";
+import WorldMap from "./WorldMap";
+
+// Country A/B identity colors for the map below - deliberately NOT blue/red
+// (TENSION_DIVERGING's own cooperation/conflict poles, used on the gauge
+// right above it on this same page) - reusing those here would wrongly
+// suggest "this country IS the cooperative/conflictual one" rather than
+// just "this is country A". Reuses eu/usmca's own validated (all-pairs
+// CVD-safe together) categorical colors purely as neutral identity markers.
+const ENTITY_A_COLOR = "#c98500"; // amber
+const ENTITY_B_COLOR = "#d55181"; // magenta
 
 // The ONE place in this project that fetches from the browser at runtime
 // instead of at Astro build time - the ad-hoc two-country query (the
@@ -44,6 +54,12 @@ export default function CountryTensionQuery({ countries }: Props) {
   const [a, setA] = useState(countries[0]?.iso3 ?? "");
   const [b, setB] = useState(countries[1]?.iso3 ?? "");
   const [result, setResult] = useState<TensionScore | null>(null);
+  // The pair actually queried, frozen at fetch time - `a`/`b` above track
+  // the LIVE dropdown selection, which the user can change again before
+  // clicking Analyze; using them directly for the map/labels below would
+  // then show a country pair that doesn't match the still-displayed
+  // (stale) result.
+  const [queriedPair, setQueriedPair] = useState<[string, string] | null>(null);
   const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
   const [errorMessage, setErrorMessage] = useState("");
 
@@ -62,6 +78,7 @@ export default function CountryTensionQuery({ countries }: Props) {
         throw new Error(body.detail || `Request failed (${res.status})`);
       }
       setResult(await res.json());
+      setQueriedPair([a, b]);
       setStatus("idle");
     } catch (err) {
       setStatus("error");
@@ -71,6 +88,7 @@ export default function CountryTensionQuery({ countries }: Props) {
 
   const conflictual = result?.examples.filter((e) => e.kind === "conflictual") ?? [];
   const cooperative = result?.examples.filter((e) => e.kind === "cooperative") ?? [];
+  const nameFor = (iso3: string) => countries.find((c) => c.iso3 === iso3)?.name ?? iso3;
 
   return (
     <div className="gm-country-query">
@@ -114,8 +132,16 @@ export default function CountryTensionQuery({ countries }: Props) {
       </div>
       {status === "error" && <p className="gm-country-query-error">{errorMessage}</p>}
 
-      {result && (
+      {result && queriedPair && (
         <div className="gm-country-query-result">
+          <div className="gm-viz-block">
+            <WorldMap
+              highlights={[
+                { iso3: [queriedPair[0]], color: ENTITY_A_COLOR, label: nameFor(queriedPair[0]) },
+                { iso3: [queriedPair[1]], color: ENTITY_B_COLOR, label: nameFor(queriedPair[1]) },
+              ]}
+            />
+          </div>
           <Gauge value={result.mean_goldstein} />
           <p className="gm-stat-label">
             {result.n_events} bilateral events in the last {result.window_hours}h

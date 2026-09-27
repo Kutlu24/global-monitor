@@ -456,6 +456,14 @@ dl {
   margin: var(--space-6) 0;
   max-width: none;
 }
+.gm-synthesis p {
+  /* max-width:none on the container above doesn't cascade to this nested
+     <p> - the generic `p { max-width: 68ch }` rule still capped the actual
+     visible text at ~625px regardless of how wide the box around it was.
+     User feedback (2026-09-27): "summary bölümünü ekrana yay" (spread the
+     summary section across the screen). */
+  max-width: none;
+}
 .gm-synthesis-label {
   font-size: 0.75rem;
   font-weight: 600;
