@@ -1,0 +1,32 @@
+[project]
+name = "global_monitor"
+version = "0.1.0"
+description = "Global Monitor: a public, SEO-optimized dashboard comparing BRICS/EU/US/USMCA across economic, trade, social, and military data"
+requires-python = ">=3.11,<4.0"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+    "httpx>=0.27",
+    "pydantic>=2.6",
+    "pydantic-settings>=2.2",
+    "python-dotenv>=1.0",
+    "click>=8.1",
+    "APScheduler>=3.10,<4",
+    "openai>=1.50",
+    # Official UN Comtrade client - see backend/src/global_monitor/ingestion/comtrade.py's
+    # own module docstring for why a hand-rolled HTTP client was rejected.
+    "comtradeapicall>=1.3",
+    # SIPRI ingestion parses their published Military Expenditure Database Excel file.
+    "openpyxl>=3.1",
+    "pandas>=2.2",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]

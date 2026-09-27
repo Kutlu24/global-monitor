@@ -1,0 +1,33 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import { getBlocs } from "../../lib/data";
+
+export async function getStaticPaths() {
+  const blocs = await getBlocs();
+  return blocs.map((bloc) => ({ params: { bloc: bloc.slug }, props: { bloc } }));
+}
+
+const { bloc } = Astro.props;
+
+function formatUsd(value: number | null): string {
+  if (value === null) return "—";
+  return `$${(value / 1e12).toFixed(2)}T`;
+}
+function formatPeople(value: number | null): string {
+  if (value === null) return "—";
+  return `${(value / 1e6).toFixed(0)}M`;
+}
+---
+<BaseLayout title={bloc.name} description={bloc.description}>
+  <main>
+    <p><a href="/">&larr; Global Monitor</a></p>
+    <h1>{bloc.name}</h1>
+    <p>{bloc.description}</p>
+    <dl>
+      <dt>GDP ({bloc.aggregates.gdp_current_usd?.period ?? "—"})</dt>
+      <dd>{formatUsd(bloc.aggregates.gdp_current_usd?.value ?? null)} — based on {bloc.aggregates.gdp_current_usd?.member_count ?? 0} member(s) with available data</dd>
+      <dt>Population ({bloc.aggregates.population_total?.period ?? "—"})</dt>
+      <dd>{formatPeople(bloc.aggregates.population_total?.value ?? null)} — based on {bloc.aggregates.population_total?.member_count ?? 0} member(s) with available data</dd>
+    </dl>
+  </main>
+</BaseLayout>

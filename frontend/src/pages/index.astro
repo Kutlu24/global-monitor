@@ -1,0 +1,36 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import { getBlocs } from "../lib/data";
+
+const blocs = await getBlocs();
+
+function formatUsd(value: number | null): string {
+  if (value === null) return "—";
+  return `$${(value / 1e12).toFixed(2)}T`;
+}
+function formatPeople(value: number | null): string {
+  if (value === null) return "—";
+  return `${(value / 1e6).toFixed(0)}M`;
+}
+---
+<BaseLayout title="Home" description="Global Monitor compares BRICS, the EU, the US, and USMCA across economic, trade, social, and military data.">
+  <main>
+    <h1>Global Monitor</h1>
+    <p>Bloc-vs-bloc comparison — economic, trade, social, and military data, kept in sync with official sources.</p>
+    <table>
+      <thead>
+        <tr><th>Bloc</th><th>GDP</th><th>Population</th><th>Members with data</th></tr>
+      </thead>
+      <tbody>
+        {blocs.map((bloc) => (
+          <tr>
+            <td><a href={`/bloc/${bloc.slug}/`}>{bloc.name}</a></td>
+            <td>{formatUsd(bloc.aggregates.gdp_current_usd?.value ?? null)}</td>
+            <td>{formatPeople(bloc.aggregates.population_total?.value ?? null)}</td>
+            <td>{bloc.aggregates.gdp_current_usd?.member_count ?? 0}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </main>
+</BaseLayout>

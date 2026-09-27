@@ -1,0 +1,23 @@
+---
+// Milestone 1: plain layout. schema.org/Dataset JSON-LD injection and
+// canonical-tag logic land in Milestone 4 (see the project plan's SEO
+// section) - this file is the deliberate injection point for both.
+interface Props {
+  title: string;
+  description?: string;
+}
+const { title, description = "" } = Astro.props;
+---
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title} — Global Monitor</title>
+    {description && <meta name="description" content={description} />}
+    <link rel="canonical" href={new URL(Astro.url.pathname, Astro.site)} />
+  </head>
+  <body>
+    <slot />
+  </body>
+</html>
