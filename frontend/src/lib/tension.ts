@@ -55,3 +55,12 @@ export function getTensionBloc(blocId: string): Promise<TensionScore | null> {
 export function getTensionPair(blocA: string, blocB: string): Promise<TensionScore | null> {
   return getJSON<TensionScore>(`/api/tension/pair/${blocA}/${blocB}`);
 }
+
+export interface CountryRef {
+  iso3: string;
+  name: string;
+}
+
+export function getTensionCountries(): Promise<CountryRef[]> {
+  return getJSON<CountryRef[]>("/api/tension/countries").then((r) => r ?? []);
+}

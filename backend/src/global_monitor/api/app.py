@@ -163,6 +163,35 @@ def get_tension_pair(bloc_a: str, bloc_b: str) -> dict:
     return _tension_payload(score)
 
 
+@app.get("/api/tension/countries")
+def list_tension_countries() -> list[dict]:
+    """Every tracked country (name + ISO3) - the reference list for the
+    ad-hoc two-country query picker below, and for the 'which codes can I
+    use' side panel on that page (user feedback 2026-09-27: GFCA's own
+    country-code-based queries were missing from the bloc-only port, and
+    the codes themselves should be shown, not just hidden behind a
+    picker)."""
+    return [{"iso3": c.iso3, "name": c.name} for c in db.get_all_countries()]
+
+
+@app.get("/api/tension/query/{iso3_a}/{iso3_b}")
+def query_tension_countries(iso3_a: str, iso3_b: str) -> dict:
+    """Ad-hoc, on-demand analysis between any two specific countries - the
+    counterpart to GFCA's own CLI (`analyze IR US`). Called directly from
+    the BROWSER at runtime (see frontend/src/components/CountryTensionQuery.tsx),
+    not at Astro build time like every other endpoint here - the one place
+    in this project where that's true, since the whole point is picking
+    countries the static build can't know about in advance. No LLM
+    synthesis (see tension.query_pair's own comment) - a public, unbounded,
+    per-click endpoint must stay cheap and fast."""
+    from .. import tension
+
+    score = tension.query_pair(iso3_a, iso3_b)
+    if score is None:
+        raise HTTPException(503, "No GDELT data cached yet - try again in a few minutes")
+    return _tension_payload(score)
+
+
 def _synthesis_payload(page_key: str) -> dict | None:
     s = db.get_synthesis(page_key)
     if s is None:

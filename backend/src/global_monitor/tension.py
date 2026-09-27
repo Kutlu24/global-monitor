@@ -23,6 +23,14 @@ from .models import TensionScore
 
 _MAX_EXAMPLES = 5
 
+# The most recently fetched GDELT window, kept in memory - reused by
+# query_pair() (an ad-hoc, on-demand two-COUNTRY analysis, the counterpart
+# to GFCA's own CLI: `analyze IR US`) instead of hitting GDELT again per
+# request. This process runs continuously between scheduled refreshes (the
+# Astro rebuild after each refresh is a subprocess, not a restart), so an
+# in-memory cache is simple and sufficient - no need to persist it to disk.
+_last_events: list[Event] = []
+
 # The 4 blocs that participate in the main compare structure (same set as
 # lib/pairs.ts/synthesis.py's own _COMPARE_BLOCS) -> 6 pairs. brics5 is
 # deliberately excluded here too, same reasoning as everywhere else in this
@@ -136,6 +144,9 @@ def refresh_all() -> int:
     if not events:
         return 0
 
+    global _last_events
+    _last_events = events
+
     members_by_bloc = {b.bloc_id: set(db.get_current_members(b.bloc_id)) for b in db.get_blocs()}
 
     count = 0
@@ -155,3 +166,25 @@ def refresh_all() -> int:
         count += 1
 
     return count
+
+
+def query_pair(iso3_a: str, iso3_b: str) -> TensionScore | None:
+    """Ad-hoc, on-demand analysis between any two specific countries - not
+    limited to our 4 tracked blocs. The counterpart to GFCA's own CLI
+    (`analyze IR US`), added after user feedback that the bloc-only version
+    dropped this part of the original tool. Reuses whichever window
+    refresh_all() last fetched (see `_last_events`) rather than fetching
+    GDELT again per call - this is reachable from a public page, and a
+    live GDELT download per click would be both slow and easy to abuse.
+    Returns None if no window has been fetched yet (fresh boot, before the
+    first refresh completes) - the caller should treat that as "try again
+    shortly," not a permanent failure.
+
+    Deliberately has NO LLM synthesis, unlike the bloc/pair scores - see
+    api/app.py's own comment on why an unbounded public query endpoint
+    shouldn't trigger a real LLM call per request."""
+    if not _last_events:
+        return None
+    codes_a, codes_b = {iso3_a.upper()}, {iso3_b.upper()}
+    matched = [e for e in _last_events if _is_bilateral(e, codes_a, codes_b)]
+    return _summarize(matched, f"query:{iso3_a.upper()}-{iso3_b.upper()}", settings.tension_window_hours)

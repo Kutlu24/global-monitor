@@ -209,6 +209,15 @@ def get_blocs() -> list[Bloc]:
         return [Bloc(**dict(r)) for r in rows]
 
 
+def get_all_countries() -> list[Country]:
+    """Every tracked country (bloc members + major economies) with a real
+    name - the reference list for the Tension module's ad-hoc two-country
+    query picker (tension.py's `query_pair`), not a bloc-scoped list."""
+    with _conn() as conn:
+        rows = conn.execute("SELECT iso3, name FROM countries ORDER BY name").fetchall()
+        return [Country(**dict(r)) for r in rows]
+
+
 def get_bloc(bloc_id: str) -> Bloc | None:
     with _conn() as conn:
         row = conn.execute(

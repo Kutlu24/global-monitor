@@ -1,0 +1,90 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import CountryTensionQuery from "../../components/CountryTensionQuery";
+import { getTensionCountries } from "../../lib/tension";
+
+const description =
+  "Analyze the real-time conflict/cooperation signal between any two countries, computed from the GDELT 2.0 Event Database - not limited to the tracked blocs.";
+const countries = await getTensionCountries();
+---
+<BaseLayout title="Compare Any Two Countries — Current Tension" description={description}>
+  <a href="/tension/" class="gm-back-link">&larr; Current Tension</a>
+  <p class="gm-hero-eyebrow">Real-time module</p>
+  <h1>Compare Any Two Countries</h1>
+  <p class="gm-lede">
+    The bloc/bloc-pair pages show BRICS+/EU/US/USMCA only - this is the ad-hoc version: pick any
+    two of the {countries.length} tracked countries and see real events between them from the
+    last few hours.
+  </p>
+
+  <div class="gm-query-layout">
+    <div class="gm-query-main">
+      <CountryTensionQuery client:load countries={countries} />
+    </div>
+    <aside class="gm-query-reference">
+      <p class="gm-sidebar-heading" style="padding: 0;">Country codes</p>
+      <ul class="gm-code-list">
+        {countries.map((c) => (
+          <li><span class="gm-code-badge">{c.iso3}</span> {c.name}</li>
+        ))}
+      </ul>
+    </aside>
+  </div>
+</BaseLayout>
+<style>
+  .gm-query-layout {
+    display: flex;
+    flex-direction: column-reverse;
+    gap: var(--space-6);
+    margin-top: var(--space-6);
+  }
+  .gm-query-reference {
+    background: var(--surface);
+    border: 1px solid var(--hairline);
+    border-radius: var(--radius);
+    padding: var(--space-4);
+  }
+  .gm-code-list {
+    list-style: none;
+    margin: var(--space-2) 0 0;
+    padding: 0;
+    max-height: 280px;
+    overflow-y: auto;
+    font-size: 0.85rem;
+    columns: 2;
+  }
+  .gm-code-list li {
+    padding: 0.2rem 0;
+    break-inside: avoid;
+  }
+  .gm-code-badge {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    color: var(--ink-muted);
+    display: inline-block;
+    width: 2.6rem;
+  }
+  /* "on the side" only once there's real room for a second column - see
+     user feedback (2026-09-27) asking for the country codes to be shown
+     alongside the query form, not just above/below it. */
+  @media (min-width: 900px) {
+    .gm-query-layout {
+      flex-direction: row;
+      align-items: flex-start;
+    }
+    .gm-query-main {
+      flex: 2;
+      min-width: 0;
+    }
+    .gm-query-reference {
+      flex: 1;
+      max-width: 320px;
+      position: sticky;
+      top: var(--space-6);
+    }
+    .gm-code-list {
+      max-height: calc(100vh - 220px);
+      columns: 1;
+    }
+  }
+</style>

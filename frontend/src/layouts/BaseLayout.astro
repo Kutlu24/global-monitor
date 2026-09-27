@@ -99,6 +99,7 @@ const isActive = (href: string) => path === href || (href !== "/" && path.starts
           <div class="gm-sidebar-group">
             <div class="gm-sidebar-heading">Current Tension</div>
             <a href="/tension/" class:list={["gm-sidebar-link", { active: path === "/tension/" }]}>Overview</a>
+            <a href="/tension/countries/" class:list={["gm-sidebar-link", { active: path === "/tension/countries/" }]}>Compare any two countries</a>
             {PAIRS.map((p) => (
               <a href={`/tension/${p.slug}/`} class:list={["gm-sidebar-link", { active: isActive(`/tension/${p.slug}/`) }]}>
                 {blocById[p.a]?.name ?? p.a} vs {blocById[p.b]?.name ?? p.b}

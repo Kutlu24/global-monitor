@@ -11,6 +11,7 @@ export const GET: APIRoute = async ({ site }) => {
   const lastmod = await getLastUpdated();
   const entries = [
     urlEntry(`${base}/tension/`, lastmod),
+    urlEntry(`${base}/tension/countries/`, lastmod),
     ...PAIRS.map((p) => urlEntry(`${base}/tension/${p.slug}/`, lastmod)),
   ];
   return new Response(urlset(entries), { headers: { "Content-Type": "application/xml" } });

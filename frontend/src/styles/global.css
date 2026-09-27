@@ -50,7 +50,11 @@
 
   --radius: 10px;
   --radius-sm: 6px;
-  --container-width: 1080px;
+  /* Was 1080px, capping tables/cards well short of the sidebar grid's own
+     (now-fluid, see .gm-layout) available width and doubling up on the
+     empty-space complaint - raised so main content actually uses the room
+     the grid track gives it on real desktop monitors. */
+  --container-width: 1400px;
 }
 
 :root[data-theme="light"] {
@@ -206,7 +210,14 @@ main {
     display: grid;
     grid-template-columns: 240px 1fr;
     gap: var(--space-8);
-    max-width: 1320px;
+    /* Fixed 1320px left large, empty margins on real desktop monitors -
+       user feedback (2026-09-27): "kenarda bir sürü boşluk var" (there's a
+       lot of empty space on the side). 1320px on a common 1920px display
+       left ~530px of dead space on the sides (confirmed via a real
+       getBoundingClientRect() check at 1854px viewport width). A fluid cap
+       scales with the viewport instead of hard-stopping at a size that
+       only fit this project's own narrower dev/test windows. */
+    max-width: min(1800px, 94vw);
     margin: 0 auto;
     align-items: start;
   }
