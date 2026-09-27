@@ -3,6 +3,7 @@ import "../styles/global.css";
 import { getBlocs } from "../lib/data";
 import { PAIRS } from "../lib/pairs";
 import { DIMENSIONS, DIMENSION_LABELS } from "../lib/metrics";
+import { SCENARIOS } from "../lib/risk";
 
 // schema.org/Dataset JSON-LD - pass `structuredData` (a plain object) from
 // any page that represents real data (bloc/compare/dimension/country
@@ -83,6 +84,16 @@ const isActive = (href: string) => path === href || (href !== "/" && path.starts
             <a href="/countries/" class:list={["gm-sidebar-link", { active: path.startsWith("/countries/") || path.startsWith("/country/") }]}>
               Major Economies
             </a>
+          </div>
+
+          <div class="gm-sidebar-group">
+            <div class="gm-sidebar-heading">Risk Simulator</div>
+            <a href="/risk/" class:list={["gm-sidebar-link", { active: path === "/risk/" }]}>Overview</a>
+            {SCENARIOS.map((s) => (
+              <a href={`/risk/${s.slug}/`} class:list={["gm-sidebar-link", { active: isActive(`/risk/${s.slug}/`) }]}>
+                {s.name}
+              </a>
+            ))}
           </div>
         </nav>
 

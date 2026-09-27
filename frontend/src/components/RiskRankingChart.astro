@@ -1,0 +1,53 @@
+---
+import { STATUS_COLORS } from "../lib/colors";
+import type { RankedCountry } from "../lib/risk";
+
+interface Props {
+  countries: RankedCountry[];
+}
+const { countries } = Astro.props;
+const maxScore = Math.max(...countries.map((c) => c.score));
+---
+<!-- Plain HTML/CSS horizontal bars, not SVG - a ranking of 19 items needs no
+     custom geometry, and this sidesteps the exact class of bug the SVG bar
+     chart (MetricCompareBars.tsx) hit (value labels wider than their box,
+     clipped by SVG's default overflow:hidden). Zero JS: this is static
+     once built, unlike WorldMap/MetricCompareBars which need a browser API
+     (topojson fetch / island hydration) - a plain Astro component instead
+     of a React island. -->
+<div class="gm-risk-ranking" role="table" aria-label="Countries ranked by resilience score">
+  {countries.map((c) => (
+    <div class="gm-risk-row" role="row">
+      <span class="gm-risk-rank" role="cell">{c.rank}</span>
+      <span class="gm-risk-name" role="cell">{c.name}</span>
+      <span class="gm-risk-track" role="cell">
+        <span
+          class="gm-risk-fill"
+          style={{ width: `${(c.score / maxScore) * 100}%`, background: STATUS_COLORS[c.tier] }}
+        />
+      </span>
+      <span class="gm-risk-score" role="cell">{c.score.toFixed(2)}</span>
+      <span class="gm-risk-tier" role="cell" style={{ color: STATUS_COLORS[c.tier] }}>{c.tierLabel}</span>
+    </div>
+  ))}
+</div>
+<style>
+  .gm-risk-ranking { display: flex; flex-direction: column; gap: 0.4rem; }
+  .gm-risk-row {
+    display: grid;
+    grid-template-columns: 1.5rem minmax(90px, 9rem) 1fr 3.2rem minmax(72px, auto);
+    align-items: center;
+    gap: 0.6rem;
+    font-size: 0.88rem;
+  }
+  .gm-risk-rank { color: var(--ink-muted); font-variant-numeric: tabular-nums; text-align: right; }
+  .gm-risk-name { color: var(--ink); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .gm-risk-track { background: var(--hairline); border-radius: 999px; height: 10px; overflow: hidden; }
+  .gm-risk-fill { display: block; height: 100%; border-radius: 999px; }
+  .gm-risk-score { color: var(--ink-secondary); font-variant-numeric: tabular-nums; text-align: right; }
+  .gm-risk-tier { font-size: 0.78rem; font-weight: 600; }
+  @media (max-width: 520px) {
+    .gm-risk-row { grid-template-columns: 1.2rem minmax(70px, 6rem) 1fr 2.6rem; }
+    .gm-risk-tier { display: none; }
+  }
+</style>

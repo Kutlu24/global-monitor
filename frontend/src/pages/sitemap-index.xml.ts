@@ -8,6 +8,7 @@ export const GET: APIRoute = async ({ site }) => {
     sitemapIndexEntry(`${base}/sitemap-blocs.xml`, lastmod),
     sitemapIndexEntry(`${base}/sitemap-compare.xml`, lastmod),
     sitemapIndexEntry(`${base}/sitemap-dimensions.xml`, lastmod),
+    sitemapIndexEntry(`${base}/sitemap-risk.xml`, lastmod),
   ].join("\n")}\n</sitemapindex>`;
   return new Response(body, { headers: { "Content-Type": "application/xml" } });
 };

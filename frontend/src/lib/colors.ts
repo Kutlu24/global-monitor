@@ -25,3 +25,16 @@ export const NEUTRAL_MAP_FILL = { light: "#e1e0d9", dark: "#2c2c2a" }; // gridli
 export function blocColor(blocId: string): { light: string; dark: string } {
   return BLOC_COLORS[blocId] ?? { light: "#52514e", dark: "#c3c2b7" }; // secondary ink as a safe fallback
 }
+
+// Fixed status palette (dataviz skill's references/palette.md) - mode-
+// invariant, deliberately distinct from every categorical/bloc slot so a
+// status color never impersonates a series. Used for the Risk module's
+// three resilience tiers (Resilient/Moderate/Vulnerable), a STATE encoding,
+// not an identity one - never reused for "series 4" anywhere else. "serious"
+// is unused here (3 tiers, not 4); kept for completeness/future use.
+export const STATUS_COLORS = {
+  good: "#0ca30c",
+  warning: "#fab219",
+  serious: "#ec835a",
+  critical: "#d03b3b",
+} as const;

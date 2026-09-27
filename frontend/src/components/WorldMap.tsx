@@ -42,11 +42,8 @@ export default function WorldMap({ highlights }: Props) {
   return (
     <div className="gm-world-map">
       <style>{`
-        .gm-world-map { --gm-neutral: ${NEUTRAL_MAP_FILL.light}; --gm-stroke: #fcfcfb; }
-        @media (prefers-color-scheme: dark) {
-          :root:not([data-theme="light"]) .gm-world-map { --gm-neutral: ${NEUTRAL_MAP_FILL.dark}; --gm-stroke: #1a1a19; }
-        }
-        :root[data-theme="dark"] .gm-world-map { --gm-neutral: ${NEUTRAL_MAP_FILL.dark}; --gm-stroke: #1a1a19; }
+        .gm-world-map { --gm-neutral: ${NEUTRAL_MAP_FILL.dark}; --gm-stroke: #1a1a19; }
+        :root[data-theme="light"] .gm-world-map { --gm-neutral: ${NEUTRAL_MAP_FILL.light}; --gm-stroke: #fcfcfb; }
         .gm-legend { display: flex; gap: 1.5rem; margin-bottom: 0.75rem; font-size: 0.9rem; }
         .gm-legend-item { display: flex; align-items: center; gap: 0.4rem; }
         .gm-legend-swatch { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }

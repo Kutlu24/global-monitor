@@ -81,12 +81,9 @@ export default function MetricCompareBars({ a, b, metrics }: Props) {
         .gm-compare-bars {
           --color-a-light: ${colorA.light}; --color-a-dark: ${colorA.dark};
           --color-b-light: ${colorB.light}; --color-b-dark: ${colorB.dark};
-          --color-a: var(--color-a-light); --color-b: var(--color-b-light);
+          --color-a: var(--color-a-dark); --color-b: var(--color-b-dark);
         }
-        @media (prefers-color-scheme: dark) {
-          :root:not([data-theme="light"]) .gm-compare-bars { --color-a: var(--color-a-dark); --color-b: var(--color-b-dark); }
-        }
-        :root[data-theme="dark"] .gm-compare-bars { --color-a: var(--color-a-dark); --color-b: var(--color-b-dark); }
+        :root[data-theme="light"] .gm-compare-bars { --color-a: var(--color-a-light); --color-b: var(--color-b-light); }
         .gm-legend { display: flex; gap: 1.5rem; margin-bottom: 1rem; font-size: 0.9rem; }
         .gm-legend-item { display: flex; align-items: center; gap: 0.4rem; }
         .gm-legend-swatch { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }

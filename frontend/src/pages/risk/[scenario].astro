@@ -1,0 +1,49 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import RiskMap from "../../components/RiskMap";
+import RiskRankingChart from "../../components/RiskRankingChart.astro";
+import { SCENARIOS, RISK_CONTENT_DATE, calculateScores } from "../../lib/risk";
+import { datasetSchema } from "../../lib/schema";
+
+export async function getStaticPaths() {
+  return SCENARIOS.map((scenario) => ({ params: { scenario: scenario.slug }, props: { scenario } }));
+}
+
+const { scenario } = Astro.props;
+const ranked = calculateScores(scenario);
+const description = `Country resilience ranking under the "${scenario.name}" scenario: ${scenario.explanation}`;
+const schema = datasetSchema({
+  name: `Global Risk Simulator — ${scenario.name}`,
+  description,
+  url: new URL(`/risk/${scenario.slug}/`, Astro.site).toString(),
+  apiPath: `/risk/${scenario.slug}.json`,
+});
+---
+<BaseLayout title={`${scenario.name} — Global Risk Simulator`} description={description} structuredData={schema}>
+  <a href="/risk/" class="gm-back-link">&larr; Global Risk Simulator</a>
+  <p class="gm-hero-eyebrow">Scenario · updated {RISK_CONTENT_DATE}</p>
+  <h1>{scenario.name}</h1>
+  <p class="gm-lede">{scenario.explanation}</p>
+
+  <ul class="gm-link-list">
+    {SCENARIOS.filter((s) => s.slug !== scenario.slug).map((s) => (
+      <li><a href={`/risk/${s.slug}/`}>{s.name}</a></li>
+    ))}
+  </ul>
+
+  <h2>Geographic view</h2>
+  <div class="gm-viz-block">
+    <RiskMap client:visible countries={ranked} />
+  </div>
+
+  <h2>Country ranking</h2>
+  <div class="gm-viz-block">
+    <RiskRankingChart countries={ranked} />
+  </div>
+
+  <p class="gm-lede" style="font-size: 0.85rem; color: var(--ink-muted); max-width: none;">
+    Illustrative estimates for scenario exploration, not a rigorous geopolitical risk model. Each
+    country's 11 resilience factors are scored 0-10 by hand; this scenario weights them
+    differently to produce the ranking above.
+  </p>
+</BaseLayout>

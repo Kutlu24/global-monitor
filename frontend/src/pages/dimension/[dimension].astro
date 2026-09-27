@@ -38,7 +38,7 @@ const schema = datasetSchema({
       client:visible
       highlights={blocs.map((bloc) => ({
         iso3: bloc.members ?? [],
-        color: blocColor(bloc.bloc_id).light,
+        color: blocColor(bloc.bloc_id).dark,
         label: bloc.name,
       }))}
     />

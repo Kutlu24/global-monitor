@@ -44,8 +44,8 @@ const schema = datasetSchema({
     <WorldMap
       client:visible
       highlights={[
-        { iso3: a.members ?? [], color: blocColor(a.bloc_id).light, label: a.name },
-        { iso3: b.members ?? [], color: blocColor(b.bloc_id).light, label: b.name },
+        { iso3: a.members ?? [], color: blocColor(a.bloc_id).dark, label: a.name },
+        { iso3: b.members ?? [], color: blocColor(b.bloc_id).dark, label: b.name },
       ]}
     />
   </div>

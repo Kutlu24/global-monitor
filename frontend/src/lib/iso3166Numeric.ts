@@ -17,4 +17,8 @@ export const NUMERIC_TO_ISO3: Record<string, string> = {
   "724": "ESP", "752": "SWE", "840": "USA", "124": "CAN", "484": "MEX",
   "392": "JPN", "826": "GBR", "410": "KOR", "036": "AUS", "756": "CHE",
   "702": "SGP", "376": "ISR", "578": "NOR",
+  // Added for the Global Risk Simulator module's 19 scored countries
+  // (see lib/risk.ts) - not part of blocs.py/major_economies.py.
+  "554": "NZL", "352": "ISL", "858": "URY", "188": "CRI", "152": "CHL",
+  "458": "MYS", "072": "BWA", "032": "ARG",
 };

@@ -1,0 +1,34 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import { SCENARIOS } from "../../lib/risk";
+
+const description =
+  "How resilient are 19 countries under six different global-crisis scenarios? A weighted scoring model across geography, energy, economy, and more.";
+---
+<BaseLayout title="Global Risk Simulator" description={description}>
+  <a href="/" class="gm-back-link">&larr; Global Monitor</a>
+  <p class="gm-hero-eyebrow">Risk module</p>
+  <h1>Global Risk Simulator</h1>
+  <p class="gm-lede">
+    Ranks 19 countries by resilience under six different global-crisis scenarios, weighting 11
+    factors - geographic isolation, nuclear risk, energy independence, and more - differently for
+    each one. The same underlying country data produces a different ranking depending on which
+    crisis you pick.
+  </p>
+  <p>
+    <strong>The scores are illustrative estimates for scenario exploration, not a rigorous
+    geopolitical risk model.</strong> Each of the 11 criteria is scored 0-10 by hand; treat the
+    rankings as a way to reason about trade-offs, not a forecast.
+  </p>
+
+  <h2>Choose a scenario</h2>
+  <div class="gm-grid">
+    {SCENARIOS.map((s) => (
+      <a href={`/risk/${s.slug}/`} class="gm-card">
+        <p class="gm-card-eyebrow">Scenario</p>
+        <h3>{s.name}</h3>
+        <p>{s.explanation}</p>
+      </a>
+    ))}
+  </div>
+</BaseLayout>
