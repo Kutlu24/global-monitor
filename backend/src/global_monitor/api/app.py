@@ -160,5 +160,13 @@ def admin_rebuild(authorization: str | None = Header(default=None)) -> dict:
 
 
 _FRONTEND_DIST_DIR = frontend_dir() / "dist"
-if _FRONTEND_DIST_DIR.exists():
-    app.mount("/", StaticFiles(directory=str(_FRONTEND_DIST_DIR), html=True), name="frontend")
+# check_dir=False: on a fresh boot uvicorn starts (and this module is
+# imported) BEFORE the entrypoint's ingest+build step has created dist/ -
+# gating the mount on dist.exists() at import time meant the mount was
+# silently skipped forever for that process's lifetime, 404ing every page
+# until someone noticed and restarted the container (confirmed live
+# 2026-09-27 on a truly fresh boot). StaticFiles with check_dir=False does
+# its directory/file lookup per-request instead of once at construction, so
+# requests start succeeding as soon as the build finishes - no restart
+# needed.
+app.mount("/", StaticFiles(directory=str(_FRONTEND_DIST_DIR), html=True, check_dir=False), name="frontend")
