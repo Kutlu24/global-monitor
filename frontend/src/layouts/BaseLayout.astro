@@ -1,5 +1,8 @@
 ---
 import "../styles/global.css";
+import { getBlocs } from "../lib/data";
+import { PAIRS } from "../lib/pairs";
+import { DIMENSIONS, DIMENSION_LABELS } from "../lib/metrics";
 
 // schema.org/Dataset JSON-LD - pass `structuredData` (a plain object) from
 // any page that represents real data (bloc/compare/dimension/country
@@ -14,6 +17,17 @@ interface Props {
   structuredData?: Record<string, unknown>;
 }
 const { title, description = "", structuredData } = Astro.props;
+
+// Full site map in the sidebar, not just three top-level links - the site
+// has 61 pages reachable only through in-content links (a bloc page links
+// to its own compare pairs, but there was no way to jump from, say, the US
+// bloc page directly to the EU bloc page, or to any compare pair, without
+// going back to the homepage first). User feedback (2026-09-27): "web
+// arayüzü gezilebilir bulmadım" (didn't find the site navigable).
+const blocs = await getBlocs();
+const blocById = Object.fromEntries(blocs.map((b) => [b.bloc_id, b]));
+const path = Astro.url.pathname;
+const isActive = (href: string) => path === href || (href !== "/" && path.startsWith(href));
 ---
 <!doctype html>
 <html lang="en">
@@ -28,27 +42,61 @@ const { title, description = "", structuredData } = Astro.props;
     )}
   </head>
   <body>
-    <header class="gm-header">
-      <div class="gm-container gm-header-inner">
+    <div class="gm-shell">
+      <input type="checkbox" id="gm-nav-toggle" class="gm-nav-toggle-checkbox" />
+      <div class="gm-topbar-mobile">
         <a href="/" class="gm-logo">Global Monitor</a>
-        <nav>
-          <ul class="gm-nav">
-            <li><a href="/">Blocs</a></li>
-            <li><a href="/dimension/economic/">Dimensions</a></li>
-            <li><a href="/countries/">Major Economies</a></li>
-          </ul>
+        <label for="gm-nav-toggle" class="gm-nav-toggle-label">Menu</label>
+      </div>
+      <div class="gm-layout">
+        <nav class="gm-sidebar" aria-label="Site navigation">
+          <a href="/" class="gm-logo gm-sidebar-brand">Global Monitor</a>
+
+          <div class="gm-sidebar-group">
+            <div class="gm-sidebar-heading">Blocs</div>
+            {blocs.map((b) => (
+              <a href={`/bloc/${b.slug}/`} class:list={["gm-sidebar-link", { active: isActive(`/bloc/${b.slug}/`) }]}>
+                {b.name}
+              </a>
+            ))}
+          </div>
+
+          <div class="gm-sidebar-group">
+            <div class="gm-sidebar-heading">Compare</div>
+            {PAIRS.map((p) => (
+              <a href={`/compare/${p.slug}/`} class:list={["gm-sidebar-link", { active: isActive(`/compare/${p.slug}/`) }]}>
+                {blocById[p.a]?.name ?? p.a} vs {blocById[p.b]?.name ?? p.b}
+              </a>
+            ))}
+          </div>
+
+          <div class="gm-sidebar-group">
+            <div class="gm-sidebar-heading">Dimensions</div>
+            {DIMENSIONS.map((d) => (
+              <a href={`/dimension/${d}/`} class:list={["gm-sidebar-link", { active: isActive(`/dimension/${d}/`) }]}>
+                {DIMENSION_LABELS[d]}
+              </a>
+            ))}
+          </div>
+
+          <div class="gm-sidebar-group">
+            <a href="/countries/" class:list={["gm-sidebar-link", { active: path.startsWith("/countries/") || path.startsWith("/country/") }]}>
+              Major Economies
+            </a>
+          </div>
         </nav>
+
+        <div class="gm-main-col">
+          <main class="gm-container">
+            <slot />
+          </main>
+          <footer class="gm-footer">
+            <div class="gm-container">
+              Data from the World Bank, UN Comtrade, UNDP, and SIPRI, kept in sync automatically. Not affiliated with any of these organizations.
+            </div>
+          </footer>
+        </div>
       </div>
-    </header>
-    <div class="gm-container">
-      <main>
-        <slot />
-      </main>
     </div>
-    <footer class="gm-footer">
-      <div class="gm-container">
-        Data from the World Bank, UN Comtrade, UNDP, and SIPRI, kept in sync automatically. Not affiliated with any of these organizations.
-      </div>
-    </footer>
   </body>
 </html>

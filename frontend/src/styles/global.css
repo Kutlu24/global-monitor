@@ -74,23 +74,70 @@ body {
 
 .gm-container {
   max-width: var(--container-width);
-  margin: 0 auto;
   padding: 0 var(--space-4);
 }
 
-/* --- Header / footer --- */
+/* --- Sidebar shell ---
+   A persistent site map (every bloc, every compare pair, every dimension)
+   instead of the previous 3-link top nav, which left most of the site's 61
+   pages reachable only through whatever in-content links happened to be on
+   the current page. Left sidebar on wide viewports; the SAME markup
+   reflows into a collapsible top drawer on narrow ones (toggled by a
+   checkbox + :has(), no JS) - satisfies "top or left" without two
+   different navs to keep in sync. */
 
-.gm-header {
-  border-bottom: 1px solid var(--hairline);
-  padding: var(--space-4) 0;
+.gm-nav-toggle-checkbox {
+  display: none;
 }
-.gm-header-inner {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-4);
-  flex-wrap: wrap;
+
+.gm-topbar-mobile {
+  display: none;
 }
+
+.gm-layout {
+  display: block;
+}
+
+.gm-sidebar {
+  display: none;
+}
+
+.gm-sidebar-brand {
+  display: block;
+  margin-bottom: var(--space-6);
+}
+
+.gm-sidebar-group {
+  margin-bottom: var(--space-6);
+}
+.gm-sidebar-heading {
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ink-muted);
+  margin-bottom: var(--space-2);
+  padding: 0 var(--space-3);
+}
+.gm-sidebar-link {
+  display: block;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  color: var(--ink-secondary);
+  text-decoration: none;
+  font-size: 0.9rem;
+  line-height: 1.35;
+}
+.gm-sidebar-link:hover {
+  background: var(--surface);
+  color: var(--ink);
+}
+.gm-sidebar-link.active {
+  background: var(--accent);
+  color: #fff;
+  font-weight: 600;
+}
+
 .gm-logo {
   font-size: 1.15rem;
   font-weight: 700;
@@ -99,21 +146,6 @@ body {
   letter-spacing: -0.01em;
 }
 .gm-logo:hover {
-  color: var(--ink);
-}
-.gm-nav {
-  display: flex;
-  gap: var(--space-6);
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  font-size: 0.9rem;
-}
-.gm-nav a {
-  color: var(--ink-secondary);
-  text-decoration: none;
-}
-.gm-nav a:hover {
   color: var(--ink);
 }
 
@@ -127,6 +159,57 @@ body {
 
 main {
   padding: var(--space-8) 0 var(--space-16);
+}
+
+@media (max-width: 899px) {
+  .gm-topbar-mobile {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--space-4);
+    border-bottom: 1px solid var(--hairline);
+  }
+  .gm-nav-toggle-label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--ink-secondary);
+    border: 1px solid var(--hairline);
+    border-radius: var(--radius-sm);
+    padding: var(--space-2) var(--space-3);
+    cursor: pointer;
+  }
+  .gm-sidebar {
+    padding: var(--space-4);
+    border-bottom: 1px solid var(--hairline);
+  }
+  .gm-sidebar-brand {
+    display: none; /* already shown in .gm-topbar-mobile at this width */
+  }
+  .gm-shell:has(.gm-nav-toggle-checkbox:checked) .gm-sidebar {
+    display: block;
+  }
+}
+
+@media (min-width: 900px) {
+  .gm-layout {
+    display: grid;
+    grid-template-columns: 240px 1fr;
+    gap: var(--space-8);
+    max-width: 1320px;
+    margin: 0 auto;
+    align-items: start;
+  }
+  .gm-sidebar {
+    display: block;
+    position: sticky;
+    top: var(--space-6);
+    max-height: calc(100vh - var(--space-8));
+    overflow-y: auto;
+    padding: var(--space-6) 0 var(--space-6) var(--space-4);
+  }
+  .gm-main-col {
+    min-width: 0; /* let long content (tables, charts) shrink inside the grid track */
+  }
 }
 
 /* --- Typography --- */
