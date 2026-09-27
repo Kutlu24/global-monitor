@@ -47,13 +47,33 @@ def get_bloc(bloc_id: str) -> dict:
     if bloc is None:
         raise HTTPException(404, f"No such bloc: {bloc_id!r}")
     members = db.get_current_members(bloc_id)
-    return {**asdict(bloc), "member_count": len(members),
+    return {**asdict(bloc), "member_count": len(members), "members": sorted(members),
             "aggregates": _bloc_aggregates_payload(bloc_id)}
 
 
 @app.get("/api/metrics")
 def list_metrics() -> list[dict]:
     return [asdict(m) for m in db.get_metrics()]
+
+
+@app.get("/api/compare/{bloc_a}/{bloc_b}")
+def compare_blocs(bloc_a: str, bloc_b: str) -> dict:
+    """Convenience wrapper the frontend's compare pages use instead of two
+    separate GET /api/blocs/{id} calls - same underlying data, one round
+    trip. Also includes intra-bloc trade flow member_count so the frontend
+    can render 'N/A (single-country bloc)' instead of guessing from a
+    missing key."""
+    a, b = db.get_bloc(bloc_a), db.get_bloc(bloc_b)
+    if a is None:
+        raise HTTPException(404, f"No such bloc: {bloc_a!r}")
+    if b is None:
+        raise HTTPException(404, f"No such bloc: {bloc_b!r}")
+    return {
+        "a": {**asdict(a), "members": sorted(db.get_current_members(bloc_a)),
+              "aggregates": _bloc_aggregates_payload(bloc_a)},
+        "b": {**asdict(b), "members": sorted(db.get_current_members(bloc_b)),
+              "aggregates": _bloc_aggregates_payload(bloc_b)},
+    }
 
 
 @app.get("/api/countries")

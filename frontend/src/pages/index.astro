@@ -1,6 +1,8 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
 import { getBlocs } from "../lib/data";
+import { PAIRS } from "../lib/pairs";
+import { DIMENSIONS, DIMENSION_LABELS } from "../lib/metrics";
 
 const blocs = await getBlocs();
 
@@ -33,5 +35,15 @@ function formatPeople(value: number | null): string {
         ))}
       </tbody>
     </table>
+
+    <h2>Compare two blocs</h2>
+    <ul>
+      {PAIRS.map((p) => <li><a href={`/compare/${p.slug}/`}>{p.a.toUpperCase()} vs {p.b.toUpperCase()}</a></li>)}
+    </ul>
+
+    <h2>By dimension</h2>
+    <ul>
+      {DIMENSIONS.map((d) => <li><a href={`/dimension/${d}/`}>{DIMENSION_LABELS[d]}</a></li>)}
+    </ul>
   </main>
 </BaseLayout>

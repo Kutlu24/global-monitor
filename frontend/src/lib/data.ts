@@ -16,7 +16,13 @@ export interface Bloc {
   name: string;
   slug: string;
   description: string;
+  members?: string[];
   aggregates: Record<string, BlocAggregateValue>;
+}
+
+export interface ComparePair {
+  a: Bloc;
+  b: Bloc;
 }
 
 async function getJSON<T>(path: string): Promise<T> {
@@ -33,6 +39,10 @@ export function getBlocs(): Promise<Bloc[]> {
 
 export function getBloc(blocId: string): Promise<Bloc> {
   return getJSON<Bloc>(`/api/blocs/${blocId}`);
+}
+
+export function getComparePair(blocA: string, blocB: string): Promise<ComparePair> {
+  return getJSON<ComparePair>(`/api/compare/${blocA}/${blocB}`);
 }
 
 export interface CountryMetricValue {

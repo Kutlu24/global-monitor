@@ -1,6 +1,10 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
+import WorldMap from "../../components/WorldMap";
 import { getBlocs } from "../../lib/data";
+import { ALL_METRICS } from "../../lib/metrics";
+import { blocColor } from "../../lib/colors";
+import { PAIRS } from "../../lib/pairs";
 
 export async function getStaticPaths() {
   const blocs = await getBlocs();
@@ -9,25 +13,56 @@ export async function getStaticPaths() {
 
 const { bloc } = Astro.props;
 
-function formatUsd(value: number | null): string {
-  if (value === null) return "—";
-  return `$${(value / 1e12).toFixed(2)}T`;
-}
-function formatPeople(value: number | null): string {
-  if (value === null) return "—";
-  return `${(value / 1e6).toFixed(0)}M`;
-}
+// brics <-> brics5 are the same lineage at different membership snapshots
+// (see blocs.py) - cross-link them since neither page mentions the other
+// via the main compare structure.
+const historicalCounterpart = bloc.bloc_id === "brics" ? "brics5" : bloc.bloc_id === "brics5" ? "brics" : null;
+
+const comparePairs = PAIRS.filter((p) => p.a === bloc.bloc_id || p.b === bloc.bloc_id);
 ---
 <BaseLayout title={bloc.name} description={bloc.description}>
   <main>
     <p><a href="/">&larr; Global Monitor</a></p>
     <h1>{bloc.name}</h1>
     <p>{bloc.description}</p>
-    <dl>
-      <dt>GDP ({bloc.aggregates.gdp_current_usd?.period ?? "—"})</dt>
-      <dd>{formatUsd(bloc.aggregates.gdp_current_usd?.value ?? null)} — based on {bloc.aggregates.gdp_current_usd?.member_count ?? 0} member(s) with available data</dd>
-      <dt>Population ({bloc.aggregates.population_total?.period ?? "—"})</dt>
-      <dd>{formatPeople(bloc.aggregates.population_total?.value ?? null)} — based on {bloc.aggregates.population_total?.member_count ?? 0} member(s) with available data</dd>
-    </dl>
+    {historicalCounterpart && (
+      <p>
+        <a href={`/bloc/${historicalCounterpart}/`}>
+          {bloc.bloc_id === "brics" ? "See the original five-member BRICS instead →" : "See current BRICS+ (with the 2024-25 expansion) instead →"}
+        </a>
+      </p>
+    )}
+
+    <WorldMap client:visible highlights={[{ iso3: bloc.members ?? [], color: blocColor(bloc.bloc_id).light, label: bloc.name }]} />
+
+    <table>
+      <thead>
+        <tr><th>Metric</th><th>Value</th><th>Member coverage</th></tr>
+      </thead>
+      <tbody>
+        {ALL_METRICS.map((m) => {
+          const agg = bloc.aggregates[m.metric_id];
+          return (
+            <tr>
+              <td>{m.label}</td>
+              <td>{agg?.value != null ? `${m.format(agg.value)} (${agg.period})` : "N/A"}</td>
+              <td>{agg ? `${agg.member_count} member(s) with data` : "—"}</td>
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
+
+    {comparePairs.length > 0 && (
+      <>
+        <h2>Compare</h2>
+        <ul>
+          {comparePairs.map((p) => {
+            const other = p.a === bloc.bloc_id ? p.b : p.a;
+            return <li><a href={`/compare/${p.slug}/`}>vs {other.toUpperCase()}</a></li>;
+          })}
+        </ul>
+      </>
+    )}
   </main>
 </BaseLayout>

@@ -1,0 +1,51 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import WorldMap from "../../components/WorldMap";
+import { getBlocs } from "../../lib/data";
+import { DIMENSIONS, DIMENSION_LABELS, DIMENSION_METRICS, type Dimension } from "../../lib/metrics";
+import { blocColor } from "../../lib/colors";
+
+export async function getStaticPaths() {
+  const compareBlocIds = ["brics", "eu", "us", "usmca"];
+  const blocs = (await getBlocs()).filter((b) => compareBlocIds.includes(b.bloc_id));
+  return DIMENSIONS.map((dimension) => ({ params: { dimension }, props: { dimension, blocs } }));
+}
+
+const { dimension, blocs } = Astro.props as { dimension: Dimension; blocs: Awaited<ReturnType<typeof import("../../lib/data").getBlocs>> };
+const metrics = DIMENSION_METRICS[dimension];
+---
+<BaseLayout title={`${DIMENSION_LABELS[dimension]} — all blocs`} description={`${DIMENSION_LABELS[dimension]} data for BRICS+, the EU, the US, and USMCA, side by side.`}>
+  <main>
+    <p><a href="/">&larr; Global Monitor</a></p>
+    <h1>{DIMENSION_LABELS[dimension]} — all blocs</h1>
+
+    <WorldMap
+      client:visible
+      highlights={blocs.map((bloc) => ({
+        iso3: bloc.members ?? [],
+        color: blocColor(bloc.bloc_id).light,
+        label: bloc.name,
+      }))}
+    />
+
+    <table>
+      <thead>
+        <tr>
+          <th>Metric</th>
+          {blocs.map((bloc) => <th>{bloc.name}</th>)}
+        </tr>
+      </thead>
+      <tbody>
+        {metrics.map((m) => (
+          <tr>
+            <td>{m.label}</td>
+            {blocs.map((bloc) => {
+              const agg = bloc.aggregates[m.metric_id];
+              return <td>{agg?.value != null ? `${m.format(agg.value)} (${agg.period})` : "N/A"}</td>;
+            })}
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </main>
+</BaseLayout>

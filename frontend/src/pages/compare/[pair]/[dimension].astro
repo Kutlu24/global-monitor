@@ -1,0 +1,64 @@
+---
+import BaseLayout from "../../../layouts/BaseLayout.astro";
+import MetricCompareBars from "../../../components/MetricCompareBars";
+import { getComparePair } from "../../../lib/data";
+import { PAIRS } from "../../../lib/pairs";
+import { DIMENSIONS, DIMENSION_LABELS, DIMENSION_METRICS, type Dimension } from "../../../lib/metrics";
+
+export async function getStaticPaths() {
+  const paths = [];
+  for (const pair of PAIRS) {
+    const data = await getComparePair(pair.a, pair.b);
+    for (const dimension of DIMENSIONS) {
+      paths.push({ params: { pair: pair.slug, dimension }, props: { pair, dimension, data } });
+    }
+  }
+  return paths;
+}
+
+const { pair, dimension, data } = Astro.props as { pair: (typeof PAIRS)[number]; dimension: Dimension; data: Awaited<ReturnType<typeof getComparePair>> };
+const { a, b } = data;
+const metrics = DIMENSION_METRICS[dimension];
+
+function entityFor(bloc: typeof a) {
+  return {
+    id: bloc.bloc_id,
+    name: bloc.name,
+    values: Object.fromEntries(Object.entries(bloc.aggregates).map(([k, v]) => [k, v.value])),
+  };
+}
+---
+<BaseLayout
+  title={`${a.name} vs ${b.name} — ${DIMENSION_LABELS[dimension]}`}
+  description={`${DIMENSION_LABELS[dimension]} comparison between ${a.name} and ${b.name}.`}
+>
+  <main>
+    <p><a href={`/compare/${pair.slug}/`}>&larr; {a.name} vs {b.name}</a></p>
+    <h1>{a.name} vs {b.name} — {DIMENSION_LABELS[dimension]}</h1>
+
+    <MetricCompareBars client:visible a={entityFor(a)} b={entityFor(b)} metrics={metrics} />
+
+    <table>
+      <thead>
+        <tr><th>Metric</th><th>{a.name}</th><th>{b.name}</th></tr>
+      </thead>
+      <tbody>
+        {metrics.map((m) => {
+          const va = a.aggregates[m.metric_id];
+          const vb = b.aggregates[m.metric_id];
+          return (
+            <tr>
+              <td>{m.label}</td>
+              <td>{va?.value != null ? `${m.format(va.value)} (${va.period})` : "N/A"}</td>
+              <td>{vb?.value != null ? `${m.format(vb.value)} (${vb.period})` : "N/A"}</td>
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
+
+    <p>
+      <a href={`/dimension/${dimension}/`}>See {DIMENSION_LABELS[dimension].toLowerCase()} data across all blocs &rarr;</a>
+    </p>
+  </main>
+</BaseLayout>

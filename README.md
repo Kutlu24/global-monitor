@@ -11,7 +11,11 @@ project's real differentiation is putting them together.
 A separate **Major Economies** module also compares the world's top 20 advanced economies
 individually, country by country, for people who want to look past the bloc level.
 
-## Status: Milestones 1-2 — done
+## Status: Milestones 1-3 done, Milestone 5 (deployment) started early
+
+**Publicly live** at https://global-monitor-render-relay.onrender.com (see "Deployment" below).
+
+## Milestones 1-2 — done
 
 World Bank → SQLite → FastAPI JSON → Astro static build → real HTML, proven end to end, inside
 the real Docker image (not just locally). All bloc pages and country pages render real numbers as
@@ -42,13 +46,39 @@ GDP, sovereign states only). See `backend/src/global_monitor/major_economies.py`
 Bank/Comtrade, weekly for UNDP HDI/SIPRI, rebuilding the Astro site after any run that actually
 changes data. A `POST /api/admin/rebuild` (bearer-token gated) triggers the same thing manually.
 
-Not yet built (see the project plan for the full build order):
-- **Milestone 3**: `/compare/{pair}/{dimension}` pages, the world map (`react-simple-maps`) and
-  radar chart (`Apache ECharts`) components.
+## Milestone 3 — done
+
+Consulted the `dataviz` skill before building any of this (see its own six-check color validator
+output baked into the reasoning below) rather than guessing at a chart type or palette.
+
+- **No radar/spider chart** - deliberately dropped from the original plan. Combining GDP (USD),
+  military-%-GDP, HDI (0-1), and life expectancy (years) onto one normalized radar axis has the
+  same "arbitrary scale alignment invents a correlation" flaw the dataviz skill explicitly bans
+  for dual-axis charts, just generalized to N axes. Replaced with **small multiples of plain-SVG
+  2-bar grouped columns** (`MetricCompareBars.tsx`, no charting library) - one tile per metric,
+  each keeping its own real scale.
+- **Bloc colors are fixed and validated**: `{brics/brics5: blue, eu: yellow, us: green, usmca:
+  magenta}` - the one 4-color subset of the skill's reference palette that passes every CVD/
+  contrast check **all-pairs, in both light and dark mode** (any two of the four can appear side
+  by side - a comparison page, a 2-highlight map - safely). Every other 4-subset tried failed at
+  least one check in at least one mode; this specific 8-hue reference palette only clears 3 slots
+  for all-pairs comparisons in general. `brics5` deliberately reuses `brics`'s own color - same
+  lineage at a different membership snapshot, never shown as a competing identity on the same page.
+- **World map** (`WorldMap.tsx`, `react-simple-maps`, real SVG/topojson, no WebGL/canvas): uses the
+  skill's "emphasis" form (1-2 highlight colors + neutral gray context), not a full categorical
+  choropleth - sidesteps the all-pairs cap entirely on bloc/compare pages, and uses all 4 validated
+  colors at once (safe, since that exact 4-set passed all-pairs) on the cross-bloc dimension pages.
+- New pages: `/compare/{pair}/` (6 pairs), `/compare/{pair}/{dimension}/` (24 pages, real per-metric
+  tables + bar-chart small multiples), `/dimension/{dimension}/` (4 cross-bloc pages with the full
+  4-color map). 61 total static pages, all verified rendering real data inside the actual Docker
+  image.
+
+## Not yet built (see the project plan for the full build order)
+
 - **Milestone 4**: schema.org/Dataset markup, GLM/Ollama-generated comparison text, canonical
   tags, chunked sitemap.
-- **Milestone 5**: wiring into `home-server-infra`'s `docker-compose.yml`/`Caddyfile`, a new
-  Render relay (reusing `home-server-infra/render-proxy/`), and the real domain once purchased.
+- **Milestone 5, remainder**: a real purchased domain (currently live only at the Render relay's
+  own `.onrender.com` address).
 
 ## Why BRICS is two bloc rows
 
@@ -75,7 +105,9 @@ npx astro preview   # serves frontend/dist/
 
 ## Deployment
 
-Runs as one more service in `~/my-projects/home-server-infra`'s Docker Compose stack (see that
-repo's own `docs/DEPLOYMENT.md`), reachable publicly via its `docs/RENDER_PROXY.md` relay
-mechanism once a domain is purchased (Milestone 5) — unlike this portfolio's other apps, Global
-Monitor is meant to be genuinely public and crawlable, not Tailscale-only.
+Runs as a service in `~/my-projects/home-server-infra`'s Docker Compose stack (port 7863) and is
+**already publicly live** via that repo's `docs/RENDER_PROXY.md` relay mechanism - the first app
+in that whole portfolio actually flipped over to it for real, since every other app there is
+Tailscale-only by design. No custom domain yet - the relay's own Render address
+(`global-monitor-render-relay.onrender.com`) is the public identity for now; swap one line in
+`home-server-infra/Caddyfile` once a domain is purchased.

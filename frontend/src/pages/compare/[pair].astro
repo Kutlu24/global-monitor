@@ -1,0 +1,53 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import MetricCompareBars from "../../components/MetricCompareBars";
+import WorldMap from "../../components/WorldMap";
+import { getComparePair } from "../../lib/data";
+import { PAIRS } from "../../lib/pairs";
+import { DIMENSIONS, DIMENSION_LABELS, HEADLINE_METRIC } from "../../lib/metrics";
+import { blocColor } from "../../lib/colors";
+
+export async function getStaticPaths() {
+  return Promise.all(
+    PAIRS.map(async (pair) => {
+      const data = await getComparePair(pair.a, pair.b);
+      return { params: { pair: pair.slug }, props: { pair, data } };
+    })
+  );
+}
+
+const { pair, data } = Astro.props;
+const { a, b } = data;
+
+function entityFor(bloc: typeof a) {
+  return {
+    id: bloc.bloc_id,
+    name: bloc.name,
+    values: Object.fromEntries(Object.entries(bloc.aggregates).map(([k, v]) => [k, v.value])),
+  };
+}
+---
+<BaseLayout title={`${a.name} vs ${b.name}`} description={`Compare ${a.name} and ${b.name} across economic, trade, social, and military data.`}>
+  <main>
+    <p><a href="/">&larr; Global Monitor</a></p>
+    <h1>{a.name} vs {b.name}</h1>
+
+    <WorldMap
+      client:visible
+      highlights={[
+        { iso3: a.members ?? [], color: blocColor(a.bloc_id).light, label: a.name },
+        { iso3: b.members ?? [], color: blocColor(b.bloc_id).light, label: b.name },
+      ]}
+    />
+
+    <h2>Overview</h2>
+    <MetricCompareBars client:visible a={entityFor(a)} b={entityFor(b)} metrics={DIMENSIONS.map((d) => HEADLINE_METRIC[d])} />
+
+    <h2>By dimension</h2>
+    <ul>
+      {DIMENSIONS.map((d) => (
+        <li><a href={`/compare/${pair.slug}/${d}/`}>{DIMENSION_LABELS[d]}</a></li>
+      ))}
+    </ul>
+  </main>
+</BaseLayout>
