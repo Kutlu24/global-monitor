@@ -13,13 +13,25 @@
    exposed via any UI toggle). */
 :root {
   color-scheme: dark;
-  --page: #0d0d0d;
-  --surface: #1a1a19;
-  --surface-raised: #202020;
-  --ink: #ffffff;
+  /* A flat near-black (#0d0d0d) reads as "unstyled default dark mode," not
+     a designed palette - user feedback (2026-09-27): "arka plan siyah iyi
+     olmamış" (the black background doesn't look good). Re-tuned to a
+     proper dark-gray scale with real separation between page/surface/
+     surface-raised, instead of everything crushed near black. Re-ran
+     validate_palette.js for both lib/colors.ts palettes (bloc + status)
+     against this new --surface (#1e1e1e, up from #1a1a19) before adopting
+     it - identical pass/fail outcome as the old surface for both, so
+     raising it introduces no new chart-color regression. Three literal
+     copies of the old surface/hairline values had to move with it:
+     WorldMap.tsx's and RiskMap.tsx's own --gm-stroke, and
+     NEUTRAL_MAP_FILL.dark in lib/colors.ts (see their own comments). */
+  --page: #131313;
+  --surface: #1e1e1e;
+  --surface-raised: #262626;
+  --ink: #f4f4f2;
   --ink-secondary: #c3c2b7;
   --ink-muted: #898781;
-  --hairline: #2c2c2a;
+  --hairline: #333331;
   --border: rgba(255, 255, 255, 0.1);
   --accent: #3987e5;
   --live-dot: #0ca30c; /* matches STATUS_COLORS.good in lib/colors.ts */

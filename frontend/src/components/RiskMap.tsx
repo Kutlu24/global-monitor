@@ -27,7 +27,7 @@ export default function RiskMap({ countries }: Props) {
   return (
     <div className="gm-world-map">
       <style>{`
-        .gm-world-map { --gm-neutral: ${NEUTRAL_MAP_FILL.dark}; --gm-stroke: #1a1a19; }
+        .gm-world-map { --gm-neutral: ${NEUTRAL_MAP_FILL.dark}; --gm-stroke: #1e1e1e; }
         :root[data-theme="light"] .gm-world-map { --gm-neutral: ${NEUTRAL_MAP_FILL.light}; --gm-stroke: #fcfcfb; }
         .gm-legend { display: flex; gap: 1.5rem; margin-bottom: 0.75rem; font-size: 0.9rem; flex-wrap: wrap; }
         .gm-legend-item { display: flex; align-items: center; gap: 0.4rem; }
