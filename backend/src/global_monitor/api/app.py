@@ -35,9 +35,18 @@ def health() -> dict:
 
 @app.get("/api/blocs")
 def list_blocs() -> list[dict]:
+    """Third field the plural endpoint was missing that only get_bloc()
+    (singular) had - after synthesis (fixed 2026-09-27), `members` was the
+    same story: bloc/[bloc].astro's getStaticPaths sources from THIS
+    endpoint, so `bloc.members` was `undefined` for every single bloc page,
+    silently rendering an empty-highlight world map on all of them (user
+    report 2026-09-27: "haritada AB ülkeleri işaretli değil" - not EU-
+    specific, every bloc's map was affected identically)."""
     result = []
     for bloc in db.get_blocs():
-        result.append({**asdict(bloc), "aggregates": _bloc_aggregates_payload(bloc.bloc_id),
+        members = db.get_current_members(bloc.bloc_id)
+        result.append({**asdict(bloc), "member_count": len(members), "members": sorted(members),
+                        "aggregates": _bloc_aggregates_payload(bloc.bloc_id),
                         "synthesis": _synthesis_payload(f"bloc:{bloc.bloc_id}")})
     return result
 
