@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import logging
 
-from . import aggregate, blocs, db, major_economies, metrics
+from . import aggregate, blocs, db, major_economies, metrics, synthesis
 from .ingestion import comtrade, sipri, undp_hdi, worldbank
 
 logger = logging.getLogger(__name__)
@@ -75,4 +75,8 @@ def run_all(sources: list[str] | None = None) -> dict[str, int]:
             logger.exception("[%s] ingest failed, continuing with other sources", source)
             results[source] = -1
     aggregate.aggregate_all()
+    try:
+        synthesis.generate_all()
+    except Exception:
+        logger.exception("synthesis generation failed - leaving prior text in place, not crashing the ingest run")
     return results

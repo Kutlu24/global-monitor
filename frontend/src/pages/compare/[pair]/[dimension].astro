@@ -4,6 +4,7 @@ import MetricCompareBars from "../../../components/MetricCompareBars";
 import { getComparePair } from "../../../lib/data";
 import { PAIRS } from "../../../lib/pairs";
 import { DIMENSIONS, DIMENSION_LABELS, DIMENSION_METRICS, type Dimension } from "../../../lib/metrics";
+import { datasetSchema } from "../../../lib/schema";
 
 export async function getStaticPaths() {
   const paths = [];
@@ -27,10 +28,19 @@ function entityFor(bloc: typeof a) {
     values: Object.fromEntries(Object.entries(bloc.aggregates).map(([k, v]) => [k, v.value])),
   };
 }
+const description = `${DIMENSION_LABELS[dimension]} comparison between ${a.name} and ${b.name}.`;
+const schema = datasetSchema({
+  name: `${a.name} vs ${b.name} — ${DIMENSION_LABELS[dimension]}`,
+  description,
+  url: new URL(`/compare/${pair.slug}/${dimension}/`, Astro.site).toString(),
+  apiPath: `/api/compare/${pair.a}/${pair.b}`,
+});
+const dimensionSynthesis = data.synthesis_by_dimension?.[dimension];
 ---
 <BaseLayout
   title={`${a.name} vs ${b.name} — ${DIMENSION_LABELS[dimension]}`}
-  description={`${DIMENSION_LABELS[dimension]} comparison between ${a.name} and ${b.name}.`}
+  description={description}
+  structuredData={schema}
 >
   <a href={`/compare/${pair.slug}/`} class="gm-back-link">&larr; {a.name} vs {b.name}</a>
   <p class="gm-hero-eyebrow">{DIMENSION_LABELS[dimension]}</p>
@@ -39,6 +49,13 @@ function entityFor(bloc: typeof a) {
   <div class="gm-viz-block">
     <MetricCompareBars client:visible a={entityFor(a)} b={entityFor(b)} metrics={metrics} />
   </div>
+
+  {dimensionSynthesis && (
+    <div class="gm-synthesis">
+      <p class="gm-synthesis-label">Summary</p>
+      <p>{dimensionSynthesis.text}</p>
+    </div>
+  )}
 
   <table>
       <thead>

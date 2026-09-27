@@ -1,15 +1,19 @@
 ---
 import "../styles/global.css";
 
-// schema.org/Dataset JSON-LD injection and canonical-tag logic land in
-// Milestone 4 (SEO layer) - the <link rel="canonical"> below is already
-// wired up; the structured-data <script> is this file's deliberate
-// injection point when that milestone lands.
+// schema.org/Dataset JSON-LD - pass `structuredData` (a plain object) from
+// any page that represents real data (bloc/compare/dimension/country
+// pages); pages that don't (the homepage) just omit it. Every page is
+// self-canonical (see the <link> below) - compare/bloc pages are
+// genuinely different content from each other (see synthesis.py's own
+// per-page prompts), so there's no "duplicate" page needing a canonical
+// pointing elsewhere, per the project plan's SEO section.
 interface Props {
   title: string;
   description?: string;
+  structuredData?: Record<string, unknown>;
 }
-const { title, description = "" } = Astro.props;
+const { title, description = "", structuredData } = Astro.props;
 ---
 <!doctype html>
 <html lang="en">
@@ -19,6 +23,9 @@ const { title, description = "" } = Astro.props;
     <title>{title} — Global Monitor</title>
     {description && <meta name="description" content={description} />}
     <link rel="canonical" href={new URL(Astro.url.pathname, Astro.site)} />
+    {structuredData && (
+      <script type="application/ld+json" set:html={JSON.stringify(structuredData)} />
+    )}
   </head>
   <body>
     <header class="gm-header">

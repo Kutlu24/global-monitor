@@ -71,3 +71,13 @@ class BlocAggregate:
     value: float | None
     member_count: int
     computed_at: str
+
+
+@dataclass(frozen=True)
+class SynthesisText:
+    page_key: str
+    text: str
+    data_hash: str
+    generated_at: str
+    provider: str
+    model: str

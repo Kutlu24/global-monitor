@@ -37,7 +37,8 @@ def health() -> dict:
 def list_blocs() -> list[dict]:
     result = []
     for bloc in db.get_blocs():
-        result.append({**asdict(bloc), "aggregates": _bloc_aggregates_payload(bloc.bloc_id)})
+        result.append({**asdict(bloc), "aggregates": _bloc_aggregates_payload(bloc.bloc_id),
+                        "synthesis": _synthesis_payload(f"bloc:{bloc.bloc_id}")})
     return result
 
 
@@ -48,7 +49,8 @@ def get_bloc(bloc_id: str) -> dict:
         raise HTTPException(404, f"No such bloc: {bloc_id!r}")
     members = db.get_current_members(bloc_id)
     return {**asdict(bloc), "member_count": len(members), "members": sorted(members),
-            "aggregates": _bloc_aggregates_payload(bloc_id)}
+            "aggregates": _bloc_aggregates_payload(bloc_id),
+            "synthesis": _synthesis_payload(f"bloc:{bloc_id}")}
 
 
 @app.get("/api/metrics")
@@ -73,6 +75,11 @@ def compare_blocs(bloc_a: str, bloc_b: str) -> dict:
               "aggregates": _bloc_aggregates_payload(bloc_a)},
         "b": {**asdict(b), "members": sorted(db.get_current_members(bloc_b)),
               "aggregates": _bloc_aggregates_payload(bloc_b)},
+        "synthesis": _synthesis_payload(f"compare:{bloc_a}-vs-{bloc_b}"),
+        "synthesis_by_dimension": {
+            dimension: _synthesis_payload(f"compare:{bloc_a}-vs-{bloc_b}:{dimension}")
+            for dimension in ("economic", "trade", "social", "military")
+        },
     }
 
 
@@ -99,6 +106,21 @@ def _country_payload(iso3: str) -> dict:
         if obs is not None and obs.value is not None:
             metrics_values[metric.metric_id] = {"value": obs.value, "period": obs.period}
     return {"iso3": iso3, "name": major_economies.country_name(iso3), "metrics": metrics_values}
+
+
+@app.get("/api/last-updated")
+def last_updated() -> dict:
+    """A single, real, site-wide 'data last refreshed' timestamp - used as
+    the sitemap's lastmod (see frontend/src/pages/sitemap-*.xml.ts) instead
+    of deploy time, per the project plan's SEO section."""
+    return {"last_updated": db.latest_data_update()}
+
+
+def _synthesis_payload(page_key: str) -> dict | None:
+    s = db.get_synthesis(page_key)
+    if s is None:
+        return None
+    return {"text": s.text, "provider": s.provider, "generated_at": s.generated_at}
 
 
 def _bloc_aggregates_payload(bloc_id: str) -> dict[str, dict]:

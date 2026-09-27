@@ -1,6 +1,7 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import { getCountries } from "../../lib/data";
+import { datasetSchema } from "../../lib/schema";
 
 export async function getStaticPaths() {
   const countries = await getCountries();
@@ -21,8 +22,16 @@ const ROWS: [string, string, (v: number) => string][] = [
   ["secondary_enrollment_pct", "Secondary school enrollment", (v) => `${v.toFixed(1)}%`],
   ["hdi", "Human Development Index", (v) => v.toFixed(3)],
 ];
+
+const description = `Economic, trade, social, and military data for ${country.name}.`;
+const schema = datasetSchema({
+  name: `${country.name} — economic, trade, social, and military data`,
+  description,
+  url: new URL(`/country/${country.iso3.toLowerCase()}/`, Astro.site).toString(),
+  apiPath: `/api/countries/${country.iso3}`,
+});
 ---
-<BaseLayout title={country.name} description={`Economic, trade, social, and military data for ${country.name}.`}>
+<BaseLayout title={country.name} description={description} structuredData={schema}>
   <a href="/countries/" class="gm-back-link">&larr; Major Economies</a>
   <p class="gm-hero-eyebrow">Major economy</p>
   <h1>{country.name}</h1>

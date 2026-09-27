@@ -6,6 +6,7 @@ import { getComparePair } from "../../lib/data";
 import { PAIRS } from "../../lib/pairs";
 import { DIMENSIONS, DIMENSION_LABELS, HEADLINE_METRIC } from "../../lib/metrics";
 import { blocColor } from "../../lib/colors";
+import { datasetSchema } from "../../lib/schema";
 
 export async function getStaticPaths() {
   return Promise.all(
@@ -26,8 +27,15 @@ function entityFor(bloc: typeof a) {
     values: Object.fromEntries(Object.entries(bloc.aggregates).map(([k, v]) => [k, v.value])),
   };
 }
+const description = `Compare ${a.name} and ${b.name} across economic, trade, social, and military data.`;
+const schema = datasetSchema({
+  name: `${a.name} vs ${b.name}`,
+  description,
+  url: new URL(`/compare/${pair.slug}/`, Astro.site).toString(),
+  apiPath: `/api/compare/${pair.a}/${pair.b}`,
+});
 ---
-<BaseLayout title={`${a.name} vs ${b.name}`} description={`Compare ${a.name} and ${b.name} across economic, trade, social, and military data.`}>
+<BaseLayout title={`${a.name} vs ${b.name}`} description={description} structuredData={schema}>
   <a href="/" class="gm-back-link">&larr; Global Monitor</a>
   <p class="gm-hero-eyebrow">Bloc comparison</p>
   <h1>{a.name} vs {b.name}</h1>
@@ -41,6 +49,13 @@ function entityFor(bloc: typeof a) {
       ]}
     />
   </div>
+
+  {data.synthesis && (
+    <div class="gm-synthesis">
+      <p class="gm-synthesis-label">Summary</p>
+      <p>{data.synthesis.text}</p>
+    </div>
+  )}
 
   <h2>Overview</h2>
   <div class="gm-viz-block">

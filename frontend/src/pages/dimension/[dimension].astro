@@ -4,6 +4,7 @@ import WorldMap from "../../components/WorldMap";
 import { getBlocs } from "../../lib/data";
 import { DIMENSIONS, DIMENSION_LABELS, DIMENSION_METRICS, type Dimension } from "../../lib/metrics";
 import { blocColor } from "../../lib/colors";
+import { datasetSchema } from "../../lib/schema";
 
 export async function getStaticPaths() {
   const compareBlocIds = ["brics", "eu", "us", "usmca"];
@@ -13,8 +14,15 @@ export async function getStaticPaths() {
 
 const { dimension, blocs } = Astro.props as { dimension: Dimension; blocs: Awaited<ReturnType<typeof import("../../lib/data").getBlocs>> };
 const metrics = DIMENSION_METRICS[dimension];
+const description = `${DIMENSION_LABELS[dimension]} data for BRICS+, the EU, the US, and USMCA, side by side.`;
+const schema = datasetSchema({
+  name: `${DIMENSION_LABELS[dimension]} — all blocs`,
+  description,
+  url: new URL(`/dimension/${dimension}/`, Astro.site).toString(),
+  apiPath: "/api/blocs",
+});
 ---
-<BaseLayout title={`${DIMENSION_LABELS[dimension]} — all blocs`} description={`${DIMENSION_LABELS[dimension]} data for BRICS+, the EU, the US, and USMCA, side by side.`}>
+<BaseLayout title={`${DIMENSION_LABELS[dimension]} — all blocs`} description={description} structuredData={schema}>
   <a href="/" class="gm-back-link">&larr; Global Monitor</a>
   <p class="gm-hero-eyebrow">Cross-bloc view</p>
   <h1>{DIMENSION_LABELS[dimension]} — all blocs</h1>

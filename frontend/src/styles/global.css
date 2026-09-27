@@ -310,6 +310,27 @@ dl {
   margin: var(--space-4) 0;
 }
 
+/* --- Synthesis text (Milestone 4 - GLM/Ollama-generated, real numbers) --- */
+
+.gm-synthesis {
+  font-size: 1.02rem;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius);
+  padding: var(--space-6);
+  margin: var(--space-6) 0;
+  max-width: none;
+}
+.gm-synthesis-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--ink-muted);
+  margin-bottom: var(--space-2);
+}
+
 /* --- Chart/map wrappers - breathing room to match card rhythm --- */
 
 .gm-viz-block {

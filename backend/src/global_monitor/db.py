@@ -9,7 +9,7 @@ from contextlib import contextmanager
 from datetime import datetime, timezone
 
 from .config import db_path
-from .models import Bloc, BlocAggregate, BlocMembership, BlocTradeFlow, Country, Metric, Observation
+from .models import Bloc, BlocAggregate, BlocMembership, BlocTradeFlow, Country, Metric, Observation, SynthesisText
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS blocs (
@@ -254,6 +254,37 @@ def latest_observation(iso3: str, metric_id: str) -> Observation | None:
             (iso3, metric_id),
         ).fetchone()
         return Observation(**dict(row)) if row else None
+
+
+def get_synthesis(page_key: str) -> SynthesisText | None:
+    with _conn() as conn:
+        row = conn.execute(
+            "SELECT page_key, text, data_hash, generated_at, provider, model "
+            "FROM synthesis_text WHERE page_key = ?",
+            (page_key,),
+        ).fetchone()
+        return SynthesisText(**dict(row)) if row else None
+
+
+def upsert_synthesis(s: SynthesisText) -> None:
+    with _conn() as conn:
+        conn.execute(
+            """INSERT INTO synthesis_text (page_key, text, data_hash, generated_at, provider, model)
+               VALUES (?, ?, ?, ?, ?, ?)
+               ON CONFLICT(page_key) DO UPDATE SET text=excluded.text, data_hash=excluded.data_hash,
+                   generated_at=excluded.generated_at, provider=excluded.provider, model=excluded.model""",
+            (s.page_key, s.text, s.data_hash, s.generated_at, s.provider, s.model),
+        )
+
+
+def latest_data_update() -> str | None:
+    """The most recent computed_at across every bloc_aggregate - used as a
+    single, real, site-wide sitemap `lastmod` (accurate for a data site
+    where every page's numbers come from the same ingest run, and far
+    simpler than tracking one timestamp per URL for the same result)."""
+    with _conn() as conn:
+        row = conn.execute("SELECT MAX(computed_at) AS m FROM bloc_aggregates").fetchone()
+        return row["m"] if row else None
 
 
 def get_bloc_aggregates(bloc_id: str) -> list[BlocAggregate]:

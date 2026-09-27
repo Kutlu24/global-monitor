@@ -11,6 +11,12 @@ export interface BlocAggregateValue {
   member_count: number;
 }
 
+export interface Synthesis {
+  text: string;
+  provider: string;
+  generated_at: string;
+}
+
 export interface Bloc {
   bloc_id: string;
   name: string;
@@ -18,11 +24,14 @@ export interface Bloc {
   description: string;
   members?: string[];
   aggregates: Record<string, BlocAggregateValue>;
+  synthesis?: Synthesis | null;
 }
 
 export interface ComparePair {
   a: Bloc;
   b: Bloc;
+  synthesis?: Synthesis | null;
+  synthesis_by_dimension?: Record<string, Synthesis | null>;
 }
 
 async function getJSON<T>(path: string): Promise<T> {
