@@ -7,12 +7,12 @@ from __future__ import annotations
 import logging
 
 from . import aggregate, blocs, db, major_economies, metrics, synthesis
-from .ingestion import comtrade, sipri, undp_hdi, worldbank
+from .ingestion import comtrade, imf_weo, sipri, undp_hdi, worldbank
 
 logger = logging.getLogger(__name__)
 
 CURRENT_PERIOD = "2023"  # UN Comtrade's most recent generally-complete annual data year
-SOURCES = ["worldbank", "comtrade", "undp_hdi", "sipri"]
+SOURCES = ["worldbank", "worldbank_risk", "comtrade", "undp_hdi", "sipri"]
 
 
 def seed() -> None:
@@ -36,6 +36,65 @@ def run_source(source: str, iso3_list: list[str]) -> int:
         observations = worldbank.fetch(iso3_list)
         db.upsert_observations(observations)
         return len(observations)
+    if source == "worldbank_risk":
+        # The risk simulator runs on a much wider country universe than the
+        # bloc/major-economy set the other sources use, so it gets its own
+        # pass rather than widening iso3_list for everyone - Comtrade, SIPRI
+        # and GDELT would each be asked to cover 211 countries, which is slow
+        # and unsupported for most of them. Seeding the universe first is also
+        # what lets the risk indicators be stored at all: observations.iso3
+        # references countries(iso3).
+        universe = worldbank.fetch_country_universe()
+        for country in universe:
+            db.upsert_country(country)
+        wide = [c.iso3 for c in universe]
+        # The country seed above always runs - it is ONE request, and it is
+        # what lets a newly-listed World Bank country appear at all. The
+        # ~120-request indicator pull below does not need to.
+        #
+        # `ingest all` is called unconditionally by docker-entrypoint.sh on
+        # every container start, and this is by far the most expensive source
+        # in it. The named volume already holds the previous run's
+        # observations, so re-pulling the world on every `docker compose
+        # restart` bought nothing. scheduler.py runs a monthly job to keep
+        # this genuinely current.
+        if worldbank.risk_inputs_fresh():
+            logger.info(
+                "[worldbank_risk] skipped: all %d risk metrics fetched within "
+                "%d days (country seed refreshed for %d countries)",
+                len(worldbank.RISK_METRIC_IDS), worldbank._RISK_REFRESH_DAYS,
+                len(universe),
+            )
+            return 0
+        total = 0
+        observations = worldbank.fetch_risk_inputs(wide)
+        db.upsert_observations(observations)
+        total += len(observations)
+        wb_count = len(observations)
+        # Two non-World-Bank sources feed the risk criteria, because the World
+        # Bank could not cover what they carry:
+        #   IMF WEO  - general government debt. WDI (GC.DOD.TOTL.GD.ZS) has 3
+        #              of 7 test countries, the gaps being euro-area states on a
+        #              Maastricht basis, so debt was dropped from the model.
+        #              WEO covers 226.
+        #   UNDP     - mean years of schooling, the one dimension with no
+        #              indicator anywhere in the model until 2026-09-28.
+        # These are wide-universe pulls, not the narrow iso3_list the other
+        # sources use, so they are invoked here rather than as separate
+        # SOURCES entries. Each is cheap: WEO is 1 request for the full
+        # country x year matrix, UNDP is 1 CSV.
+        weo = imf_weo.fetch(wide)
+        db.upsert_observations(weo)
+        total += len(weo)
+        hdi = undp_hdi.fetch(wide)
+        db.upsert_observations(hdi)
+        total += len(hdi)
+        logger.info(
+            "[worldbank_risk] universe=%d countries, %d observations "
+            "(worldbank=%d, imf_weo=%d, undp=%d)",
+            len(universe), total, wb_count, len(weo), len(hdi),
+        )
+        return total
     if source == "comtrade":
         comtrade.reset_breaker()
         observations = comtrade.fetch_world_totals(iso3_list, CURRENT_PERIOD)

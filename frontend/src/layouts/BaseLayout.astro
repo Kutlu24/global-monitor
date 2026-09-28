@@ -13,10 +13,9 @@ import "@fontsource-variable/jetbrains-mono/wght.css";
 import interLatin from "@fontsource-variable/inter/files/inter-latin-wght-normal.woff2?url";
 import monoLatin from "@fontsource-variable/jetbrains-mono/files/jetbrains-mono-latin-wght-normal.woff2?url";
 
-import { getBlocs } from "../lib/data";
+import { getBlocs, getRiskScenarios } from "../lib/data";
 import { PAIRS } from "../lib/pairs";
 import { DIMENSIONS, DIMENSION_LABELS, DIMENSION_METRIC_COUNT } from "../lib/metrics";
-import { SCENARIOS } from "../lib/risk";
 
 // schema.org/Dataset JSON-LD - pass `structuredData` (a plain object) from
 // any page that represents real data (bloc/compare/dimension/country
@@ -53,6 +52,18 @@ const isActive = (href: string) => path === href || (href !== "/" && path.starts
 const blocs = await getBlocs();
 const blocById = Object.fromEntries(blocs.map((b) => [b.bloc_id, b]));
 const pairName = (p: (typeof PAIRS)[number]) => `${blocById[p.a]?.name ?? p.a} vs ${blocById[p.b]?.name ?? p.b}`;
+
+// The nav badge is the scenario count, which is now data rather than a
+// hardcoded array's `.length`. data.ts memoises by path, so this costs one
+// request for the whole ~76-page build, not one per page.
+//
+// `.catch(() => [])` on purpose, and only here: this layout is on every
+// page, including ones that have nothing to do with risk, so a risk-endpoint
+// failure must not fail the entire site build over a nav badge. The risk
+// pages themselves call getRiskScenario()/getRiskScenarios() without a
+// catch, so if the ETL hasn't run the risk module fails the build loudly
+// rather than publishing an empty module.
+const riskScenarios = await getRiskScenarios().catch(() => []);
 ---
 
 <!doctype html>
@@ -154,7 +165,9 @@ const pairName = (p: (typeof PAIRS)[number]) => `${blocById[p.a]?.name ?? p.a} v
             </a>
             <a href="/risk/" class="gm-nav-item" aria-current={path === "/risk/" ? "page" : undefined}>
               <span class="gm-nav-item__label">Risk Simulator</span>
-              <span class="gm-nav-item__count">{SCENARIOS.length}</span>
+              {riskScenarios.length > 0 && (
+                <span class="gm-nav-item__count">{riskScenarios.length}</span>
+              )}
             </a>
             <a href="/tension/" class="gm-nav-item" aria-current={path === "/tension/" ? "page" : undefined}>
               <span class="gm-nav-item__label">Current Tension</span>

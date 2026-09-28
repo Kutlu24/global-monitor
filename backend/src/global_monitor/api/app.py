@@ -14,7 +14,7 @@ from dataclasses import asdict
 from fastapi import FastAPI, Header, HTTPException
 from fastapi.staticfiles import StaticFiles
 
-from .. import db, major_economies, pipeline, scheduler
+from .. import db, major_economies, pipeline, risk, scheduler
 from ..config import frontend_dir, settings
 
 
@@ -115,6 +115,39 @@ def _country_payload(iso3: str) -> dict:
         if obs is not None and obs.value is not None:
             metrics_values[metric.metric_id] = {"value": obs.value, "period": obs.period}
     return {"iso3": iso3, "name": major_economies.country_name(iso3), "metrics": metrics_values}
+
+
+@app.get("/api/risk/scenarios")
+def list_risk_scenarios() -> list[dict]:
+    """Scenario catalogue. The weights and epicentre labels are included so the
+    UI can show what a scenario actually measures before rendering a ranking."""
+    return [
+        {"slug": s.slug, "name": s.name, "explanation": s.explanation,
+         "not_measured": s.not_measured, "weights": s.weights,
+         "epicentres": [{"lat": a, "lon": b, "label": c} for a, b, c in s.epicentres],
+         # Was missing here while /api/risk/{slug} included it, so the index
+         # page could not say which countries a scenario is about without
+         # fetching all six detail payloads at build time. Kept in step with
+         # the detail endpoint on purpose: same field, same meaning.
+         "belligerents": list(s.belligerents)}
+        for s in risk.SCENARIOS
+    ]
+
+
+@app.get("/api/risk/{slug}")
+def get_risk(slug: str) -> dict:
+    """Computed per request, not stored - the percentile ranks depend on the
+    whole country universe, so a cached copy would go stale the moment any
+    indicator refreshes. See risk.score() for the no-imputation rule."""
+    scenario = risk.find_scenario(slug)
+    if scenario is None:
+        raise HTTPException(404, f"No such risk scenario: {slug!r}")
+    try:
+        return risk.score(scenario)
+    except RuntimeError as exc:
+        # Almost always "the worldbank_risk ingest has not run yet" - a 503
+        # says "temporarily unavailable", where a 500 would read as a bug.
+        raise HTTPException(503, str(exc)) from exc
 
 
 @app.get("/api/last-updated")

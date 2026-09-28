@@ -1,16 +1,19 @@
 import type { APIRoute } from "astro";
-import { urlEntry, urlset } from "../lib/sitemap";
-import { SCENARIOS, RISK_CONTENT_DATE } from "../lib/risk";
+import { urlEntry, urlset, getLastUpdated } from "../lib/sitemap";
+import { getRiskScenarios } from "../lib/data";
 
-// Risk pages use a fixed content date, not the ETL's getLastUpdated() - see
-// RISK_CONTENT_DATE's own comment in lib/risk.ts (this data doesn't change
-// with the daily/weekly ETL, so borrowing that timestamp would overstate
-// how fresh this specific content is).
-export const GET: APIRoute = ({ site }) => {
+// Risk pages use the ETL's real `getLastUpdated()` now, not a hand-set
+// constant. That constant existed precisely because the risk data was
+// hardcoded and genuinely never changed, so borrowing the ETL timestamp
+// would have overstated its freshness - the old comment said as much. With
+// the data coming from World Bank/IMF/UNDP on a schedule, the real
+// timestamp is now the accurate one.
+export const GET: APIRoute = async ({ site }) => {
   const base = site?.toString().replace(/\/$/, "") ?? "";
+  const [scenarios, lastmod] = await Promise.all([getRiskScenarios(), getLastUpdated()]);
   const entries = [
-    urlEntry(`${base}/risk/`, RISK_CONTENT_DATE),
-    ...SCENARIOS.map((s) => urlEntry(`${base}/risk/${s.slug}/`, RISK_CONTENT_DATE)),
+    urlEntry(`${base}/risk/`, lastmod),
+    ...scenarios.map((s) => urlEntry(`${base}/risk/${s.slug}/`, lastmod)),
   ];
   return new Response(urlset(entries), { headers: { "Content-Type": "application/xml" } });
 };

@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import sqlite3
 from contextlib import contextmanager
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import json
 
@@ -103,12 +103,39 @@ def now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+# `countries` gained four columns for the risk simulator's expanded universe
+# (lat/lon for the per-scenario isolation criterion, income_level/region for
+# grouping). _SCHEMA's CREATE TABLE IF NOT EXISTS cannot add a column to a
+# table that already exists, and the DB lives in a persistent Docker named
+# volume, so existing installs need an explicit idempotent migration. There is
+# no `ADD COLUMN IF NOT EXISTS` in SQLite; PRAGMA table_info is the supported
+# way to check first.
+_ADDED_COLUMNS: tuple[tuple[str, str, str], ...] = (
+    ("countries", "latitude", "REAL"),
+    ("countries", "longitude", "REAL"),
+    ("countries", "income_level", "TEXT"),
+    ("countries", "region", "TEXT"),
+    # World Bank lending type. IDA (Intl. Development Association) credit is used
+    # as a fragility PROXY - see risk.derive_fragility for why this is not
+    # the same thing as the OECD DAC fragile-contexts list.
+    ("countries", "lending_type", "TEXT"),
+)
+
+
+def _migrate(conn: sqlite3.Connection) -> None:
+    for table, column, decl in _ADDED_COLUMNS:
+        existing = {r["name"] for r in conn.execute(f"PRAGMA table_info({table})")}
+        if column not in existing:
+            conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {decl}")
+
+
 @contextmanager
 def _conn():
     conn = sqlite3.connect(db_path())
     conn.row_factory = sqlite3.Row
     try:
         conn.executescript(_SCHEMA)
+        _migrate(conn)
         yield conn
         conn.commit()
     finally:
@@ -126,12 +153,54 @@ def upsert_bloc(bloc: Bloc) -> None:
 
 
 def upsert_country(country: Country) -> None:
+    # name=excluded.name only, deliberately: blocs.py re-seeds hand-written
+    # countries with no lat/lon on every boot, and an unconditional
+    # latitude=excluded.latitude would wipe the World Bank coordinates the
+    # risk ingestion just wrote. Extra columns are only set when known.
     with _conn() as conn:
         conn.execute(
-            """INSERT INTO countries (iso3, name) VALUES (?, ?)
-               ON CONFLICT(iso3) DO UPDATE SET name=excluded.name""",
-            (country.iso3, country.name),
+            """INSERT INTO countries (iso3, name, latitude, longitude, income_level,
+                                      region, lending_type)
+               VALUES (?, ?, ?, ?, ?, ?, ?)
+               ON CONFLICT(iso3) DO UPDATE SET name=excluded.name,
+                    latitude=COALESCE(excluded.latitude, countries.latitude),
+                    longitude=COALESCE(excluded.longitude, countries.longitude),
+                    income_level=COALESCE(excluded.income_level, countries.income_level),
+                    region=COALESCE(excluded.region, countries.region),
+                    lending_type=COALESCE(excluded.lending_type, countries.lending_type)""",
+            (country.iso3, country.name, country.latitude, country.longitude,
+             country.income_level, country.region, country.lending_type),
         )
+
+
+def metrics_fetched_within(metric_ids: Iterable[str], max_age_days: int) -> bool:
+    """True when EVERY one of `metric_ids` was last fetched within the window.
+
+    Read `fetched_at`, not `period`: `period` is what the source calls the
+    figure (2024 for WDI, and it will read 2024 for years), while
+    `fetched_at` is when we last checked - which is the only one of the two
+    that answers "should I bother asking again".
+
+    Deliberately all-or-nothing. A partially populated metric set is what an
+    interrupted or failed run leaves behind, and reporting that as fresh would
+    cement the damage instead of letting the next run repair it.
+    """
+    wanted = set(metric_ids)
+    if not wanted or max_age_days <= 0:
+        return False
+    cutoff = (
+        datetime.now(timezone.utc) - timedelta(days=max_age_days)
+    ).isoformat()
+    with _conn() as conn:
+        rows = conn.execute(
+            "SELECT metric_id, MAX(fetched_at) AS last FROM observations"
+            " WHERE metric_id IN ({}) GROUP BY metric_id".format(
+                ",".join("?" * len(wanted))
+            ),
+            tuple(sorted(wanted)),
+        ).fetchall()
+    seen = {r["metric_id"]: r["last"] for r in rows}
+    return len(seen) == len(wanted) and all(v >= cutoff for v in seen.values())
 
 
 def upsert_membership(m: BlocMembership) -> None:
@@ -210,11 +279,28 @@ def get_blocs() -> list[Bloc]:
 
 
 def get_all_countries() -> list[Country]:
-    """Every tracked country (bloc members + major economies) with a real
-    name - the reference list for the Tension module's ad-hoc two-country
-    query picker (tension.py's `query_pair`), not a bloc-scoped list."""
+    """Every tracked country (bloc members + major economies + everything the
+    risk universe added) with a real name - the reference list for the Tension
+    module's ad-hoc two-country query picker (tension.py's `query_pair`), not a
+    bloc-scoped list."""
     with _conn() as conn:
-        rows = conn.execute("SELECT iso3, name FROM countries ORDER BY name").fetchall()
+        rows = conn.execute(
+            "SELECT iso3, name, latitude, longitude, income_level, region, lending_type"
+            " FROM countries ORDER BY name"
+        ).fetchall()
+        return [Country(**dict(r)) for r in rows]
+
+
+def get_coordinate_countries() -> list[Country]:
+    """Only the countries the risk simulator can score: the isolation criterion
+    is a distance calculation, so a country without coordinates cannot be
+    ranked at all and is excluded here rather than crashing the scoring pass."""
+    with _conn() as conn:
+        rows = conn.execute(
+            """SELECT iso3, name, latitude, longitude, income_level, region, lending_type
+               FROM countries
+               WHERE latitude IS NOT NULL AND longitude IS NOT NULL ORDER BY name"""
+        ).fetchall()
         return [Country(**dict(r)) for r in rows]
 
 

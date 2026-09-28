@@ -1,34 +1,116 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
-import { SCENARIOS } from "../../lib/risk";
+import { getRiskScenarios, getRiskScenario } from "../../lib/data";
+import { getLastUpdated } from "../../lib/sitemap";
+
+const [scenarios, general, lastUpdated] = await Promise.all([
+  getRiskScenarios(),
+  getRiskScenario("general-balanced-crisis"),
+  getLastUpdated(),
+]);
+
+// Pull the per-scenario counts out of one representative payload rather
+// than fetching all six at build time: the count that matters on this page
+// ("how many countries does this rank?") is the same for every scenario,
+// because the universe and the data gaps are scenario-independent. Exposure
+// ranking is the part that changes, and the scenario pages show that
+// themselves.
+const unranked = general.unranked.length;
+
+// Which World Bank/IMF/UNDP indicators stand behind each criterion. Kept in
+// the frontend because it is documentation the reader is shown, not data the
+// backend computes - the backend owns the scoring, not this list. Keys are
+// criterion ids from the API.
+const CRITERION_SOURCES: Record<string, string> = {
+  economic_resilience:
+    "income per head, three-year growth, debt-to-GDP, industry share, current account, unemployment",
+  domestic_social_stability:
+    "Gini, poverty headcount, female labour participation, health spending per head",
+  infrastructure_health:
+    "internet access, physicians per 1,000, health spending, mean years of schooling, electricity output per head",
+  climate_resilience: "CO2 per head, forest cover, renewable electricity share",
+  energy_independence:
+    "fossil-fuel share of energy use, fuel exports as a share of merchandise exports",
+  demographic_resilience: "dependency ratio, fertility, population growth",
+};
 
 const description =
-  "How resilient are 19 countries under six different global-crisis scenarios? A weighted scoring model across geography, energy, economy, and more.";
+  `How structurally strong and how exposed are ${general.universe} countries under six different global-crisis scenarios? Six socio-economic criteria from World Bank, IMF and UNDP data, plus distance to each scenario's epicentres.`;
 ---
+
 <BaseLayout title="Global Risk Simulator" description={description}>
   <a href="/" class="gm-back-link">&larr; Global Monitor</a>
-  <p class="gm-hero-eyebrow">Risk module</p>
+  <p class="gm-hero-eyebrow">Risk module · {general.universe} countries · data as of {lastUpdated}</p>
   <h1>Global Risk Simulator</h1>
   <p class="gm-lede">
-    Ranks 19 countries by resilience under six different global-crisis scenarios, weighting 11
-    factors - geographic isolation, nuclear risk, energy independence, and more - differently for
-    each one. The same underlying country data produces a different ranking depending on which
-    crisis you pick.
+    Ranks {general.universe} countries on <strong>two independent axes</strong>:
+    how well each one holds together on six socio-economic criteria, and how
+    far it sits from a given scenario's epicentres. Six crisis scenarios change
+    the weights and the epicentres — never the underlying data — so the same
+    countries produce a genuinely different picture depending on which crisis
+    you pick.
   </p>
+
   <p>
-    <strong>The scores are illustrative estimates for scenario exploration, not a rigorous
-    geopolitical risk model.</strong> Each of the 11 criteria is scored 0-10 by hand; treat the
-    rankings as a way to reason about trade-offs, not a forecast.
+    This replaces an earlier version of this page that scored 19 countries
+    across 11 criteria by hand, with the numbers chosen by hand and the
+    arithmetic done in the browser. Those figures were the author's own
+    illustrative estimates; these come from World Bank WDI, IMF WEO and UNDP
+    HDR, are refreshed on a schedule, and cover {general.universe} countries
+    instead of 19. {general.ranked.length} of them can be fully or partially
+    scored today; the remaining {unranked} are shown too, with the reason
+    they could not be.
+  </p>
+
+  <h2>What is and is not combined</h2>
+  <p>
+    There is deliberately <strong>no single resilience score</strong>. Structural
+    strength and conflict exposure are published side by side but never added
+    together, and never averaged: combining them would produce a single number
+    whose meaning depends entirely on which crisis you assume, while hiding
+    which of the two things is actually driving the result. Three further
+    properties — nuclear-armed status, being a party to the conflict, and IDA
+    credit eligibility — are reported as flags and are never part of any score.
   </p>
 
   <h2>Choose a scenario</h2>
   <div class="gm-grid">
-    {SCENARIOS.map((s) => (
+    {scenarios.map((s) => (
       <a href={`/risk/${s.slug}/`} class="gm-card">
         <p class="gm-card-eyebrow">Scenario</p>
         <h3>{s.name}</h3>
         <p>{s.explanation}</p>
+        {s.belligerents.length > 0 && (
+          <p class="gm-card-meta">
+            Parties: {s.belligerents.join(", ")}
+          </p>
+        )}
       </a>
     ))}
   </div>
+
+  <h2>The six structural criteria</h2>
+  <ul>
+    {Object.entries(general.criteria).map(([id, label]) => (
+      <li>
+        <strong>{label}</strong> — {CRITERION_SOURCES[id] ?? ""}
+      </li>
+    ))}
+  </ul>
+  <p class="gm-note">
+    Indicators come from the World Bank's World Development Indicators, the IMF's
+    World Economic Outlook (public-sector debt) and UNDP's Human Development
+    Report (mean years of schooling). Each criterion is normalised across all
+    {general.universe} countries, so a score is always a relative standing
+    within this set rather than an absolute standard. Nothing is imputed where
+    data is missing.
+  </p>
 </BaseLayout>
+
+<style>
+  .gm-card-meta {
+    font-size: var(--fs-xs);
+    color: var(--text-dim);
+    margin-top: var(--space-2);
+  }
+</style>

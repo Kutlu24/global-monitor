@@ -1,0 +1,476 @@
+---
+import {
+  RISK_AXES,
+  bucketFor,
+  fmtKm,
+  fmtPct,
+  fmtScore,
+  quintileBreaks,
+  rampVar,
+  type RiskCountry,
+} from "../lib/risk";
+
+interface Props {
+  ranked: RiskCountry[];
+  unranked: RiskCountry[];
+  flags: Record<string, { label: string; basis: string }>;
+  /** Not every country in this table is on the map - see lib/atlas.ts. */
+  undrawn?: string[];
+  /** Precomputed by the page so the bars here and the choropleth fills
+   *  there are cut at exactly the same points. */
+  structBreaks: ReturnType<typeof quintileBreaks>;
+  expoBreaks: ReturnType<typeof quintileBreaks>;
+  /** Straight from the API, so "scored on 20 of 22" cannot drift out of date
+   *  when a criterion changes. */
+  indicatorTotal: number;
+}
+const { ranked, unranked, flags, undrawn = [], structBreaks, expoBreaks, indicatorTotal } = Astro.props;
+
+// One table containing every country, ranked and unranked, rather than a
+// ranked table with the other 36 hidden behind a disclosure. A country that
+// exists in the dataset but has no score is a fact about the data, and
+// hiding it is how "36 countries could not be scored" turns into "36
+// countries don't exist". Unranked rows sort to the bottom, greyed, with
+// the specific indicators that were missing.
+//
+// Two axes, two columns, never a single combined figure. The bars are
+// classed (5 steps, the same ramp the maps use) so that a bar's length and
+// its colour agree; the exact number is always printed beside it, because
+// the bar alone cannot tell you 52.4 from 61.0.
+
+const FLAG_ORDER = ["nuclear_armed", "belligerent", "ida_credit"] as const;
+const rows = [
+  ...ranked,
+  ...unranked.sort((a, b) => a.exposure_km - b.exposure_km),
+];
+const undrawnSet = new Set(undrawn);
+
+// Which flag filters to offer, computed here rather than with a `count > 0 &&`
+// guard inside the template: a scenario with no belligerents should not get a
+// dead "party to this scenario (0)" checkbox, and doing the filtering in
+// frontmatter keeps the template to plain markup.
+const flagControls = FLAG_ORDER.map((flag) => ({
+  flag,
+  label: flags[flag]?.label ?? flag,
+  count: rows.filter((c) => c[flag]).length,
+})).filter((f) => f.count > 0);
+---
+
+<div class="gm-risk" data-risk-table>
+  <div class="gm-risk__controls">
+    <label class="gm-risk__search">
+      <span class="gm-risk__searchlabel">Filter</span>
+      <input
+        type="search"
+        class="gm-risk__input"
+        placeholder="Country name or ISO3"
+        autocomplete="off"
+        data-risk-search
+      />
+    </label>
+    {flagControls.map((f) => (
+      <label class="gm-risk__check">
+        <input type="checkbox" data-risk-flag={f.flag} />
+        {f.label} <span class="gm-risk__count">{f.count}</span>
+      </label>
+    ))}
+    <label class="gm-risk__check">
+      <input type="checkbox" data-risk-unranked />
+      Unscored only <span class="gm-risk__count">{unranked.length}</span>
+    </label>
+    <p class="gm-risk__status" data-risk-status aria-live="polite">
+      {rows.length} countries
+    </p>
+  </div>
+
+  <div class="gm-risk__scroll">
+    <div class="gm-risk-row gm-risk-row--head" role="row">
+      <span role="columnheader">#</span>
+      <span role="columnheader">Country</span>
+      <span role="columnheader" class="gm-risk-axishead">
+        {RISK_AXES.structural.title}
+        <em>{RISK_AXES.structural.direction}</em>
+      </span>
+      <span role="columnheader" class="gm-risk-axishead">
+        {RISK_AXES.exposure.title}
+        <em>{RISK_AXES.exposure.direction}</em>
+      </span>
+      <span role="columnheader" class="gm-risk-flaghead">Flags</span>
+    </div>
+
+    {
+      rows.map((c) => (
+        <div
+          class="gm-risk-row"
+          role="row"
+          data-risk-row
+          data-name={`${c.name} ${c.iso3}`.toLowerCase()}
+          data-flags={FLAG_ORDER.filter((f) => c[f]).join(" ")}
+          data-scored={c.structural_score !== undefined ? "1" : "0"}
+        >
+          <span class="gm-risk-rank" role="cell">{c.rank ?? "—"}</span>
+          <span class="gm-risk-name" role="cell">
+            {c.name}
+            <span class="gm-risk-iso">{c.iso3}</span>
+            {/* Whether a country has a polygon is a fact about the atlas, not
+                about the data, so this must not be gated on having a score -
+                the countries that go undrawn (Tuvalu, at 50m) are often the
+                unscored ones, and gating on the score hid the badge on exactly
+                the rows that needed it. The predicate also reads POSITIVE:
+                undrawnCountries() returns the names the map cannot draw, so
+                membership is the condition for the warning, not its absence. */}
+            {undrawnSet.has(c.name) && (
+              <span class="gm-risk-nomap" title="This country has no polygon at the map's resolution - its figures are in this table only.">
+                not on map
+              </span>
+            )}
+          </span>
+
+          <span class="gm-risk-cell" role="cell">
+            {c.structural_score !== undefined ? (
+              <>
+                <span class="gm-risk-track">
+                  <span
+                    class="gm-risk-fill"
+                    style={{
+                      width: `${c.structural_score}%`,
+                      background: rampVar("structural", bucketFor(c.structural_score, structBreaks)),
+                    }}
+                  />
+                </span>
+                <span class="gm-risk-num">{fmtScore(c.structural_score)}</span>
+                {c.completeness !== undefined && c.completeness < 1 && (
+                  <span
+                    class="gm-risk-partial"
+                    title={`Scored on ${Math.round(c.completeness * indicatorTotal)} of ${indicatorTotal} indicators, so this is a partial read rather than a like-for-like one. Still clear of the threshold that would drop the country out of the ranking entirely. Missing: ${(c.missing ?? []).join(", ") || "unknown"}`}
+                  >
+                    {fmtPct(c.completeness)}
+                  </span>
+                )}
+              </>
+            ) : (
+              <span class="gm-risk-num gm-risk-num--none" title={`Not scored. Missing indicators: ${(c.missing ?? []).join(", ")}`}>
+                not scored
+              </span>
+            )}
+          </span>
+
+          <span class="gm-risk-cell" role="cell">
+            {c.exposure_percentile !== undefined ? (
+              <>
+                <span class="gm-risk-track">
+                  <span
+                    class="gm-risk-fill"
+                    style={{
+                      width: `${c.exposure_percentile}%`,
+                      background: rampVar("exposure", bucketFor(c.exposure_percentile, expoBreaks, false)),
+                    }}
+                  />
+                </span>
+                <span class="gm-risk-num">{fmtKm(c.exposure_km)}</span>
+              </>
+            ) : (
+              <span class="gm-risk-num" title="No percentile: this country is not in the ranked population, so it has nothing to be a percentile of.">
+                {fmtKm(c.exposure_km)}
+                <em class="gm-risk-nopct">unranked</em>
+              </span>
+            )}
+          </span>
+
+          <span class="gm-risk-flags" role="cell">
+            {FLAG_ORDER.filter((f) => c[f]).map((f) => (
+              <span
+                class="gm-risk-flag"
+                data-flag={f}
+                title={flags[f]?.basis ?? f}
+              >
+                {f === "nuclear_armed" ? "nuclear" : f === "belligerent" ? "party" : "IDA"}
+              </span>
+            ))}
+          </span>
+        </div>
+      ))
+    }
+  </div>
+</div>
+
+<noscript>
+  <p class="gm-note">
+    The filter controls above need JavaScript; without it the full list of {rows.length} countries is
+    still shown, unfiltered.
+  </p>
+</noscript>
+
+<style>
+  .gm-risk__controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-3) var(--space-4);
+    padding-bottom: var(--space-3);
+    margin-bottom: var(--space-2);
+    border-bottom: 1px solid var(--hairline);
+  }
+  .gm-risk__search {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+  .gm-risk__searchlabel {
+    font-size: var(--fs-2xs);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-dim);
+    font-weight: 600;
+  }
+  .gm-risk__input {
+    font: inherit;
+    font-size: var(--fs-sm);
+    color: var(--text);
+    background: var(--wash-1);
+    border: 1px solid var(--hairline);
+    border-radius: var(--radius-xs);
+    padding: 3px var(--space-2);
+    min-width: 12rem;
+  }
+  .gm-risk__input:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+  .gm-risk__check {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-size: var(--fs-xs);
+    color: var(--text-secondary);
+    cursor: pointer;
+    user-select: none;
+  }
+  .gm-risk__count {
+    font-family: var(--font-mono);
+    font-size: var(--fs-2xs);
+    color: var(--text-dim);
+    font-variant-numeric: tabular-nums;
+  }
+  .gm-risk__status {
+    margin: 0 0 0 auto;
+    font-size: var(--fs-xs);
+    color: var(--text-dim);
+    font-variant-numeric: tabular-nums;
+  }
+  .gm-risk__scroll {
+    max-height: 46rem;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+  .gm-risk-row {
+    display: grid;
+    grid-template-columns: 2.6rem minmax(11rem, 15rem) minmax(9rem, 1fr) minmax(9rem, 1fr) 9.5rem;
+    align-items: center;
+    gap: var(--space-3);
+    font-size: var(--fs-sm);
+    padding: 3px var(--space-2);
+    border-radius: var(--radius-xs);
+  }
+  .gm-risk-row:hover {
+    background: var(--wash-1);
+  }
+  .gm-risk-row[hidden] {
+    display: none;
+  }
+  .gm-risk-row--head {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: var(--bg);
+    font-size: var(--fs-2xs);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-dim);
+    font-weight: 600;
+    padding-bottom: var(--space-2);
+    border-bottom: 1px solid var(--hairline);
+  }
+  .gm-risk-axishead {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+  }
+  .gm-risk-axishead em {
+    font-style: normal;
+    text-transform: none;
+    letter-spacing: 0;
+    font-weight: 400;
+    /* --text-muted, not --text-faint: this says which way the ramp runs, so
+       it is a glyph and not a rule. --text-faint is 3.0:1 and global.css
+       marks it decoration-only (see its own comment there). */
+    color: var(--text-muted);
+    font-size: var(--fs-2xs);
+  }
+  .gm-risk-rank {
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    font-size: var(--fs-xs);
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+  }
+  .gm-risk-name {
+    color: var(--text);
+    font-weight: 550;
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-2);
+    min-width: 0;
+  }
+  .gm-risk-iso {
+    font-family: var(--font-mono);
+    font-size: var(--fs-2xs);
+    color: var(--text-muted);
+    font-weight: 400;
+  }
+  .gm-risk-nomap,
+  .gm-risk-nopct {
+    font-size: var(--fs-2xs);
+    color: var(--text-muted);
+    font-style: normal;
+    font-weight: 400;
+    white-space: nowrap;
+  }
+  .gm-risk-cell {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    min-width: 0;
+  }
+  .gm-risk-track {
+    background: var(--wash-1);
+    border-radius: var(--radius-full);
+    height: 7px;
+    overflow: hidden;
+    flex: 1 1 3rem;
+    min-width: 2.5rem;
+  }
+  .gm-risk-fill {
+    display: block;
+    height: 100%;
+    border-radius: var(--radius-full);
+  }
+  .gm-risk-num {
+    color: var(--text-secondary);
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+    font-size: var(--fs-xs);
+    white-space: nowrap;
+    flex: 0 0 auto;
+  }
+  .gm-risk-num--none {
+    color: var(--text-muted);
+    font-style: italic;
+  }
+  .gm-risk-partial {
+    font-family: var(--font-mono);
+    font-size: var(--fs-2xs);
+    color: var(--text-dim);
+    border: 1px solid var(--hairline);
+    border-radius: var(--radius-full);
+    padding: 0 4px;
+    flex: 0 0 auto;
+    cursor: help;
+  }
+  .gm-risk-flaghead {
+    text-align: right;
+  }
+  .gm-risk-flags {
+    display: flex;
+    gap: var(--space-1);
+    justify-content: flex-end;
+    flex-wrap: wrap;
+  }
+  .gm-risk-flag {
+    font-size: var(--fs-2xs);
+    color: var(--text-secondary);
+    background: var(--wash-1);
+    border-radius: var(--radius-full);
+    padding: 1px 6px;
+    white-space: nowrap;
+    cursor: help;
+  }
+  .gm-risk-flag[data-flag="belligerent"] {
+    color: var(--text);
+    border: 1px solid var(--hairline);
+  }
+  @media (max-width: 900px) {
+    .gm-risk-row {
+      grid-template-columns: 2.2rem minmax(8rem, 12rem) 1fr 1fr;
+    }
+    .gm-risk-flaghead,
+    .gm-risk-flags {
+      display: none;
+    }
+  }
+  @media (max-width: 620px) {
+    .gm-risk-row {
+      grid-template-columns: 1.8rem 1fr;
+      row-gap: 2px;
+      padding-bottom: var(--space-2);
+    }
+    .gm-risk-cell {
+      grid-column: 2;
+    }
+  }
+</style>
+
+<script>
+  // Vanilla, no framework, and strictly progressive: every row is in the
+  // HTML already, so this only ever hides rows. 211 countries is well past
+  // the point where a static table serves anyone - the previous 19-row
+  // version needed none of this, which is why it is only here now.
+  //
+  // Flag boxes are OR-ed (any checked flag matches) and all start unchecked,
+  // so the initial view is the complete 211 and each box only ever narrows
+  // it. AND-ing them instead - the first cut of this - was worse than
+  // useless: with all three checked, only a country that is nuclear-armed
+  // AND a party to the conflict AND IDA-eligible would show, which is nobody,
+  // so the table rendered empty.
+  //
+  // Plain JS, no type annotations: Astro hands this to esbuild as a module
+  // without the TS parser, so `querySelector<HTMLInputElement>(...)` is a
+  // syntax error here rather than a typed call.
+  const root = document.querySelector("[data-risk-table]");
+  if (root) {
+    const search = root.querySelector("[data-risk-search]");
+    const status = root.querySelector("[data-risk-status]");
+    const unscored = root.querySelector("[data-risk-unranked]");
+    const boxes = Array.from(root.querySelectorAll("[data-risk-flag]"));
+    const rows = Array.from(root.querySelectorAll("[data-risk-row]"));
+
+    const apply = () => {
+      const q = (search && search.value ? search.value : "").trim().toLowerCase();
+      const anyOf = boxes
+        .filter((b) => b.checked)
+        .map((b) => b.getAttribute("data-risk-flag"));
+      const onlyUnscored = !!(unscored && unscored.checked);
+      let shown = 0;
+      for (const row of rows) {
+        const flags = (row.getAttribute("data-flags") || "").split(" ").filter(Boolean);
+        const name = row.getAttribute("data-name") || "";
+        const ok =
+          (!q || name.indexOf(q) !== -1) &&
+          (!anyOf.length || anyOf.some((f) => flags.indexOf(f) !== -1)) &&
+          (!onlyUnscored || row.getAttribute("data-scored") === "0");
+        row.hidden = !ok;
+        if (ok) shown++;
+      }
+      if (status) {
+        status.textContent =
+          shown === rows.length ? rows.length + " countries" : shown + " of " + rows.length;
+      }
+    };
+
+    for (const el of [search, unscored].concat(boxes)) {
+      if (el) el.addEventListener("input", apply);
+    }
+    apply();
+  }
+</script>

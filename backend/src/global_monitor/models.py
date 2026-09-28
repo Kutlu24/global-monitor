@@ -19,6 +19,19 @@ class Bloc:
 class Country:
     iso3: str
     name: str
+    # The four extra fields are World Bank country-endpoint metadata, added for
+    # the risk simulator: lat/lon drive the per-scenario Geographic Isolation
+    # criterion, and income_level/region let the UI group and filter the
+    # expanded universe. All optional because blocs.py still seeds countries
+    # by hand from MEMBERSHIP, where only iso3+name are known.
+    latitude: float | None = None
+    longitude: float | None = None
+    income_level: str | None = None
+    region: str | None = None
+    # World Bank lending type ("IDA", "IBRD", "Blend", ...). IDA credit is
+    # used as a fragility proxy. It is NOT the OECD DAC fragile-contexts
+    # classification and must never be labelled as one.
+    lending_type: str | None = None
 
 
 @dataclass(frozen=True)

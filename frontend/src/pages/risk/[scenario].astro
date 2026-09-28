@@ -1,49 +1,244 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import RiskMap from "../../components/RiskMap";
-import RiskRankingChart from "../../components/RiskRankingChart.astro";
-import { SCENARIOS, RISK_CONTENT_DATE, calculateScores } from "../../lib/risk";
+import RiskCountryTable from "../../components/RiskCountryTable.astro";
+import { getRiskScenario, getRiskScenarios } from "../../lib/data";
+import { getLastUpdated } from "../../lib/sitemap";
+import { undrawnCountries } from "../../lib/atlas";
+import { fmtPct, quintileBreaks } from "../../lib/risk";
 import { datasetSchema } from "../../lib/schema";
 
 export async function getStaticPaths() {
-  return SCENARIOS.map((scenario) => ({ params: { scenario: scenario.slug }, props: { scenario } }));
+  // Slugs come from the API, so adding a scenario in risk.py is enough to
+  // get a page, a sitemap entry and a JSON dataset - nothing to register on
+  // this side. The previous version imported a hardcoded SCENARIOS array.
+  const scenarios = await getRiskScenarios();
+  return scenarios.map((s) => ({ params: { scenario: s.slug } }));
 }
 
-const { scenario } = Astro.props;
-const ranked = calculateScores(scenario);
-const description = `Country resilience ranking under the "${scenario.name}" scenario: ${scenario.explanation}`;
+const { scenario: slug } = Astro.params;
+const [data, all, lastUpdated] = await Promise.all([
+  getRiskScenario(slug!),
+  getRiskScenarios(),
+  getLastUpdated(),
+]);
+
+// One fetch for both maps, and for the table's unranked rows: the API splits
+// `ranked` and `unranked` because only ranked countries have a percentile,
+// but the map's exposure view is meaningful for unranked countries too (they
+// have a real distance in km), so both views get the union.
+const allCountries = [...data.ranked, ...data.unranked];
+
+// The detail endpoint nests the scenario's own fields under `scenario` while
+// the model-wide fields sit beside it (see lib/risk.ts). Unpack once here so
+// the template below can use plain names.
+const sc = data.scenario;
+const undrawn = undrawnCountries(allCountries);
+
+// One cut-point set per axis, computed once here and handed to BOTH the maps
+// and the table, so a bar in the table and a country on the map are coloured
+// from the same threshold. Recomputing them per component is how a table and
+// a map slowly drift out of agreement.
+//
+// Structural is cut from the ranked countries only (an unranked country has
+// no score to place). Exposure is cut from the raw distances of all 211
+// countries, including the 36 unscored ones, because the exposure map does
+// colour those.
+const structBreaks = quintileBreaks(data.ranked.map((c) => c.structural_score ?? 0));
+const expoBreaks = quintileBreaks(allCountries.map((c) => c.exposure_km));
+
+const description = `Country structural scores and conflict exposure under the "${sc.name}" scenario, across ${data.universe} countries, from World Bank, IMF and UNDP data.`;
 const schema = datasetSchema({
-  name: `Global Risk Simulator — ${scenario.name}`,
+  name: `Global Risk Simulator — ${sc.name}`,
   description,
-  url: new URL(`/risk/${scenario.slug}/`, Astro.site).toString(),
-  apiPath: `/risk/${scenario.slug}.json`,
+  url: new URL(`/risk/${sc.slug}/`, Astro.site).toString(),
+  apiPath: `/risk/${sc.slug}.json`,
 });
+
+// The criteria that could not be scored for at least one country, so the
+// table's partial-coverage markers have an explanation in prose too.
+const thinCriteria = Object.entries(data.criteria)
+  .map(([id, label]) => ({
+    id,
+    label,
+    n: allCountries.filter((c) => c.missing?.includes(id)).length,
+  }))
+  .filter((c) => c.n > 0)
+  .sort((a, b) => b.n - a.n);
+const partial = allCountries.filter((c) => (c.completeness ?? 1) < 1);
 ---
-<BaseLayout title={`${scenario.name} — Global Risk Simulator`} description={description} structuredData={schema}>
+
+<BaseLayout title={`${sc.name} — Global Risk Simulator`} description={description} structuredData={schema}>
   <a href="/risk/" class="gm-back-link">&larr; Global Risk Simulator</a>
-  <p class="gm-hero-eyebrow">Scenario · updated {RISK_CONTENT_DATE}</p>
-  <h1>{scenario.name}</h1>
-  <p class="gm-lede">{scenario.explanation}</p>
+  <p class="gm-hero-eyebrow">Scenario · {all.length} countries · data as of {lastUpdated}</p>
+  <h1>{sc.name}</h1>
+  <p class="gm-lede">{sc.explanation}</p>
+
+  <p class="gm-note" style="max-width: none;">
+    <strong>What this scenario does not measure.</strong> {sc.not_measured}
+  </p>
 
   <ul class="gm-link-list">
-    {SCENARIOS.filter((s) => s.slug !== scenario.slug).map((s) => (
+    {all.filter((s) => s.slug !== sc.slug).map((s) => (
       <li><a href={`/risk/${s.slug}/`}>{s.name}</a></li>
     ))}
   </ul>
 
-  <h2>Geographic view</h2>
-  <div class="gm-viz-block">
-    <RiskMap client:visible countries={ranked} />
-  </div>
-
-  <h2>Country ranking</h2>
-  <div class="gm-viz-block">
-    <RiskRankingChart countries={ranked} />
-  </div>
-
-  <p class="gm-note" style="max-width: none;">
-    Illustrative estimates for scenario exploration, not a rigorous geopolitical risk model. Each
-    country's 11 resilience factors are scored 0-10 by hand; this scenario weights them
-    differently to produce the ranking above.
+  <h2>Two axes, kept separate</h2>
+  <p>
+    There is no single "resilience score" here, and that is deliberate. A
+    country's ability to absorb a shock and its distance from the shock are
+    different questions with different data behind them, and averaging them
+    into one number hides which of the two is actually driving a result.
+    {data.ranked.length} of {data.universe} countries can be scored on the
+    structural axis; {data.unranked.length} cannot yet, and are listed at the
+    bottom of the table with the specific indicators that are missing.
   </p>
+
+  <div class="gm-risk-maps">
+    <div class="gm-viz-block">
+      <RiskMap
+        client:visible
+        idPrefix="risk-structural"
+        axis="structural"
+        countries={allCountries}
+        undrawn={undrawn}
+        breaks={structBreaks}
+        unit="score"
+      />
+    </div>
+    <div class="gm-viz-block">
+      <RiskMap
+        client:visible
+        idPrefix="risk-exposure"
+        axis="exposure"
+        countries={allCountries}
+        undrawn={undrawn}
+        breaks={expoBreaks}
+        unit="km"
+        epicentres={sc.epicentres}
+      />
+    </div>
+  </div>
+
+  <h2>Every country</h2>
+  <p>
+    Filter by name, or narrow to the nuclear-armed states
+    ({allCountries.filter((c) => c.nuclear_armed).length}),
+    {sc.belligerents.length > 0
+      && <>the parties to this scenario ({sc.belligerents.length}) </>
+    }or IDA credit recipients ({allCountries.filter((c) => c.ida_credit).length}).
+    A percentage next to a structural score means that score is partial —
+    hover it for which indicators were missing.
+  </p>
+  <div class="gm-viz-block">
+    <RiskCountryTable
+      ranked={data.ranked}
+      unranked={data.unranked}
+      flags={data.flags}
+      undrawn={undrawn}
+      structBreaks={structBreaks}
+      expoBreaks={expoBreaks}
+      indicatorTotal={data.indicator_total}
+    />
+  </div>
+
+  <h2>How the structural score is built</h2>
+  <p>
+    Six criteria, each normalised across all {data.universe} countries so a
+    country's standing is always relative to the whole set, then combined
+    using this scenario's weights. Nothing is imputed: a criterion with too
+    few underlying indicators to score is left out and the score is reported
+    with the share of weight it actually rests on.
+  </p>
+  <div class="gm-risk__weights">
+    {Object.entries(data.criteria).map(([id, label]) => {
+      const w = data.weights[id] ?? 0;
+      return (
+        <div class="gm-risk__weight">
+          <span class="gm-risk__weightlabel">{label}</span>
+          <span class="gm-risk__weighttrack">
+            <span
+              class="gm-risk__weightfill"
+              style={{ width: `${(w / 0.3) * 100}%` }}
+            />
+          </span>
+          <span class="gm-risk__weightnum">{fmtPct(w)}</span>
+        </div>
+      );
+    })}
+  </div>
+
+  {
+    thinCriteria.length > 0 && (
+      <p class="gm-note">
+        {partial.length} of {allCountries.length} countries carry a partial structural score.
+        The most common gaps: {thinCriteria.slice(0, 3).map((c) => `${c.label} (${c.n} countries)`).join(", ")}.
+        A criterion is only dropped for a country when fewer than half of that
+        criterion's indicators are available, so a missing one is a real hole in
+        the data rather than a rounding artefact.
+      </p>
+    )
+  }
+
+  <h2>Reported, not scored</h2>
+  <p>
+    Three things about a country are published here as plain flags and are
+    never added to a score, because no source data supports folding them in:
+  </p>
+  <ul>
+    {Object.entries(data.flags).map(([key, f]) => (
+      <li>
+        <strong>{f.label}</strong> — {f.basis}
+      </li>
+    ))}
+  </ul>
 </BaseLayout>
+
+<style>
+  .gm-risk-maps {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-5);
+  }
+  .gm-risk__weights {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    max-width: 34rem;
+  }
+  .gm-risk__weight {
+    display: grid;
+    grid-template-columns: minmax(9rem, 13rem) 1fr 3rem;
+    align-items: center;
+    gap: var(--space-3);
+    font-size: var(--fs-sm);
+  }
+  .gm-risk__weightlabel {
+    color: var(--text-secondary);
+  }
+  .gm-risk__weighttrack {
+    background: var(--wash-1);
+    border-radius: var(--radius-full);
+    height: 7px;
+    overflow: hidden;
+  }
+  .gm-risk__weightfill {
+    display: block;
+    height: 100%;
+    background: var(--risk-struct-4);
+    border-radius: var(--radius-full);
+  }
+  .gm-risk__weightnum {
+    font-family: var(--font-mono);
+    font-size: var(--fs-xs);
+    color: var(--text-dim);
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+  @media (max-width: 1000px) {
+    .gm-risk-maps {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

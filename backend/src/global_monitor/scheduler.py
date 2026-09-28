@@ -63,6 +63,18 @@ def start(scheduler: AsyncIOScheduler | None = None) -> AsyncIOScheduler:
                        id="daily-ingest", replace_existing=True)
     scheduler.add_job(_run_and_maybe_rebuild, "cron", day_of_week="mon", hour=4,
                        kwargs={"sources": ["undp_hdi", "sipri"]}, id="weekly-ingest", replace_existing=True)
+    # worldbank_risk is the widest and slowest source - 211 countries x 20
+    # indicators, ~120 paginated requests. All three of its publishers (WDI,
+    # IMF WEO, UNDP HDR) update annually or semi-annually, so monthly is far
+    # more often than the data can have changed.
+    #
+    # It used to be reachable ONLY from the entrypoint's unconditional
+    # `ingest all` on every container start, which meant it re-pulled the
+    # world on every restart. worldbank.risk_inputs_fresh() now makes those
+    # restarts a no-op, and this job is what actually keeps it current.
+    scheduler.add_job(_run_and_maybe_rebuild, "cron", day=1, hour=5,
+                       kwargs={"sources": ["worldbank_risk"]}, id="monthly-risk-ingest",
+                       replace_existing=True)
     # next_run_time=now: an interval trigger's default first run is
     # now+interval, not immediate - confirmed live (2026-09-27), this left
     # tension.py's in-memory `_last_events` cache (needed by the ad-hoc

@@ -159,6 +159,37 @@
   --map-country: #3a4049;
   --map-stroke: #0f1113;
 
+  /* -- Risk choropleth: two INDEPENDENT sequential ramps ------------------
+     The risk model deliberately does not combine a country's structural
+     score with its distance to a conflict zone, so these are two separate
+     scales that are never mixed on one map, never summed, and never share
+     a legend. Each is 5 classed steps rather than a continuous gradient:
+     a choropleth implying 20 distinct precision levels the percentile
+     scoring can't actually deliver would be lying about the resolution.
+
+     Dark theme runs dark->bright (the low end has to sit near the dark
+     --map-country to read as "weakest", so brightness is what encodes
+     "strongest"); light theme inverts to pale->deep. The HUE never
+     changes, only the lightness direction - the standard dark-mode
+     treatment for a sequential scale.
+
+     Blue (structural) vs orange (exposure) is the project's
+     CVD-safe pair from lib/colors.ts, and is the same blue<->red axis
+     the Tension module's diverging gauge uses. They only ever appear on
+     separate maps, but a green/red pair would have been the one choice
+     that collapses under deuteranopia, so the obvious
+     "good=green, bad=red" reading was deliberately not taken. */
+  --risk-struct-1: #35485c;
+  --risk-struct-2: #3f6791;
+  --risk-struct-3: #2f86c9;
+  --risk-struct-4: #4aa3e0;
+  --risk-struct-5: #86c2ef;
+  --risk-expo-1: #3f4450;
+  --risk-expo-2: #7a4a44;
+  --risk-expo-3: #ab5344;
+  --risk-expo-4: #d1653f;
+  --risk-expo-5: #ef8a4e;
+
   /* -- Radius: one base, derived steps (shadcn) ------------------------- */
   --radius: 0.625rem;
   /* Steps are xs / sm / lg / xl - there is deliberately no "md", because
@@ -267,6 +298,19 @@
   --map-grid: #eceef0;
   --map-country: #d0d4d9;
   --map-stroke: #ffffff;
+
+  /* Same five steps per ramp as the dark theme, lightness direction
+     reversed - see the dark-theme block for why. */
+  --risk-struct-1: #cfe0f2;
+  --risk-struct-2: #a3c6e6;
+  --risk-struct-3: #6ea3d5;
+  --risk-struct-4: #3d7cbd;
+  --risk-struct-5: #1c5591;
+  --risk-expo-1: #f2ded6;
+  --risk-expo-2: #eec0aa;
+  --risk-expo-3: #e79a78;
+  --risk-expo-4: #d4703f;
+  --risk-expo-5: #a83c1a;
 }
 
 /* ---------------------------------------------------------------------------
@@ -1227,6 +1271,26 @@ tbody td:first-child {
 .gm-map {
   margin: 0;
 }
+/* The two-axis risk page renders two maps side by side, so the axis has to
+   be named above the map rather than only inside the legend strip - a reader
+   glancing at either half has to know which of the two numbers they are
+   looking at without reading a caption first. */
+.gm-map__caption {
+  margin-bottom: var(--space-3);
+}
+.gm-map__title {
+  margin: 0;
+  font-size: var(--fs-md);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.gm-map__sub {
+  margin: var(--space-1) 0 0;
+  font-size: var(--fs-xs);
+  line-height: 1.5;
+  color: var(--text-dim);
+  max-width: 34rem;
+}
 .gm-map__legend {
   display: flex;
   flex-wrap: wrap;
@@ -1255,6 +1319,21 @@ tbody td:first-child {
 }
 .gm-map__legend-item--muted {
   color: var(--text-muted);
+}
+/* "Higher = stronger" / "Higher = closer". A 5-step ramp with numbers in
+   the swatches still does not say which end is good, and a choropleth read
+   the wrong way round is a completely wrong answer rather than a slightly
+   confusing one. */
+.gm-map__legend-direction {
+  margin-left: auto;
+  font-style: italic;
+  color: var(--text-dim);
+}
+.gm-map__footnote {
+  margin: var(--space-2) 0 0;
+  font-size: var(--fs-2xs);
+  line-height: 1.5;
+  color: var(--text-dim);
 }
 
 .gm-map__well {
