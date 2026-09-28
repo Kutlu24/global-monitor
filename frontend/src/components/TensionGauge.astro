@@ -11,33 +11,55 @@ const clamped = value == null ? 0 : Math.max(-DOMAIN, Math.min(DOMAIN, value));
 const halfPct = (Math.abs(clamped) / DOMAIN) * 50; // 0..50, distance from center
 const isPositive = clamped >= 0;
 const color = isPositive ? TENSION_DIVERGING.cooperation.dark : TENSION_DIVERGING.conflict.dark;
+
+// A spoken form of the number, so the bar is not the only way to read the
+// value - and so the zero case says "neutral" instead of just showing 0.00.
+const magnitude = Math.abs(clamped);
+const verdict = magnitude < 0.5 ? "broadly neutral" : magnitude < 3 ? "mildly" : magnitude < 6.5 ? "clearly" : "strongly";
+const ariaLabel =
+  value == null
+    ? "No tension data"
+    : `Mean Goldstein score ${clamped.toFixed(2)} out of a possible minus 10 to plus 10, i.e. ${verdict} ${isPositive ? "cooperative" : "conflictual"}`;
 ---
+
 <!-- A diverging bar, not a sequential one - the dataviz skill's fixed
      blue<->red diverging pair with a neutral zero, since Goldstein is a
-     genuinely bipolar scale (a real negative pole, not "low magnitude"). -->
-<div class="gm-tension-gauge">
-  {label && <div class="gm-tension-gauge-label">{label}</div>}
-  <div class="gm-tension-track">
-    <div class="gm-tension-zero"></div>
+     genuinely bipolar scale (a real negative pole, not "low magnitude").
+
+     Markup + classes are shared verbatim with the inline Gauge inside
+     CountryTensionQuery.tsx; the styling itself lives in global.css, so the
+     two cannot drift apart. -->
+<div class="gm-tension" role="meter" aria-label={ariaLabel} aria-valuenow={value ?? undefined} aria-valuemin={-DOMAIN} aria-valuemax={DOMAIN}>
+  {label && <div class="gm-tension__label">{label}</div>}
+
+  <div class="gm-tension__track">
+    <span class="gm-tension__center" aria-hidden="true"></span>
+    {[-10, -5, 5, 10].map((t) => (
+      <span class="gm-tension__tick" style={{ left: `${((t + DOMAIN) / (2 * DOMAIN)) * 100}%` }} aria-hidden="true"></span>
+    ))}
     {value != null && (
       <div
-        class="gm-tension-fill"
-        style={{ left: isPositive ? "50%" : `${50 - halfPct}%`, width: `${halfPct}%`, background: color }}
+        class="gm-tension__fill"
+        style={{
+          left: isPositive ? "50%" : `${50 - halfPct}%`,
+          /* A hairline minimum so a genuine score of exactly 0.0 is still
+             visible as "measured, and it was zero" rather than as missing. */
+          width: `${Math.max(halfPct, 0.6)}%`,
+          background: color,
+        }}
       />
     )}
   </div>
-  <div class="gm-tension-scale">
-    <span>Conflict (&minus;10)</span>
-    <span class="gm-tension-value">{value != null ? value.toFixed(2) : "N/A"}</span>
-    <span>Cooperation (+10)</span>
+
+  <div class="gm-tension__scale">
+    <span>&minus;10</span>
+    <span class="gm-tension__poles" aria-hidden="true">
+      <span>Conflict</span>
+      <span>Cooperation</span>
+    </span>
+    <span>+10</span>
+  </div>
+  <div class="gm-tension__readout">
+    <span class="gm-tension__value">{value != null ? (clamped > 0 ? "+" : "") + clamped.toFixed(2) : "N/A"}</span>
   </div>
 </div>
-<style>
-  .gm-tension-gauge { margin: var(--space-3) 0; }
-  .gm-tension-gauge-label { font-size: 0.85rem; font-weight: 600; margin-bottom: var(--space-2); color: var(--ink); }
-  .gm-tension-track { position: relative; height: 10px; background: var(--hairline); border-radius: 999px; overflow: hidden; }
-  .gm-tension-zero { position: absolute; left: 50%; top: 0; bottom: 0; width: 2px; background: var(--ink-muted); transform: translateX(-1px); z-index: 1; }
-  .gm-tension-fill { position: absolute; top: 0; bottom: 0; border-radius: 999px; }
-  .gm-tension-scale { display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--ink-muted); margin-top: var(--space-2); }
-  .gm-tension-value { font-family: var(--font-mono); font-weight: 700; color: var(--ink); }
-</style>

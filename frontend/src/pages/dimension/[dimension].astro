@@ -3,7 +3,6 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
 import WorldMap from "../../components/WorldMap";
 import { getBlocs } from "../../lib/data";
 import { DIMENSIONS, DIMENSION_LABELS, DIMENSION_METRICS, type Dimension } from "../../lib/metrics";
-import { blocColor } from "../../lib/colors";
 import { datasetSchema } from "../../lib/schema";
 
 export async function getStaticPaths() {
@@ -38,13 +37,14 @@ const schema = datasetSchema({
       client:visible
       highlights={blocs.map((bloc) => ({
         iso3: bloc.members ?? [],
-        color: blocColor(bloc.bloc_id).dark,
+        color: `var(--bloc-${bloc.bloc_id})`,
         label: bloc.name,
       }))}
     />
   </div>
 
-  <table>
+  <div class="gm-table-wrap">
+    <table>
       <thead>
         <tr>
           <th>Metric</th>
@@ -63,9 +63,10 @@ const schema = datasetSchema({
         ))}
       </tbody>
     </table>
+  </div>
 
   {dimension === "social" && (
-    <p style="font-size: 0.85rem; color: var(--ink-muted); max-width: 68ch;">
+    <p class="gm-note" style="max-width: 68ch;">
       "(% gross)" on secondary school enrollment is the World Bank's own Gross Enrollment Ratio -
       total secondary enrollment of any age, divided by the population of the official
       secondary-school age group. It can genuinely exceed 100% (over-age, under-age, and repeating

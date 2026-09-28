@@ -5,7 +5,6 @@ import WorldMap from "../../components/WorldMap";
 import { getComparePair } from "../../lib/data";
 import { PAIRS } from "../../lib/pairs";
 import { DIMENSIONS, DIMENSION_LABELS, HEADLINE_METRIC } from "../../lib/metrics";
-import { blocColor } from "../../lib/colors";
 import { datasetSchema } from "../../lib/schema";
 
 export async function getStaticPaths() {
@@ -44,8 +43,8 @@ const schema = datasetSchema({
     <WorldMap
       client:visible
       highlights={[
-        { iso3: a.members ?? [], color: blocColor(a.bloc_id).dark, label: a.name },
-        { iso3: b.members ?? [], color: blocColor(b.bloc_id).dark, label: b.name },
+        { iso3: a.members ?? [], color: `var(--bloc-${a.bloc_id})`, label: a.name },
+        { iso3: b.members ?? [], color: `var(--bloc-${b.bloc_id})`, label: b.name },
       ]}
     />
   </div>

@@ -3,7 +3,6 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
 import WorldMap from "../../components/WorldMap";
 import { getBlocs } from "../../lib/data";
 import { ALL_METRICS } from "../../lib/metrics";
-import { blocColor } from "../../lib/colors";
 import { PAIRS } from "../../lib/pairs";
 import { datasetSchema } from "../../lib/schema";
 
@@ -20,7 +19,6 @@ const { bloc } = Astro.props;
 const historicalCounterpart = bloc.bloc_id === "brics" ? "brics5" : bloc.bloc_id === "brics5" ? "brics" : null;
 
 const comparePairs = PAIRS.filter((p) => p.a === bloc.bloc_id || p.b === bloc.bloc_id);
-const color = blocColor(bloc.bloc_id);
 
 const schema = datasetSchema({
   name: `${bloc.name} — economic, trade, social, and military data`,
@@ -31,7 +29,7 @@ const schema = datasetSchema({
 ---
 <BaseLayout title={bloc.name} description={bloc.description} structuredData={schema}>
   <a href="/" class="gm-back-link">&larr; Global Monitor</a>
-  <p class="gm-card-eyebrow"><span class="gm-swatch" style={{ background: color.light }} /> Bloc profile</p>
+  <p class="gm-card-eyebrow"><span class="gm-swatch" style={{ background: `var(--bloc-${bloc.bloc_id})` }} /> Bloc profile</p>
   <h1>{bloc.name}</h1>
   <p class="gm-lede">{bloc.description}</p>
   {historicalCounterpart && (
@@ -43,7 +41,7 @@ const schema = datasetSchema({
   )}
 
   <div class="gm-viz-block">
-    <WorldMap client:visible highlights={[{ iso3: bloc.members ?? [], color: color.light, label: bloc.name }]} />
+    <WorldMap client:visible highlights={[{ iso3: bloc.members ?? [], color: `var(--bloc-${bloc.bloc_id})`, label: bloc.name }]} />
   </div>
 
   {bloc.synthesis && (
@@ -53,7 +51,8 @@ const schema = datasetSchema({
     </div>
   )}
 
-  <table>
+  <div class="gm-table-wrap">
+    <table>
     <thead>
       <tr><th>Metric</th><th>Value</th><th>Member coverage</th></tr>
     </thead>
@@ -70,6 +69,7 @@ const schema = datasetSchema({
       })}
     </tbody>
   </table>
+  </div>
 
   {comparePairs.length > 0 && (
     <>

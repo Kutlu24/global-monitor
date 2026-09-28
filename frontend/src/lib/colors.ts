@@ -20,7 +20,6 @@ export const BLOC_COLORS: Record<string, { light: string; dark: string }> = {
   usmca: { light: "#e87ba4", dark: "#d55181" }, // magenta
 };
 
-export const NEUTRAL_MAP_FILL = { light: "#e1e0d9", dark: "#333331" }; // gridline/hairline step - "context" gray for emphasis maps (kept in sync with global.css's --hairline dark value)
 
 export function blocColor(blocId: string): { light: string; dark: string } {
   return BLOC_COLORS[blocId] ?? { light: "#52514e", dark: "#c3c2b7" }; // secondary ink as a safe fallback

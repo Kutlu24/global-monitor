@@ -1,105 +1,454 @@
-/* Design tokens - lifted directly from the dataviz skill's reference
-   palette (references/palette.md) so the site's own chrome and the charts
-   embedded in it share one system, not two competing color languages.
+/* ============================================================================
+   Global Monitor - design system
+   ============================================================================
 
-   Dark is now the PRIMARY/unconditional default (not gated on OS
-   preference) - a deliberate identity choice after seeing worldmonitor.app
-   (2026-09-27): a "serious dashboard" reads as dark-by-default, not as a
-   light site that happens to support dark mode. All dark values below were
-   already validated against the dark surface for the bloc/status color
-   systems (see lib/colors.ts), so this flip doesn't touch chart-color
-   correctness, only which token set is the default. A `data-theme="light"`
-   override is kept below for anyone who wants it later (not currently
-   exposed via any UI toggle). */
+   Restyle pass (2026-09-28). The site's data, page set, chart types and
+   palette VALIDATION rules are unchanged; what changed is the visual system
+   this file defines. References consulted, and what was taken from each:
+
+   - Grafana's `ink` neutral scale (packages/grafana-data/src/themes/
+     palette_new.ts): a separate, BLUE-TINTED ramp for dark mode rather than
+     one warm-neutral ramp used for both. The cool hue is what makes a dark
+     site read as an instrument rather than as an unfinished dark mode.
+   - Grafana's `emphasize()` (colorManipulator.ts): one hover rule for the
+     whole system, expressed in CSS as `color-mix(... , white)` - in dark
+     mode every hover LIGHTENS, so no component invents its own.
+   - shadcn/ui `globals.css`: borders as WHITE ALPHA, not a fixed gray, so
+     one border token stays correct on --page, --surface and --raised alike;
+     and a radius scale derived from a single --radius by calc().
+   - koala73/worldmonitor `main.css` :root: a SIX-step text ramp with a
+     documented contrast floor per step, and the white-alpha `--wash-*`
+     ladder (3/5/10/20%) used for hover, table stripes and gridlines instead
+     of inventing more grays.
+   - Our World in Data `owid.css`: chart label "halos" - small text over a
+     dense plot gets `paint-order: stroke fill` with a --surface-coloured
+     2px stroke, so labels punch a clean hole through gridlines.
+   - Datawrapper's chart-form guidance: a dark background should be dark
+     GRAY, never pure black, and a diverging scale's midpoint should be a
+     neutral gray, not white. Both are already true below.
+
+   COLOUR SAFETY. lib/colors.ts's bloc + status hexes are validated, not
+   stylistic, and they were validated AGAINST a surface lightness. A later
+   pass then LIFTED that ladder, because panels were reading as too dark to
+   work in. Lifting a surface is only free until a data mark lands on it, so
+   the backdrops were measured rather than assumed: a CDP pass over the built
+   site (walking up from every element painted in a bloc/status/tension hex to
+   its nearest non-transparent ancestor background) found marks on exactly
+   three surfaces - --page, --surface and --map-bg - and on nothing else.
+
+     1. --surface is therefore capped where `us` (#008300) and `critical`
+        (#d03b3b) still clear the 3:1 non-text floor: #242628, a 26% perceptual
+        lift over the #1a1c1e this file started from. Those two greens/reds are
+        the darkest marks in the set and they set the ceiling; every other bloc
+        and status hex clears 3:1 with room to spare.
+     2. --raised and --overlay carry no data marks, so they are free. --raised
+        is used by chips, inputs and table headers, and --overlay is CHROME
+        ONLY (nav hover, table-header stripe). The tension gauge is the one
+        mark-on-raised case, and it paints the TENSION poles (#3987e5 /
+        #e66767), which are bright enough to hold 3:1 against the lightened
+        track. An earlier version of this file pinned --raised to the exact
+        lightness of #262626 to protect `us`/`critical`; that pin was measured
+        to be protecting a surface nothing painted on, and dropping it is what
+        allows the top of the ladder to move at all.
+
+   If you ever move a bloc or status mark onto --raised, re-check `us` and
+   `critical` against it first. Full measured results live in this repo's
+   docs/design-system.md.
+   ========================================================================== */
+
+/* ---------------------------------------------------------------------------
+   1. Tokens
+   ------------------------------------------------------------------------ */
+
 :root {
   color-scheme: dark;
-  /* A flat near-black (#0d0d0d) reads as "unstyled default dark mode," not
-     a designed palette - user feedback (2026-09-27): "arka plan siyah iyi
-     olmamış" (the black background doesn't look good). Re-tuned to a
-     proper dark-gray scale with real separation between page/surface/
-     surface-raised, instead of everything crushed near black. Re-ran
-     validate_palette.js for both lib/colors.ts palettes (bloc + status)
-     against this new --surface (#1e1e1e, up from #1a1a19) before adopting
-     it - identical pass/fail outcome as the old surface for both, so
-     raising it introduces no new chart-color regression. Three literal
-     copies of the old surface/hairline values had to move with it:
-     WorldMap.tsx's and RiskMap.tsx's own --gm-stroke, and
-     NEUTRAL_MAP_FILL.dark in lib/colors.ts (see their own comments). */
-  --page: #131313;
-  --surface: #1e1e1e;
-  --surface-raised: #262626;
-  --ink: #f4f4f2;
-  --ink-secondary: #c3c2b7;
-  --ink-muted: #898781;
-  --hairline: #333331;
-  --border: rgba(255, 255, 255, 0.1);
-  --accent: #3987e5;
-  --live-dot: #0ca30c; /* matches STATUS_COLORS.good in lib/colors.ts */
 
-  --font-sans: system-ui, -apple-system, "Segoe UI", sans-serif;
-  --font-mono: ui-monospace, "SF Mono", "Roboto Mono", Menlo, monospace;
+  /* -- Surfaces ---------------------------------------------------------
+     A four-step elevation ladder, each rung 0.03-0.06 OKLCH lightness apart
+     (the perceptual step; the WCAG ratio between two near-blacks is a poor
+     proxy for it and is reported in docs/design-system.md for reference).
+     These are LIFTED ~25% perceptual from the first pass - panels were too
+     dark to read in. The page->surface step is deliberately the largest: the
+     gap between a panel and the page behind it is the cue that matters, and
+     it is what makes a card read as a card.
+     Depth in a dark UI comes from LIGHTNESS, not from drop shadows - both
+     Grafana and worldmonitor hard-set `box-shadow: none` on their panels
+     and rely on a 1px border instead. Reinforcement, where wanted, is the
+     inset top highlight on .gm-card, never a halo. */
+  --page: #141618; /* the page behind everything                     */
+  --surface: #242628; /* cards, panels, tables, bars - data lives here */
+  --raised: #2d2f31; /* nested surfaces: chips, inputs, table headers  */
+  --overlay: #36383a; /* CHROME ONLY - never a data-mark surface       */
+  --hairline: #464648; /* default 1px border                           */
+  --border-strong: #626466; /* active/hover edges, focus-adjacent      */
 
+  /* -- Text ramp --------------------------------------------------------
+     Each step is annotated with its ACTUAL worst-case contrast ratio, and
+     the worst case is always measured against --overlay, not --page: the
+     overlay is the highest-luminance surface in the set, so it - not the
+     page background - is what sets the floor for every step. Lifting the
+     surfaces forced this ramp up with them; each step below is the DARKEST
+     grey that still clears its own target on --overlay while keeping the
+     ramp's cool tint, and the steps are held >=1.23x apart in luminance so
+     the hierarchy survives. Ratios are verified by the audit; if you change
+     a step, re-run it rather than re-estimating.
+       text           10.2:1   headings, hero figures, stat values
+       text-secondary  6.6:1   body copy, table values
+       text-dim        5.4:1   labels, axis labels, table heads
+       text-muted      4.5:1   secondary metadata, footnotes
+       text-faint      3.0:1   NOT TEXT - hairlines, tick marks, dividers
+
+     --text-faint is decoration-only and that is a hard rule, not a
+     guideline: at 3.0:1 it is below the 4.5:1 AA floor for body text, so any
+     real glyph set in it fails contrast. An earlier version of this file
+     annotated it "decorative only" and then set six pieces of actual text
+     in it anyway - the rank numerals, the gauge end-labels, the nav counts
+     - and the audit caught 4.35:1 on two of them. Those now use
+     --text-muted. If you are styling a character, use a --text-* step
+     above; if you are styling a rule or a tick, --text-faint is correct. */
+  --text: #eeeeee;
+  --text-secondary: #c2c2c3;
+  --text-dim: #afb0b0;
+  --text-muted: #a0a0a0;
+  --text-faint: #808182; /* DECORATION ONLY - see the note below */
+
+  /* -- White-alpha washes ----------------------------------------------
+     The four states a UI actually needs, as alpha over whatever surface
+     they land on, instead of four more grays to keep in sync. */
+  --wash-1: rgb(255 255 255 / 3%); /* panel headers, table stripes  */
+  --wash-2: rgb(255 255 255 / 5.5%); /* hover                      */
+  --wash-3: rgb(255 255 255 / 10%); /* active, gridlines           */
+  --wash-4: rgb(255 255 255 / 18%); /* focus ring track            */
+
+  --accent: #4a9cf1; /* 6.3:1 on --page, 5.3:1 on --surface - the two
+                        surfaces link text actually lands on. It is 4.1:1 on
+                        --overlay, so never set accent TEXT on overlay. */
+  --accent-ink: #0b0f14; /* text ON an --accent fill */
+  --live-dot: #1fa836; /* matches STATUS_COLORS.good in lib/colors.ts */
+
+  /* -- Bloc identity -----------------------------------------------------
+     The same validated hexes lib/colors.ts exports, mirrored here as CSS
+     custom properties so CSS-only chrome (the sidebar swatch) can use them
+     without going through JS. The two MUST stay in sync: lib/colors.ts is
+     the source of truth for chart marks, this block is for stylesheet-only
+     use, and both are checked together in docs/design-system.md. Do not
+     "improve" a value here - these are CVD-validated, not stylistic. */
+  --bloc-brics: #3987e5;
+  --bloc-brics5: #3987e5; /* deliberate alias, see lib/colors.ts */
+  --bloc-eu: #c98500;
+  --bloc-us: #008300;
+  --bloc-usmca: #d55181;
+
+  /* -- Diverging pair (Tension module) ---------------------------------
+     Mirrors TENSION_DIVERGING in lib/colors.ts. Present here as well so
+     the gauge can build its bipolar TRACK by color-mixing the same two
+     pole colors toward --raised - which is what guarantees the track can
+     never disagree with the bar drawn on top of it. */
+  --tension-cooperation: #3987e5;
+  --tension-conflict: #e66767;
+
+  /* -- Map well ---------------------------------------------------------
+     A map is a recessed well, not a surface: its background is DARKER than
+     the page, and background / graticule / land / border are four separate
+     tokens so the map reads as an instrument rather than a flat SVG.
+     Land-vs-well 1.81:1, border seam 1.85:1, graticule 1.21:1
+     (deliberately the faintest thing in the frame). The well stays DARKER
+     than the page even after the surface lift, so the recess still reads. */
+  --map-bg: #0f1113;
+  --map-grid: #1f242b;
+  --map-country: #3a4049;
+  --map-stroke: #0f1113;
+
+  /* -- Radius: one base, derived steps (shadcn) ------------------------- */
+  --radius: 0.625rem;
+  /* Steps are xs / sm / lg / xl - there is deliberately no "md", because
+     --radius-lg IS the default card radius. Naming the default "md" and
+     adding a larger step would just have meant two spellings for the same
+     value and one of them eventually wrong. */
+  --radius-xs: calc(var(--radius) * 0.4);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-full: 999px;
+
+  /* -- Spacing ---------------------------------------------------------- */
   --space-1: 0.25rem;
   --space-2: 0.5rem;
   --space-3: 0.75rem;
   --space-4: 1rem;
+  --space-5: 1.25rem;
   --space-6: 1.5rem;
   --space-8: 2rem;
+  --space-10: 2.5rem;
   --space-12: 3rem;
   --space-16: 4rem;
+  --space-20: 5rem;
 
-  --radius: 10px;
-  --radius-sm: 6px;
-  /* Was 1080px, capping tables/cards well short of the sidebar grid's own
-     (now-fluid, see .gm-layout) available width and doubling up on the
-     empty-space complaint - raised so main content actually uses the room
-     the grid track gives it on real desktop monitors. */
+  /* -- Type -------------------------------------------------------------
+     Fluid where a value is likely to be read at a distance (hero figures,
+     h1) and fixed where it is scanned in a column (table cells, axis
+     labels). No repo in the reference survey used clamp() at all, which is
+     why it is doing real work here rather than being decoration. */
+  --font-sans: "Inter Variable", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono Variable", ui-monospace, "SF Mono", Menlo, monospace;
+
+  --fs-2xs: 0.6875rem; /* 11px - axis ticks, table micro-labels */
+  --fs-xs: 0.75rem; /* 12px - eyebrows, badges, table heads   */
+  --fs-sm: 0.8125rem; /* 13px - dense table cells, nav          */
+  --fs-base: 0.9375rem; /* 15px - body                           */
+  --fs-md: 1rem;
+  --fs-lg: clamp(1.05rem, 1rem + 0.25vw, 1.125rem);
+  --fs-xl: clamp(1.2rem, 1.1rem + 0.5vw, 1.4rem);
+  --fs-2xl: clamp(1.45rem, 1.25rem + 1vw, 1.9rem);
+  --fs-3xl: clamp(1.85rem, 1.45rem + 2vw, 2.75rem);
+  --fs-figure: clamp(2.4rem, 1.5rem + 3.8vw, 4.25rem); /* hero figures only */
+
+  --leading-tight: 1.15;
+  --leading-snug: 1.3;
+  --leading-normal: 1.6;
+  --tracking-tight: -0.022em;
+  --tracking-normal: -0.011em;
+  --tracking-wide: 0.06em;
+
+  /* A single multiplier threaded through dense components, the way
+     worldmonitor threads --wm-font-scale: one value retunes the whole
+     site's density without editing a dozen sizes. */
+  --density: 1;
+
   --container-width: 1400px;
+  --sidebar-width: 250px;
 }
 
+/* Light mode. Kept as a real, complete set (the dataviz-relevant surfaces
+   and the text ramp are re-derived, not inherited) so a theme flip cannot
+   quietly reuse a dark-mode contrast decision. Measured on these exact
+   values: text 17.7:1, text-secondary 8.0:1, text-muted 4.8:1 on --page. */
 :root[data-theme="light"] {
   color-scheme: light;
-  --page: #f9f9f7;
-  --surface: #fcfcfb;
-  --surface-raised: #ffffff;
-  --ink: #0b0b0b;
-  --ink-secondary: #52514e;
-  --ink-muted: #898781;
-  --hairline: #e1e0d9;
-  --border: rgba(11, 11, 11, 0.1);
-  --accent: #2a78d6;
+  --page: #f9f8f7;
+  --surface: #fefdfd;
+  --raised: #ffffff;
+  --overlay: #f0eeec;
+  --hairline: #dedbd8;
+  --border-strong: #a8a4a0;
+
+  --text: #121212;
+  --text-secondary: #504c4a;
+  --text-dim: #5f5b58;
+  --text-muted: #6e6a66;
+  --text-faint: #8a8681; /* DECORATION ONLY - see the note in the dark ramp */
+
+  --wash-1: rgb(0 0 0 / 3%);
+  --wash-2: rgb(0 0 0 / 5.5%);
+  --wash-3: rgb(0 0 0 / 10%);
+  --wash-4: rgb(0 0 0 / 16%);
+
+  /* Carries two jobs at once: link text on a light surface, and a button
+     fill under --accent-ink. #2a78d6 cleared neither (3.82:1 as a link,
+     4.42:1 under white); #2668bd is the smallest darkening that clears both
+     (4.78 / 5.53), so the brand hue is preserved. */
+  --accent: #2668bd;
+  --accent-ink: #ffffff;
   --live-dot: #0ca30c;
+
+  /* Light-mode bloc values, matching BLOC_COLORS[].light in lib/colors.ts.
+     The EU yellow is the one that needs the hairline ring (.gm-swatch) to
+     keep an edge against a near-white card. */
+  --bloc-brics: #2a78d6;
+  --bloc-brics5: #2a78d6;
+  --bloc-eu: #eda100;
+  --bloc-us: #008300;
+  --bloc-usmca: #e87ba4;
+
+  --tension-cooperation: #2a78d6;
+  --tension-conflict: #e34948;
+
+  --map-bg: #ffffff;
+  --map-grid: #eceef0;
+  --map-country: #d0d4d9;
+  --map-stroke: #ffffff;
 }
 
-* {
+/* ---------------------------------------------------------------------------
+   2. Base
+   ------------------------------------------------------------------------ */
+
+*,
+*::before,
+*::after {
   box-sizing: border-box;
 }
 
 html {
   font-family: var(--font-sans);
+  /* Inter's optical size + the disambiguated 1/a set. */
+  font-feature-settings: "cv05" 1, "ss03" 1;
+  -webkit-text-size-adjust: 100%;
+  scroll-behavior: smooth;
 }
 
 body {
   margin: 0;
   background: var(--page);
-  color: var(--ink);
-  line-height: 1.5;
+  color: var(--text);
+  font-size: var(--fs-base);
+  line-height: var(--leading-normal);
+  font-weight: 400;
+  /* tabular-nums on BODY, not only on table cells: this site's nav counts,
+     gauge readouts, ranking scores and axis labels are numbers too, and
+     zero-width digit jitter under a cursor is the single most amateur-
+     looking thing a data dashboard can do. */
+  font-variant-numeric: tabular-nums;
+  font-synthesis-weight: none; /* never fake a bold the font lacks */
+  text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  /* A short, cheap cross-fade so a theme flip (or a hover) reads as motion
+     rather than as a jump cut. Suppressed for the first paint only by
+     .no-transition, applied before hydration - see the script in BaseLayout. */
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
+
+h1,
+h2,
+h3,
+h4 {
+  font-weight: 700;
+  letter-spacing: var(--tracking-tight);
+  line-height: var(--leading-tight);
+  margin: 0 0 var(--space-4);
+  color: var(--text);
+  text-wrap: balance;
+}
+
+h1 {
+  font-size: var(--fs-3xl);
+  font-weight: 800;
+  letter-spacing: -0.028em;
+  margin-bottom: var(--space-5);
+}
+
+h2 {
+  font-size: var(--fs-xl);
+  margin-top: var(--space-12);
+  letter-spacing: var(--tracking-normal);
+  /* A section rule that costs one pseudo-element and does the work of a
+     whole divider: a short accent stroke under the heading, echoing the
+     UNCTAD heading underscore found in the reference survey. */
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--hairline);
+  position: relative;
+}
+h2::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: -1px;
+  width: 56px;
+  height: 2px;
+  background: var(--accent);
+}
+
+h3 {
+  font-size: var(--fs-lg);
+  font-weight: 650;
+}
+
+p {
+  color: var(--text-secondary);
+  margin: 0 0 var(--space-4);
+  max-width: 68ch;
+}
+
+a {
+  color: var(--accent);
+  /* Underline as a gradient wash rather than a hard rule: it reads as
+     affordance without the "1998 web page" density of a full underline. */
+  text-decoration-color: color-mix(in srgb, var(--accent) 40%, transparent);
+  text-underline-offset: 0.18em;
+  text-decoration-thickness: 1px;
+  transition: color 0.15s ease, text-decoration-color 0.15s ease;
+}
+a:hover {
+  text-decoration-color: var(--accent);
+}
+
+strong {
+  color: var(--text);
+  font-weight: 650;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--accent) 32%, transparent);
+  color: var(--text);
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--radius-xs);
+}
+
+/* Scrollbars, borrowing a neighbouring token rather than a bespoke color so
+   the palette stays at N steps (DBnomics' `.cc--darkmode` trick). */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--raised) transparent;
+}
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--raised);
+  border: 2px solid transparent;
+  background-clip: content-box;
+  border-radius: var(--radius-full);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--overlay);
+  background-clip: content-box;
+}
+
+main {
+  padding: var(--space-10) 0 var(--space-20);
+}
+
+/* Skip link - a 61-page sidebar-heavy site needs a keyboard way past it. */
+.gm-skip-link {
+  position: absolute;
+  left: var(--space-4);
+  top: var(--space-4);
+  z-index: 100;
+  padding: var(--space-2) var(--space-4);
+  background: var(--accent);
+  color: var(--accent-ink);
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  font-size: var(--fs-sm);
+  text-decoration: none;
+  transform: translateY(-200%);
+  transition: transform 0.15s ease;
+}
+.gm-skip-link:focus {
+  transform: translateY(0);
+}
+
+/* ---------------------------------------------------------------------------
+   3. Shell - persistent sidebar (wide) / collapsible drawer (narrow)
+   ------------------------------------------------------------------------ */
 
 .gm-container {
   max-width: var(--container-width);
-  padding: 0 var(--space-4);
+  padding: 0 var(--space-6);
 }
 
-/* --- Sidebar shell ---
-   A persistent site map (every bloc, every compare pair, every dimension)
-   instead of the previous 3-link top nav, which left most of the site's 61
-   pages reachable only through whatever in-content links happened to be on
-   the current page. Left sidebar on wide viewports; the SAME markup
-   reflows into a collapsible top drawer on narrow ones (toggled by a
-   checkbox + :has(), no JS) - satisfies "top or left" without two
-   different navs to keep in sync. */
+.gm-layout {
+  display: block;
+}
 
 .gm-nav-toggle-checkbox {
   display: none;
@@ -109,71 +458,165 @@ body {
   display: none;
 }
 
-.gm-layout {
-  display: block;
-}
-
 .gm-sidebar {
   display: none;
 }
 
-.gm-sidebar-brand {
-  display: block;
-  margin-bottom: var(--space-6);
+.gm-main-col {
+  min-width: 0; /* let wide tables and the map shrink instead of blowing out the grid */
 }
 
-.gm-sidebar-group {
-  margin-bottom: var(--space-6);
+/* -- Nav item: a 2px left accent bar, not a filled pill (Tabler/shadcn
+   sidebar convention). A filled active pill is a large block of saturated
+   color in a 61-page list, which fights the data colors for attention. */
+.gm-nav-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 5px var(--space-3) 5px calc(var(--space-3) - 2px);
+  border-left: 2px solid transparent;
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  color: var(--text-secondary);
+  text-decoration: none;
+  font-size: var(--fs-sm);
+  line-height: 1.4;
+  transition: color 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
 }
-.gm-sidebar-heading {
-  font-size: 0.72rem;
+.gm-nav-item:hover {
+  color: var(--text);
+  background: var(--wash-1);
+  text-decoration: none;
+}
+.gm-nav-item[aria-current="page"] {
+  color: var(--text);
+  background: var(--wash-2);
+  border-left-color: var(--accent);
+  font-weight: 600;
+}
+.gm-nav-item__label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.gm-nav-item__count {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: var(--fs-2xs);
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.gm-nav-group {
+  margin-bottom: var(--space-5);
+}
+.gm-nav-heading {
+  font-size: var(--fs-2xs);
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--ink-muted);
+  letter-spacing: 0.08em;
+  /* Accent, not another grey step. These are the sidebar's structural
+     headings, and at --text-muted they were the same value as ordinary
+     secondary link text, so "Blocs" / "Compare" / "Dimensions" read as
+     content rather than as structure. A hue change is the only thing that
+     separates a group label from an item at this size. */
+  color: var(--accent);
   margin-bottom: var(--space-2);
   padding: 0 var(--space-3);
 }
-.gm-sidebar-link {
-  display: block;
-  padding: var(--space-2) var(--space-3);
-  border-radius: var(--radius-sm);
-  color: var(--ink-secondary);
-  text-decoration: none;
-  font-size: 0.9rem;
-  line-height: 1.35;
-}
-.gm-sidebar-link:hover {
-  background: var(--surface);
-  color: var(--ink);
-}
-.gm-sidebar-link.active {
-  background: var(--accent);
-  color: #fff;
+
+/* The primary comparison, pinned above the other pairs in the Compare group.
+   Marked with a left rule and a text flag, not color alone. */
+.gm-nav-item--featured {
+  color: var(--text);
   font-weight: 600;
+  border-left-color: var(--accent);
+  background: var(--wash-1);
+}
+.gm-nav-item--featured:hover {
+  background: var(--wash-2);
+}
+.gm-nav-item__flag {
+  margin-left: auto;
+  font-size: var(--fs-2xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--accent);
+  /* A hairline chip. --wash-2 over --surface is only ~1.09:1, which is
+     invisible, so the edge is an explicit --wash-3. */
+  padding: 1px var(--space-2);
+  border-radius: var(--radius-full);
+  border: 1px solid var(--wash-3);
+  flex-shrink: 0;
 }
 
+.gm-sidebar-brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-6);
+  padding: 0 var(--space-3);
+}
+
+/* The wordmark gets a small mark so the brand is not just a text row. */
 .gm-logo {
-  font-size: 1.15rem;
-  font-weight: 700;
-  color: var(--ink);
+  font-size: var(--fs-md);
+  font-weight: 750;
+  color: var(--text);
   text-decoration: none;
-  letter-spacing: -0.01em;
+  letter-spacing: var(--tracking-tight);
+  line-height: 1.2;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
 }
 .gm-logo:hover {
-  color: var(--ink);
+  color: var(--text);
+  text-decoration: none;
+}
+.gm-logo:hover .gm-logo__mark {
+  background: var(--accent);
+}
+.gm-logo__mark {
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+  background: var(--border-strong);
+  flex-shrink: 0;
+  transition: background-color 0.2s ease;
+}
+.gm-logo__sub {
+  display: block;
+  font-size: var(--fs-2xs);
+  font-weight: 500;
+  color: var(--text-muted);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
 }
 
 .gm-footer {
   border-top: 1px solid var(--hairline);
-  margin-top: var(--space-16);
-  padding: var(--space-6) 0 var(--space-12);
-  color: var(--ink-muted);
-  font-size: 0.85rem;
+  margin-top: var(--space-20);
+  padding: var(--space-8) 0 var(--space-12);
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
 }
-
-main {
-  padding: var(--space-8) 0 var(--space-16);
+.gm-footer strong {
+  color: var(--text-dim);
+}
+.gm-footer-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--space-6);
+  align-items: start;
+}
+.gm-footer a {
+  color: var(--text-dim);
+  text-decoration: none;
+}
+.gm-footer a:hover {
+  color: var(--text);
 }
 
 @media (max-width: 899px) {
@@ -181,43 +624,52 @@ main {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: var(--space-4);
+    padding: var(--space-3) var(--space-4);
     border-bottom: 1px solid var(--hairline);
+    background: var(--surface);
+    position: sticky;
+    top: 0;
+    z-index: 20;
   }
   .gm-nav-toggle-label {
-    font-size: 0.85rem;
+    font-size: var(--fs-xs);
     font-weight: 600;
-    color: var(--ink-secondary);
+    color: var(--text-secondary);
     border: 1px solid var(--hairline);
     border-radius: var(--radius-sm);
-    padding: var(--space-2) var(--space-3);
+    padding: var(--space-1) var(--space-3);
     cursor: pointer;
+    user-select: none;
+  }
+  .gm-nav-toggle-label:hover {
+    color: var(--text);
+    border-color: var(--border-strong);
   }
   .gm-sidebar {
     padding: var(--space-4);
     border-bottom: 1px solid var(--hairline);
+    background: var(--surface);
   }
   .gm-sidebar-brand {
-    display: none; /* already shown in .gm-topbar-mobile at this width */
+    display: none; /* already in .gm-topbar-mobile at this width */
   }
   .gm-shell:has(.gm-nav-toggle-checkbox:checked) .gm-sidebar {
     display: block;
+  }
+  main {
+    padding-top: var(--space-6);
   }
 }
 
 @media (min-width: 900px) {
   .gm-layout {
     display: grid;
-    grid-template-columns: 240px 1fr;
-    gap: var(--space-8);
-    /* Fixed 1320px left large, empty margins on real desktop monitors -
-       user feedback (2026-09-27): "kenarda bir sürü boşluk var" (there's a
-       lot of empty space on the side). 1320px on a common 1920px display
-       left ~530px of dead space on the sides (confirmed via a real
-       getBoundingClientRect() check at 1854px viewport width). A fluid cap
-       scales with the viewport instead of hard-stopping at a size that
-       only fit this project's own narrower dev/test windows. */
-    max-width: min(1800px, 94vw);
+    grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
+    gap: var(--space-10);
+    /* Fluid, not a hard pixel cap: a fixed 1320px left large empty margins
+       on a real desktop monitor (user feedback 2026-09-27), but a value
+       that only fits this project's own dev windows does not scale either. */
+    max-width: min(1800px, 95vw);
     margin: 0 auto;
     align-items: start;
   }
@@ -226,265 +678,921 @@ main {
     position: sticky;
     top: var(--space-6);
     max-height: calc(100vh - var(--space-8));
+    /* dvh, not vh: on mobile browsers vh includes the retracting URL bar. */
+    max-height: calc(100dvh - var(--space-8));
     overflow-y: auto;
-    padding: var(--space-6) 0 var(--space-6) var(--space-4);
+    overscroll-behavior: contain;
+    padding: var(--space-6) 0 var(--space-6) 0;
+    /* A fade at the bottom edge so a nav list that scrolls tells you it
+       scrolls, without a visible scrollbar. */
+    mask-image: linear-gradient(to bottom, #000 calc(100% - 24px), transparent);
   }
-  .gm-main-col {
-    min-width: 0; /* let long content (tables, charts) shrink inside the grid track */
+  .gm-container {
+    padding: 0 var(--space-4);
   }
 }
 
-/* --- Typography --- */
-
-h1, h2, h3 {
-  font-weight: 700;
-  letter-spacing: -0.01em;
-  line-height: 1.2;
-  margin: 0 0 var(--space-4);
-}
-h1 {
-  font-size: clamp(2rem, 4.5vw, 3rem);
-  font-weight: 800;
-}
-h2 {
-  font-size: 1.4rem;
-  margin-top: var(--space-12);
-}
-h3 {
-  font-size: 1.1rem;
-}
-p {
-  color: var(--ink-secondary);
-  margin: 0 0 var(--space-4);
-  max-width: 68ch;
-}
-a {
-  color: var(--accent);
-}
-.gm-lede {
-  font-size: 1.15rem;
-  color: var(--ink-secondary);
-  max-width: 56ch;
-}
-.gm-back-link {
-  display: inline-block;
-  margin-bottom: var(--space-6);
-  font-size: 0.9rem;
-  color: var(--ink-muted);
-  text-decoration: none;
-}
-.gm-back-link:hover {
-  color: var(--ink);
-}
-
-/* --- Hero (homepage) --- */
+/* ---------------------------------------------------------------------------
+   4. Hero + section furniture
+   ------------------------------------------------------------------------ */
 
 .gm-hero {
-  padding: var(--space-8) 0 var(--space-4);
+  padding: var(--space-6) 0 var(--space-2);
+  position: relative;
+  /* Guard, not decoration. The absolutely-positioned wash below is the one
+     thing on the page that can extend past its container, and an absolutely
+     positioned child DOES contribute to its ancestor's scrollWidth - so a
+     decorative ::before is the classic way to hand a user a horizontal
+     scrollbar that no amount of content changes can explain. overflow-x:
+     clip (not hidden) contains it without creating a scroll container, so it
+     cannot swallow a click and does not break position:sticky children. */
+  overflow-x: clip;
 }
-.gm-hero-eyebrow {
-  font-size: 0.8rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--ink-muted);
-  margin-bottom: var(--space-2);
+/* A single very soft radial wash behind the hero, tinted with the accent.
+   Enough to stop the top of the page reading as a flat wall of --page;
+   not enough to be a "gradient" in the way that word usually implies.
+   The horizontal inset is 0, not negative: the wash spans the content
+   column, which is what keeps it aligned to the type below it. */
+.gm-hero::before {
+  content: "";
+  position: absolute;
+  inset: -40% 0 auto 0;
+  height: 420px;
+  background: radial-gradient(ellipse 70% 100% at 50% 0%, color-mix(in srgb, var(--accent) 7%, transparent), transparent 70%);
+  pointer-events: none;
+  z-index: -1;
 }
 
-/* Live-data status pill - inspired by worldmonitor.app's "LIVE NOW" hero
-   badge (2026-09-27), but genuinely truthful for this site: the dot/label
-   only ever shows a real timestamp from /api/last-updated, never a static
-   claim of "live" for data that's actually refreshed daily/weekly. */
+.gm-hero-eyebrow,
+.gm-eyebrow {
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-wide);
+  color: var(--text-muted);
+  margin-bottom: var(--space-2);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.gm-lede {
+  font-size: var(--fs-lg);
+  line-height: 1.55;
+  color: var(--text-secondary);
+  max-width: 60ch;
+}
+
+.gm-back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin-bottom: var(--space-5);
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+  text-decoration: none;
+  font-weight: 500;
+}
+.gm-back-link:hover {
+  color: var(--text);
+  text-decoration: none;
+}
+
+/* Live-data pill. Truthful by construction: the dot and label only ever show
+   a real timestamp from /api/last-updated, never a static claim of "live"
+   for data that actually refreshes daily/weekly. */
 .gm-live-badge {
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
   font-family: var(--font-mono);
-  font-size: 0.78rem;
-  letter-spacing: 0.02em;
-  color: var(--ink-secondary);
+  font-size: var(--fs-xs);
+  letter-spacing: 0.01em;
+  color: var(--text-secondary);
   background: var(--surface);
   border: 1px solid var(--hairline);
-  border-radius: 999px;
-  padding: var(--space-1) var(--space-3);
-  margin-bottom: var(--space-4);
+  border-radius: var(--radius-full);
+  padding: 3px var(--space-3);
+  margin-bottom: var(--space-5);
+  /* The top edge catches light, the way a physical keycap does. */
+  box-shadow: inset 0 1px 0 var(--wash-1);
 }
 .gm-live-dot {
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
   background: var(--live-dot);
   flex-shrink: 0;
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--live-dot) 25%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--live-dot) 22%, transparent);
+  animation: gm-pulse 2.6s ease-in-out infinite;
+}
+@keyframes gm-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.45;
+    transform: scale(0.82);
+  }
 }
 
-/* --- Cards & grids --- */
+/* ---------------------------------------------------------------------------
+   5. Cards, panels, grids
+   ------------------------------------------------------------------------ */
 
 .gm-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
   gap: var(--space-4);
   margin: var(--space-6) 0;
 }
+
 .gm-card {
+  position: relative;
   background: var(--surface);
   border: 1px solid var(--hairline);
-  border-radius: var(--radius);
-  padding: var(--space-6);
+  border-radius: var(--radius-lg);
+  padding: var(--space-5);
   text-decoration: none;
-  color: var(--ink);
-  display: block;
-  transition: border-color 0.15s ease;
+  color: var(--text);
+  display: flex;
+  flex-direction: column;
+  /* Inset top highlight rather than a drop shadow: in dark mode a shadow is
+     nearly invisible, whereas a 1px light edge at the top of a surface is
+     exactly how the eye reads "this sits above that". */
+  box-shadow: inset 0 1px 0 var(--wash-1);
+  transition: border-color 0.18s ease, background-color 0.18s ease, transform 0.18s ease;
 }
-.gm-card:hover {
-  border-color: var(--border);
+a.gm-card:hover,
+a.gm-card:focus-visible {
+  border-color: var(--border-strong);
+  background: color-mix(in oklab, var(--surface) 96%, white);
+  transform: translateY(-2px);
+  text-decoration: none;
 }
-.gm-card-eyebrow {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  font-size: 0.75rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--ink-muted);
-  margin-bottom: var(--space-2);
+.gm-card > p {
+  color: var(--text-secondary);
+  font-size: var(--fs-sm);
+  margin-bottom: var(--space-3);
 }
-.gm-swatch {
-  width: 10px;
-  height: 10px;
-  border-radius: 3px;
-  display: inline-block;
-  flex-shrink: 0;
+.gm-card > p:last-child {
+  margin-bottom: 0;
 }
 .gm-card h3 {
   margin: 0 0 var(--space-3);
 }
+
+.gm-card-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--fs-2xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  margin-bottom: var(--space-2);
+}
+.gm-swatch {
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+  display: inline-block;
+  flex-shrink: 0;
+  /* A hairline ring so a light swatch (EU yellow) still has an edge against
+     a light card - a shape cue, not a color cue. */
+  box-shadow: 0 0 0 1px var(--wash-3);
+}
+
 .gm-card-stats {
   display: flex;
   gap: var(--space-6);
-  margin-top: var(--space-3);
+  margin-top: auto;
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--wash-1);
 }
 .gm-stat-value {
   font-family: var(--font-mono);
-  font-size: 1.3rem;
+  font-size: var(--fs-xl);
   font-weight: 600;
+  letter-spacing: var(--tracking-tight);
+  line-height: 1.1;
+  color: var(--text);
   font-variant-numeric: tabular-nums;
 }
 .gm-stat-label {
-  font-size: 0.75rem;
-  color: var(--ink-muted);
-  margin-top: 2px;
+  font-size: var(--fs-2xs);
+  color: var(--text-muted);
+  margin-top: 3px;
+  letter-spacing: 0.01em;
 }
 
-/* --- Tables --- */
+/* A hero figure: the single biggest number on a page. Fluid, tight, and
+   never pure white - #f0f0f0, matching Grafana/worldmonitor/shadcn, because
+   pure white on near-black halates over a long reading session. */
+.gm-figure {
+  font-family: var(--font-mono);
+  font-size: var(--fs-figure);
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  line-height: 1;
+  color: var(--text);
+}
+
+/* A panel is a labelled box for a visualization: header strip, body, footer. */
+.gm-panel {
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-lg);
+  margin: var(--space-6) 0;
+  overflow: hidden;
+  box-shadow: inset 0 1px 0 var(--wash-1);
+}
+.gm-panel__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-5);
+  background: var(--wash-1);
+  border-bottom: 1px solid var(--hairline);
+}
+.gm-panel__title {
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-dim);
+  margin: 0;
+}
+.gm-panel__body {
+  padding: var(--space-5);
+}
+
+/* Visualization block: the chart container used across bloc/compare/
+   dimension/risk pages. */
+.gm-viz-block {
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-lg);
+  padding: var(--space-5);
+  margin: var(--space-6) 0;
+  box-shadow: inset 0 1px 0 var(--wash-1);
+  /* The one place a wide table is allowed to exceed its box. */
+  overflow-x: auto;
+}
+
+/* ---------------------------------------------------------------------------
+   6. Tables - the workhorse of a data reference
+   ------------------------------------------------------------------------ */
+
+/* ---------------------------------------------------------------------------
+   Horizontal scroll container for wide data tables
+   ------------------------------------------------------------------------
+   A 7-column table cannot shrink to a 390px viewport, and a table that
+   overflows its parent makes the WHOLE PAGE scroll sideways - including the
+   fixed sidebar, which then detaches from the left edge and looks broken.
+   Scrolling the table in its own box keeps the page itself still.
+
+   No min-width is set on purpose: `width: 100%` already lets a table shrink
+   to the container when it fits, and a table is never laid out below its
+   min-content width, so this wrapper only produces a scrollbar when the
+   content genuinely needs one. A 2-column table stays put on a phone. */
+
+.gm-table-wrap {
+  overflow-x: auto;
+  /* Keep a horizontal swipe over a table from chaining to the page and
+     fighting the vertical scroll the reader actually asked for. */
+  overscroll-behavior-x: contain;
+  margin: var(--space-6) 0;
+}
+/* The table owns the vertical rhythm now that the wrapper has the margin. */
+.gm-table-wrap > table {
+  margin: 0;
+}
 
 table {
   width: 100%;
   border-collapse: collapse;
   margin: var(--space-6) 0;
-  font-size: 0.92rem;
+  font-size: var(--fs-sm);
   background: var(--surface);
   border: 1px solid var(--hairline);
-  border-radius: var(--radius);
+  border-radius: var(--radius-lg);
   overflow: hidden;
+  box-shadow: inset 0 1px 0 var(--wash-1);
 }
-th, td {
+
+th,
+td {
   text-align: left;
   padding: var(--space-3) var(--space-4);
-  border-bottom: 1px solid var(--hairline);
+  border-bottom: 1px solid var(--wash-1);
 }
+
+/* Everything from the second column onward is a measurement, and
+   measurements are read by their last digit lining up. This one rule is
+   what turns a table of numbers into something scannable. */
+th:not(:first-child),
+td:not(:first-child) {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
 th {
-  color: var(--ink-muted);
-  font-size: 0.75rem;
+  color: var(--text-dim);
+  font-size: var(--fs-2xs);
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.05em;
   font-weight: 600;
-  background: var(--page);
+  background: var(--wash-1);
+  position: sticky;
+  top: 0;
+  z-index: 1;
 }
+
 tbody tr:last-child td {
   border-bottom: none;
 }
+tbody tr {
+  transition: background-color 0.12s ease;
+}
 tbody tr:hover {
-  background: var(--page);
+  background: var(--wash-1);
 }
 td a {
   text-decoration: none;
   font-weight: 600;
+  color: var(--text);
+}
+td a:hover {
+  color: var(--accent);
+}
+tbody td {
+  color: var(--text-secondary);
+}
+tbody td:first-child {
+  color: var(--text);
 }
 
-/* --- Lists of links (compare/dimension index lists) --- */
+/* ---------------------------------------------------------------------------
+   7. Link lists, chips, code badges
+   ------------------------------------------------------------------------ */
 
 .gm-link-list {
   list-style: none;
   padding: 0;
   margin: var(--space-4) 0;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
   gap: var(--space-2);
 }
 .gm-link-list li a {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
   padding: var(--space-3) var(--space-4);
   background: var(--surface);
   border: 1px solid var(--hairline);
   border-radius: var(--radius-sm);
   text-decoration: none;
-  color: var(--ink);
-  font-size: 0.92rem;
-  font-weight: 600;
+  color: var(--text-secondary);
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  transition: border-color 0.15s ease, background-color 0.15s ease, color 0.15s ease;
+}
+.gm-link-list li a::after {
+  content: "\2192";
+  margin-left: auto;
+  color: var(--text-muted);
+  transition: transform 0.15s ease, color 0.15s ease;
 }
 .gm-link-list li a:hover {
-  border-color: var(--border);
+  border-color: var(--border-strong);
+  background: color-mix(in oklab, var(--surface) 96%, white);
+  color: var(--text);
+  text-decoration: none;
+}
+.gm-link-list li a:hover::after {
+  color: var(--accent);
+  transform: translateX(2px);
 }
 
-/* --- Bloc description dl (bloc page) --- */
-
-dl {
-  margin: var(--space-4) 0;
+.gm-code-badge {
+  font-family: var(--font-mono);
+  font-size: var(--fs-2xs);
+  color: var(--text-dim);
+  display: inline-block;
+  width: 2.6rem;
 }
 
-/* --- Synthesis text (Milestone 4 - GLM/Ollama-generated, real numbers) --- */
-
-.gm-synthesis {
-  font-size: 1.02rem;
-  color: var(--ink);
-  background: var(--surface);
-  border: 1px solid var(--hairline);
-  border-radius: var(--radius);
-  padding: var(--space-6);
-  margin: var(--space-6) 0;
-  max-width: none;
-}
-.gm-synthesis p {
-  /* max-width:none on the container above doesn't cascade to this nested
-     <p> - the generic `p { max-width: 68ch }` rule still capped the actual
-     visible text at ~625px regardless of how wide the box around it was.
-     User feedback (2026-09-27): "summary bölümünü ekrana yay" (spread the
-     summary section across the screen). */
-  max-width: none;
-}
-.gm-synthesis-label {
-  font-size: 0.75rem;
+.gm-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--fs-2xs);
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--ink-muted);
+  letter-spacing: 0.05em;
+  color: var(--text-dim);
+  background: var(--raised);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-full);
+  padding: 2px var(--space-2);
+}
+
+/* ---------------------------------------------------------------------------
+   8. Synthesis (LLM-generated, real numbers) + notes
+   ------------------------------------------------------------------------ */
+
+.gm-synthesis {
+  font-size: var(--fs-md);
+  line-height: 1.65;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-left: 2px solid var(--accent);
+  border-radius: var(--radius-lg);
+  padding: var(--space-5) var(--space-6);
+  margin: var(--space-6) 0;
+  max-width: none;
+  box-shadow: inset 0 1px 0 var(--wash-1);
+}
+.gm-synthesis p {
+  max-width: 78ch; /* prose wants a measure; the box does not */
+}
+.gm-synthesis-label {
+  font-size: var(--fs-2xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  margin-bottom: var(--space-3);
+}
+
+/* An aside for caveats/footnotes: smaller, dimmer, rule-separated. */
+.gm-note {
+  font-size: var(--fs-sm);
+  line-height: 1.6;
+  color: var(--text-muted);
+  border-left: 2px solid var(--hairline);
+  padding-left: var(--space-4);
+  margin: var(--space-6) 0;
+  max-width: 72ch;
+}
+.gm-note strong {
+  color: var(--text-secondary);
+}
+
+.gm-eyebrow-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
   margin-bottom: var(--space-2);
 }
 
-/* --- Chart/map wrappers - breathing room to match card rhythm --- */
+/* ---------------------------------------------------------------------------
+   9. Motion - three effects, all of them reversible
+   ------------------------------------------------------------------------ */
 
-.gm-viz-block {
-  background: var(--surface);
-  border: 1px solid var(--hairline);
-  border-radius: var(--radius);
-  padding: var(--space-6);
-  margin: var(--space-6) 0;
-  overflow-x: auto;
+/* Scroll reveal.
+
+   Selectors are scoped to `html.gm-motion` - the class the inline <head>
+   script adds ONLY when matchMedia('(prefers-reduced-motion: reduce)')
+   reports no preference - and they key off [data-reveal], the attribute the
+   markup actually carries. Both halves matter:
+
+     - scoping on .gm-motion is what makes "no JS, or reduced motion" safe.
+       The hidden state cannot exist without JS having run, so a
+       content-hiding animation can never be stranded with no way to un-hide
+       it. Keying on a bare .gm-reveal class would hide content by default
+       and depend on the observer to reveal it: a content-availability bug
+       on an SEO-first site.
+     - keying on [data-reveal] rather than a .gm-reveal class is why this
+       worked at all: the observer adds only .is-visible, so a rule matching
+       .gm-reveal would have matched nothing and every element would have
+       sat at opacity 0 forever. */
+.gm-motion [data-reveal] {
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity 0.5s ease, transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.gm-motion [data-reveal].is-visible {
+  opacity: 1;
+  transform: none;
+  /* Once shown, stop keeping the element on its own compositor layer. */
+  will-change: auto;
 }
 
-@media (max-width: 640px) {
-  .gm-hero { padding-top: var(--space-4); }
-  main { padding-top: var(--space-6); }
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  .gm-motion [data-reveal] {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+  .gm-live-dot {
+    animation: none;
+  }
+}
+
+/* Suppress transitions for the very first paint so a restored theme or a
+   cold cache does not cross-fade from white. Set by an inline script in
+   <head> before the stylesheet is applied, then removed. */
+.no-transition,
+.no-transition * {
+  transition: none !important;
+}
+
+/* ---------------------------------------------------------------------------
+   9. Map
+   ------------------------------------------------------------------------
+   Lives here rather than in a <style> block inside WorldMap.tsx / RiskMap.tsx
+   on purpose. Both are `client:visible` islands, so a component-scoped
+   <style> only arrives at hydration - which for a map means the well, the
+   graticule and the legend pop in after the element scrolls into view. A
+   FOUC on the largest object on the page is not worth the encapsulation. */
+
+.gm-map {
+  margin: 0;
+}
+.gm-map__legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-5);
+  margin-bottom: var(--space-3);
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+}
+.gm-map__legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+/* The swatch carries a redundant shape cue as well as a color one. The
+   validated palette has a known weak pair - EU (yellow) and USMCA (magenta)
+   collapse to dE00 6.7 under deuteranopia, well under any safe bar - so
+   wherever two of these can appear together, the LABEL is what actually
+   carries the distinction, and the swatch only has to point at it. */
+.gm-map__legend-swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  display: inline-block;
+  flex-shrink: 0;
+  box-shadow: 0 0 0 1px var(--wash-3);
+}
+.gm-map__legend-item--muted {
+  color: var(--text-muted);
+}
+
+.gm-map__well {
+  background: var(--map-bg);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-lg);
+  /* Fades the map's own edge into the well, so the SVG's rectangular
+     bounding box stops being visible. The svg is painted with a matching
+     radial mask so Antarctica/the frame do not read as a hard crop. */
+  overflow: hidden;
+  position: relative;
+}
+.gm-map__well::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  /* A vignette: the map is lit from the middle. Subtle, but it is the
+     difference between "an SVG" and "a screen". */
+  background: radial-gradient(ellipse 80% 90% at 50% 45%, transparent 55%, var(--wash-1) 100%);
+}
+.gm-map__well svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.gm-map__country {
+  transition: filter 0.15s ease;
+}
+/* Keeps the 0.5px inter-country seam hairline-thin if the SVG is ever
+   scaled up, instead of fattening into a visible grey web. */
+.gm-map__country path,
+.gm-map__well svg path {
+  vector-effect: non-scaling-stroke;
+}
+
+/* ---------------------------------------------------------------------------
+   9b. Tension gauge
+   ------------------------------------------------------------------------
+   ONE definition, two consumers: TensionGauge.astro (the static pages) and
+   the inline Gauge inside CountryTensionQuery.tsx (the ad-hoc client-side
+   query) render the same class names, so the gauge cannot drift between
+   them. Global rather than scoped in either file for the same reason the
+   map styles are: the React copy is behind a runtime fetch, and a gauge that
+   restyles itself the moment data arrives looks like a glitch.
+
+   Two details that matter on a dark surface, both from Datawrapper's
+   chart-form guidance:
+     - the MIDPOINT is neutral gray, never white, so zero reads as "nothing
+       happening" rather than as a bright third category;
+     - the POLES are the brightest thing in the component. On a light
+       background you would go dark-at-the-poles; on a dark one the extremes
+       have to be the brightest or they vanish.
+
+   So the track itself carries a very dim two-sided wash (each pole
+   color-mixed toward --raised), which shows the reader the full bipolar
+   scale before they read the value, and the fill is the saturated pole
+   color. A flat --hairline track, which is what this replaced, made the bar
+   appear to grow out of nothing with nothing on the left to grow out of. */
+
+.gm-tension {
+  margin: var(--space-2) 0;
+}
+.gm-tension__label {
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  margin-bottom: var(--space-3);
+  color: var(--text-secondary);
+}
+.gm-tension__track {
+  position: relative;
+  height: 12px;
+  border-radius: var(--radius-full);
+  overflow: hidden;
+  background: linear-gradient(
+    to right,
+    color-mix(in srgb, var(--tension-conflict) 22%, var(--raised)) 0%,
+    var(--raised) 50%,
+    color-mix(in srgb, var(--tension-cooperation) 22%, var(--raised)) 100%
+  );
+}
+.gm-tension__center {
+  position: absolute;
+  left: 50%;
+  top: -1px;
+  bottom: -1px;
+  width: 1px;
+  background: var(--text-faint);
+  transform: translateX(-0.5px);
+  z-index: 1;
+}
+.gm-tension__tick {
+  position: absolute;
+  top: 50%;
+  width: 1px;
+  height: 4px;
+  margin-top: -2px;
+  background: var(--text-faint);
+  opacity: 0.55;
+  z-index: 1;
+}
+.gm-tension__fill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-radius: var(--radius-full);
+  box-shadow: inset 0 1px 0 var(--wash-2);
+}
+.gm-tension__scale {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--fs-2xs);
+  color: var(--text-muted);
+  margin-top: var(--space-2);
+  font-family: var(--font-mono);
+}
+.gm-tension__poles {
+  display: flex;
+  gap: var(--space-2);
+  font-family: var(--font-sans);
+}
+.gm-tension__readout {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: var(--space-1);
+}
+.gm-tension__value {
+  font-family: var(--font-mono);
+  font-size: var(--fs-lg);
+  font-weight: 650;
+  color: var(--text);
+  letter-spacing: var(--tracking-tight);
+}
+
+/* ---------------------------------------------------------------------------
+   10b. Ad-hoc country query (CountryTensionQuery.tsx)
+   ------------------------------------------------------------------------
+   Global, not a <style> inside the island. This island sits behind a runtime
+   fetch, so island-local styles arrive with the component and the form
+   visibly snaps from unstyled to styled on mount. Its gauge is the shared
+   .gm-tension markup from section 9b - only the form chrome lives here. */
+
+.gm-country-query-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  align-items: end;
+}
+.gm-country-query-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+.gm-country-query select {
+  background: var(--overlay);
+  color: var(--text);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-lg);
+  padding: var(--space-3) var(--space-4);
+  font-size: var(--fs-sm);
+  font-family: inherit;
+  min-width: 200px;
+  min-height: 40px;
+}
+.gm-country-query select:hover {
+  border-color: var(--text-faint);
+}
+.gm-country-query button {
+  background: var(--accent);
+  /* --accent-ink, never a literal #fff: the dark --accent is a LIGHT blue,
+     so white text on it measures 2.87:1. The token is 6.70:1 in dark mode
+     and 5.53:1 in light mode. */
+  color: var(--accent-ink);
+  border: 1px solid transparent;
+  border-radius: var(--radius-lg);
+  padding: var(--space-3) var(--space-6);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  font-family: inherit;
+  min-height: 40px;
+  cursor: pointer;
+  transition: filter 0.12s ease;
+}
+.gm-country-query button:hover:not(:disabled) {
+  filter: brightness(1.12);
+}
+.gm-country-query button:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+.gm-country-query-error {
+  color: var(--tension-conflict);
+  font-size: var(--fs-sm);
+  margin-top: var(--space-3);
+}
+.gm-country-query-result {
+  margin-top: var(--space-8);
+}
+
+/* ---------------------------------------------------------------------------
+   10. Small multiples (MetricCompareBars)
+   ------------------------------------------------------------------------
+   One tile per metric, each keeping its OWN scale - deliberately not a
+   radar chart. The 1px-gap-plus-shared-background trick gives a
+   mathematically perfect hairline grid with no per-card border, and unlike
+   `gap: 0` + borders it survives responsive reflow without doubled edges. */
+
+.gm-compare-bars {
+  --gm-legend-gap: var(--space-5);
+}
+.gm-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-5);
+  margin-bottom: var(--space-4);
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+}
+.gm-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.gm-legend-swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  display: inline-block;
+  flex-shrink: 0;
+  box-shadow: 0 0 0 1px var(--wash-3);
+}
+
+.gm-metric-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 1px;
+  background: var(--hairline);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+.gm-metric-tile {
+  background: var(--surface);
+  padding: var(--space-3) var(--space-2) var(--space-2);
+  text-align: center;
+  container-type: inline-size;
+  container-name: tile;
+}
+.gm-metric-label {
+  font-size: var(--fs-2xs);
+  line-height: 1.3;
+  color: var(--text-dim);
+  margin-bottom: var(--space-2);
+  /* Two-line clamp so one very long metric name ("Secondary school
+     enrollment (% gross)") cannot push its tile a full row taller than its
+     neighbours and break the grid. */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  min-height: 2.6em;
+  text-wrap: balance;
+}
+.gm-bar-value {
+  fill: var(--text);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  /* The OWID label halo, via the standard property: a 2px --surface
+     stroke painted UNDER the glyphs so a value label sitting over a
+     neighbouring bar's gridline stays fully legible. */
+  paint-order: stroke fill;
+  stroke: var(--surface);
+  stroke-width: 2px;
+  stroke-linejoin: round;
+}
+.gm-bar-value--na {
+  fill: var(--text-muted);
+  font-weight: 400;
+}
+/* Value labels are wider than the bars they sit above (the SVG's own width
+   is sized to just the bars, for centering) - without this an SVG's default
+   overflow:hidden clips both ends of every label (confirmed live once
+   already: "$460.6B" rendered as "160.6B"). The surrounding grid column has
+   ample spare width for the label to spill into. */
+.gm-compare-bars svg {
+  overflow: visible;
+}
+.gm-metric-bars {
+  display: flex;
+  justify-content: center;
+  gap: var(--space-2);
+}
+
+/* ---------------------------------------------------------------------------
+   11. Render cost
+   ------------------------------------------------------------------------ */
+
+/* A long index page (61 pages, /countries with 20 rows, /risk rankings) gets
+   its off-screen sections skipped. `contain-intrinsic-size` is declared TWICE
+   on purpose: the first reserves a guess up front, the second is remembered
+   as the real height once measured, so scrolling back up does not shift
+   layout again. worldmonitor shipped the one-line version and documented the
+   resulting layout shift as issue #4580. */
+.gm-defer {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 240px;
+}
+
+/* Container queries: the same panel component is used in a half-width column
+   and full width, and one component that responds to its own box beats three
+   breakpoints. Baseline since Feb 2023. */
+.gm-panel {
+  container-type: inline-size;
+  container-name: panel;
+}
+@container panel (max-width: 380px) {
+  .gm-panel__head {
+    flex-wrap: wrap;
+  }
+}
+
+@media print {
+  .gm-sidebar,
+  .gm-topbar-mobile,
+  .gm-footer,
+  .gm-skip-link {
+    display: none !important;
+  }
+  .gm-layout {
+    display: block;
+    max-width: none;
+  }
+  body {
+    background: #fff;
+    color: #000;
+  }
 }

@@ -1,12 +1,16 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
 import { getBlocs } from "../lib/data";
-import { PAIRS } from "../lib/pairs";
-import { DIMENSIONS, DIMENSION_LABELS } from "../lib/metrics";
-import { blocColor } from "../lib/colors";
+import { PAIRS, FEATURED_PAIR } from "../lib/pairs";
+import { ALL_METRICS, DIMENSIONS, DIMENSION_LABELS } from "../lib/metrics";
 import { getLastUpdated } from "../lib/sitemap";
 
-const blocs = (await getBlocs()).filter((b) => b.bloc_id !== "brics5");
+// brics5 is not a bloc CARD on the homepage - it is a comparison target (the
+// featured pair), so it stays out of the grid but is still needed by name.
+const allBlocs = await getBlocs();
+const blocs = allBlocs.filter((b) => b.bloc_id !== "brics5");
+const blocName = (id: string) => allBlocs.find((b) => b.bloc_id === id)?.name ?? id;
+const otherPairs = PAIRS.filter((p) => !p.featured);
 const lastUpdated = await getLastUpdated();
 const lastUpdatedLabel = new Date(lastUpdated).toLocaleDateString("en-US", {
   year: "numeric", month: "short", day: "numeric",
@@ -20,8 +24,18 @@ function formatPeople(value: number | null): string {
   if (value === null) return "—";
   return `${(value / 1e6).toFixed(0)}M`;
 }
+
+// Real counts, derived - never typed in by hand, so they cannot go stale
+// when a bloc, a pair or a metric is added.
+const summary = [
+  { value: String(blocs.length), label: "Blocs compared" },
+  { value: String(ALL_METRICS.length), label: "Tracked metrics" },
+  { value: String(PAIRS.length), label: "Comparison pairs" },
+  { value: String(DIMENSIONS.length), label: "Dimensions" },
+];
 ---
-<BaseLayout title="Home" description="Global Monitor compares BRICS, the EU, the US, and USMCA across economic, trade, social, and military data.">
+
+<BaseLayout title="Home" description="Global Monitor compares BRICS, the EU, the US, and USMCA across economic, trade, social, and military data - led by the EU against the original BRICS five.">
   <section class="gm-hero">
     <p class="gm-live-badge"><span class="gm-live-dot" aria-hidden="true"></span>Data updated {lastUpdatedLabel}</p>
     <p class="gm-hero-eyebrow">Bloc-vs-bloc comparison</p>
@@ -31,23 +45,26 @@ function formatPeople(value: number | null): string {
       pulled from the World Bank, UN Comtrade, UNDP, and SIPRI and kept in sync automatically,
       not a one-off snapshot.
     </p>
-    <p>
-      Looking for individual countries instead? See <a href="/countries/">Major Economies</a> —
-      the world's top 20 advanced economies, compared one by one. Or try the
-      <a href="/risk/">Global Risk Simulator</a> — how 19 countries rank under six different
-      global-crisis scenarios, or <a href="/tension/">Current Tension</a> — a real-time
-      conflict/cooperation signal refreshed every few hours.
-    </p>
   </section>
 
+  <dl class="gm-summary-strip" data-reveal>
+    {summary.map((s) => (
+      <div class="gm-summary-cell">
+        <dt>{s.label}</dt>
+        <dd>{s.value}</dd>
+      </div>
+    ))}
+  </dl>
+
+  <h2>Start with a bloc</h2>
   <div class="gm-grid">
     {blocs.map((bloc) => {
       const gdp = bloc.aggregates.gdp_current_usd;
       const pop = bloc.aggregates.population_total;
       return (
-        <a href={`/bloc/${bloc.slug}/`} class="gm-card">
+        <a href={`/bloc/${bloc.slug}/`} class="gm-card" data-reveal>
           <span class="gm-card-eyebrow">
-            <span class="gm-swatch" style={{ background: blocColor(bloc.bloc_id).dark }} />
+            <span class="gm-swatch" style={{ background: `var(--bloc-${bloc.bloc_id})` }} />
             {gdp?.member_count ?? 0} member{(gdp?.member_count ?? 0) === 1 ? "" : "s"} with data
           </span>
           <h3>{bloc.name}</h3>
@@ -66,26 +83,152 @@ function formatPeople(value: number | null): string {
     })}
   </div>
 
+  <h2>Go deeper</h2>
+  <div class="gm-grid">
+    <a href="/countries/" class="gm-card" data-reveal>
+      <span class="gm-card-eyebrow">Module</span>
+      <h3>Major Economies</h3>
+      <p>The 20 largest advanced economies compared country by country, rather than aggregated into a bloc.</p>
+    </a>
+    <a href="/risk/" class="gm-card" data-reveal>
+      <span class="gm-card-eyebrow">Module</span>
+      <h3>Global Risk Simulator</h3>
+      <p>How 19 countries rank under six different global-crisis scenarios. The same country data, a different ranking per scenario.</p>
+    </a>
+    <a href="/tension/" class="gm-card" data-reveal>
+      <span class="gm-card-eyebrow">Module · real-time</span>
+      <h3>Current Tension</h3>
+      <p>A live conflict/cooperation signal from the GDELT 2.0 Event Database, refreshed every few hours. An interpretation, not a forecast.</p>
+    </a>
+  </div>
+
   <h2>Compare two blocs</h2>
-  <ul class="gm-link-list">
-    {PAIRS.map((p) => <li><a href={`/compare/${p.slug}/`}>{p.a.toUpperCase()} vs {p.b.toUpperCase()}</a></li>)}
+
+  <a href={`/compare/${FEATURED_PAIR.slug}/`} class="gm-featured-compare" data-reveal>
+    <span class="gm-card-eyebrow">Primary comparison</span>
+    <span class="gm-featured-compare__names">
+      <span class="gm-featured-compare__side">
+        <span class="gm-swatch" style={`background: var(--bloc-${FEATURED_PAIR.a})`} aria-hidden="true"></span>
+        {blocName(FEATURED_PAIR.a)}
+      </span>
+      <span class="gm-featured-compare__vs">vs</span>
+      <span class="gm-featured-compare__side">
+        <span class="gm-swatch" style={`background: var(--bloc-${FEATURED_PAIR.b})`} aria-hidden="true"></span>
+        {blocName(FEATURED_PAIR.b)}
+      </span>
+    </span>
+    <span class="gm-featured-compare__note">
+      The original BRICS five, not the expanded BRICS+ - the founding members are what
+      makes an economic comparison with the EU unambiguous.
+    </span>
+    <span class="gm-featured-compare__cta">Open the comparison &rarr;</span>
+  </a>
+
+  <ul class="gm-link-list" data-reveal>
+    {otherPairs.map((p) => <li><a href={`/compare/${p.slug}/`}>{blocName(p.a)} vs {blocName(p.b)}</a></li>)}
   </ul>
 
-  <h2>By dimension</h2>
-  <ul class="gm-link-list">
+  <h2>Or by dimension</h2>
+  <ul class="gm-link-list" data-reveal>
     {DIMENSIONS.map((d) => <li><a href={`/dimension/${d}/`}>{DIMENSION_LABELS[d]}</a></li>)}
   </ul>
-
-  <h2>Global Risk Simulator</h2>
-  <p>
-    A separate module: ranks 19 countries by resilience under six global-crisis scenarios.
-    <a href="/risk/">See all scenarios &rarr;</a>
-  </p>
-
-  <h2>Current Tension</h2>
-  <p>
-    A real-time module: conflict/cooperation activity between blocs, from the GDELT 2.0 Event
-    Database, refreshed every few hours - not a forecast.
-    <a href="/tension/">See current tension &rarr;</a>
-  </p>
 </BaseLayout>
+
+<style>
+  /* An at-a-glance strip between the hero and the first grid. A definition
+     list rather than a div soup, because these really are label/value pairs
+     and screen readers should say so. The 1px-gap-over-a-border
+     background gives a hairline grid with no per-cell borders. */
+  .gm-summary-strip {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 1px;
+    margin: var(--space-8) 0 var(--space-2);
+    background: var(--hairline);
+    border: 1px solid var(--hairline);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+  }
+  .gm-summary-cell {
+    background: var(--surface);
+    padding: var(--space-4) var(--space-5);
+  }
+  .gm-summary-cell dt {
+    font-size: var(--fs-2xs);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+    font-weight: 600;
+    margin-bottom: var(--space-2);
+  }
+  .gm-summary-cell dd {
+    margin: 0;
+    font-family: var(--font-mono);
+    font-size: var(--fs-2xl);
+    font-weight: 650;
+    letter-spacing: -0.03em;
+    line-height: 1;
+    color: var(--text);
+  }
+
+  /* The primary comparison. An <a> card rather than a nested <ul>, because it
+     is one destination with a title, not a list of peers - the other pairs
+     stay a plain link list below it. */
+  .gm-featured-compare {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    padding: var(--space-5);
+    margin-bottom: var(--space-4);
+    background: var(--surface);
+    border: 1px solid var(--hairline);
+    /* An accent edge, so it is separable from the plain cards in the grid
+       above without relying on a second colour. */
+    border-left: 3px solid var(--accent);
+    border-radius: var(--radius-lg);
+    text-decoration: none;
+    color: var(--text);
+    transition: border-color 0.15s ease, background-color 0.15s ease;
+  }
+  .gm-featured-compare:hover {
+    text-decoration: none;
+    background: var(--wash-1);
+  }
+  .gm-featured-compare__names {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+    font-size: var(--fs-xl);
+    font-weight: 650;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+  }
+  .gm-featured-compare__side {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+  .gm-featured-compare__vs {
+    font-size: var(--fs-sm);
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+  }
+  .gm-featured-compare__note {
+    font-size: var(--fs-sm);
+    color: var(--text-secondary);
+    max-width: 62ch;
+  }
+  .gm-featured-compare__cta {
+    font-size: var(--fs-sm);
+    font-weight: 600;
+    color: var(--accent);
+  }
+  @media (max-width: 560px) {
+    .gm-featured-compare__names {
+      font-size: var(--fs-lg);
+    }
+  }
+</style>

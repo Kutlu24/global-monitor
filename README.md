@@ -92,15 +92,21 @@ finishes, no restart needed).
 
 ## Not yet built (see the project plan for the full build order)
 
-- **Milestone 5, remainder**: a real purchased domain (currently live only at the Render relay's
-  own `.onrender.com` address).
+Nothing outstanding in the original plan. **Milestone 5's one remaining item - purchasing a
+domain - was consciously declined**: the Render relay's own `.onrender.com` address stays the
+public identity, so `SITE_URL`/`GLOBAL_MONITOR_DOMAIN` stay pointed at it. Changing that later is
+a one-line edit in `home-server-infra/Caddyfile` plus those two env vars, not a migration.
 
 ## Why BRICS is two bloc rows
 
 `brics` (current membership, including the 2024-25 expansion) and `brics5` (the original five,
 frozen) share the exact same generic bloc/bloc_membership mechanism — see
-`backend/src/global_monitor/blocs.py`'s own module docstring. Only `brics` appears in the main
-comparison structure; `brics5` is a secondary historical view.
+`backend/src/global_monitor/blocs.py`'s own module docstring. `brics` takes part in the derived
+pair set, and `brics5` is the site's **primary comparison** — EU vs the original five. That
+pairing is chosen deliberately: the 2024-25 expansion pulled in members whose overlap with the EU
+muddies an economic comparison, so the founding five are what make "EU vs BRICS" unambiguous.
+`brics5` still reuses `brics`'s own colour, and because the two never compete on the same page
+that alias stays safe.
 
 ## Local development
 
@@ -123,6 +129,5 @@ npx astro preview   # serves frontend/dist/
 Runs as a service in `~/my-projects/home-server-infra`'s Docker Compose stack (port 7863) and is
 **already publicly live** via that repo's `docs/RENDER_PROXY.md` relay mechanism - the first app
 in that whole portfolio actually flipped over to it for real, since every other app there is
-Tailscale-only by design. No custom domain yet - the relay's own Render address
-(`global-monitor-render-relay.onrender.com`) is the public identity for now; swap one line in
-`home-server-infra/Caddyfile` once a domain is purchased.
+Tailscale-only by design. No custom domain, by decision rather than by omission - the relay's
+own Render address (`global-monitor-render-relay.onrender.com`) is the public identity.

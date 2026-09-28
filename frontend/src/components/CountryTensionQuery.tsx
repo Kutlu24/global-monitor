@@ -9,8 +9,11 @@ import WorldMap from "./WorldMap";
 // suggest "this country IS the cooperative/conflictual one" rather than
 // just "this is country A". Reuses eu/usmca's own validated (all-pairs
 // CVD-safe together) categorical colors purely as neutral identity markers.
-const ENTITY_A_COLOR = "#c98500"; // amber
-const ENTITY_B_COLOR = "#d55181"; // magenta
+// The same two validated hexes, reached through the theme-aware custom
+// properties in global.css rather than frozen literals, so the map follows
+// the active theme instead of the mode this file happened to be written in.
+const ENTITY_A_COLOR = "var(--bloc-eu)"; // amber
+const ENTITY_B_COLOR = "var(--bloc-usmca)"; // magenta
 
 // The ONE place in this project that fetches from the browser at runtime
 // instead of at Astro build time - the ad-hoc two-country query (the
@@ -21,26 +24,59 @@ const ENTITY_B_COLOR = "#d55181"; // magenta
 
 const DOMAIN = 10;
 
+// Renders the shared .gm-tension markup - the same class names
+// TensionGauge.astro emits - so both gauges are styled by the single
+// definition in global.css and cannot drift apart.
 function Gauge({ value }: { value: number | null }) {
   const clamped = value == null ? 0 : Math.max(-DOMAIN, Math.min(DOMAIN, value));
   const halfPct = (Math.abs(clamped) / DOMAIN) * 50;
   const isPositive = clamped >= 0;
   const color = isPositive ? TENSION_DIVERGING.cooperation.dark : TENSION_DIVERGING.conflict.dark;
+  const magnitude = Math.abs(clamped);
+  const verdict = magnitude < 0.5 ? "broadly neutral" : magnitude < 3 ? "mildly" : magnitude < 6.5 ? "clearly" : "strongly";
+  const ariaLabel =
+    value == null
+      ? "No tension data"
+      : `Mean Goldstein score ${clamped.toFixed(2)} out of a possible minus 10 to plus 10, i.e. ${verdict} ${isPositive ? "cooperative" : "conflictual"}`;
   return (
-    <div className="gm-tension-gauge">
-      <div className="gm-tension-track">
-        <div className="gm-tension-zero" />
+    <div
+      className="gm-tension"
+      role="meter"
+      aria-label={ariaLabel}
+      aria-valuenow={value ?? undefined}
+      aria-valuemin={-DOMAIN}
+      aria-valuemax={DOMAIN}
+    >
+      <div className="gm-tension__track">
+        <span className="gm-tension__center" aria-hidden="true"></span>
+        {[-10, -5, 5, 10].map((t) => (
+          <span key={t} className="gm-tension__tick" style={{ left: `${((t + DOMAIN) / (2 * DOMAIN)) * 100}%` }} aria-hidden="true"></span>
+        ))}
         {value != null && (
           <div
-            className="gm-tension-fill"
-            style={{ left: isPositive ? "50%" : `${50 - halfPct}%`, width: `${halfPct}%`, background: color }}
+            className="gm-tension__fill"
+            style={{
+              left: isPositive ? "50%" : `${50 - halfPct}%`,
+              /* A hairline minimum so a real score of exactly 0.0 still
+                 reads as "measured, and it was zero", not as missing. */
+              width: `${Math.max(halfPct, 0.6)}%`,
+              background: color,
+            }}
           />
         )}
       </div>
-      <div className="gm-tension-scale">
-        <span>Conflict (&minus;10)</span>
-        <span className="gm-tension-value">{value != null ? value.toFixed(2) : "N/A"}</span>
-        <span>Cooperation (+10)</span>
+      <div className="gm-tension__scale">
+        <span>&minus;10</span>
+        <span className="gm-tension__poles" aria-hidden="true">
+          <span>Conflict</span>
+          <span>Cooperation</span>
+        </span>
+        <span>+10</span>
+      </div>
+      <div className="gm-tension__readout">
+        <span className="gm-tension__value">
+          {value != null ? (clamped > 0 ? "+" : "") + clamped.toFixed(2) : "N/A"}
+        </span>
       </div>
     </div>
   );
@@ -92,27 +128,6 @@ export default function CountryTensionQuery({ countries }: Props) {
 
   return (
     <div className="gm-country-query">
-      <style>{`
-        .gm-country-query-form { display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: end; }
-        .gm-country-query-field { display: flex; flex-direction: column; gap: 0.3rem; font-size: 0.85rem; color: var(--ink-secondary); }
-        .gm-country-query select {
-          background: var(--surface); color: var(--ink); border: 1px solid var(--hairline);
-          border-radius: var(--radius-sm); padding: 0.5rem 0.6rem; font-size: 0.92rem; min-width: 200px;
-        }
-        .gm-country-query button {
-          background: var(--accent); color: #fff; border: none; border-radius: var(--radius-sm);
-          padding: 0.55rem 1.1rem; font-size: 0.92rem; font-weight: 600; cursor: pointer;
-        }
-        .gm-country-query button:disabled { opacity: 0.6; cursor: default; }
-        .gm-country-query-error { color: ${TENSION_DIVERGING.conflict.dark}; font-size: 0.85rem; margin-top: 0.5rem; }
-        .gm-country-query-result { margin-top: var(--space-6); }
-        .gm-tension-gauge { margin: var(--space-3) 0; }
-        .gm-tension-track { position: relative; height: 10px; background: var(--hairline); border-radius: 999px; overflow: hidden; }
-        .gm-tension-zero { position: absolute; left: 50%; top: 0; bottom: 0; width: 2px; background: var(--ink-muted); transform: translateX(-1px); z-index: 1; }
-        .gm-tension-fill { position: absolute; top: 0; bottom: 0; border-radius: 999px; }
-        .gm-tension-scale { display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--ink-muted); margin-top: var(--space-2); }
-        .gm-tension-value { font-family: var(--font-mono); font-weight: 700; color: var(--ink); }
-      `}</style>
       <div className="gm-country-query-form">
         <label className="gm-country-query-field">
           Country A
@@ -134,13 +149,18 @@ export default function CountryTensionQuery({ countries }: Props) {
 
       {result && queriedPair && (
         <div className="gm-country-query-result">
-          <div className="gm-viz-block">
+          <div className="gm-panel">
+            <div className="gm-panel__head">
+              <h3 className="gm-panel__title">Geography</h3>
+            </div>
+            <div className="gm-panel__body">
             <WorldMap
               highlights={[
                 { iso3: [queriedPair[0]], color: ENTITY_A_COLOR, label: nameFor(queriedPair[0]) },
                 { iso3: [queriedPair[1]], color: ENTITY_B_COLOR, label: nameFor(queriedPair[1]) },
               ]}
             />
+            </div>
           </div>
           <Gauge value={result.mean_goldstein} />
           <p className="gm-stat-label">
@@ -179,7 +199,7 @@ export default function CountryTensionQuery({ countries }: Props) {
             </>
           )}
           {result.n_events === 0 && <p>No bilateral events found between these two countries in the last {result.window_hours}h.</p>}
-          <p style={{ fontSize: "0.85rem", color: "var(--ink-muted)" }}>
+          <p className="gm-note">
             Computed on demand from real GDELT events - not a prediction or forecast, and not the
             sole basis for any decision.
           </p>

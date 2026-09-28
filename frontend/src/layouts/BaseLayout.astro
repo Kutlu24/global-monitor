@@ -1,8 +1,21 @@
 ---
 import "../styles/global.css";
+import "@fontsource-variable/inter/wght.css";
+import "@fontsource-variable/jetbrains-mono/wght.css";
+// Emitted as <link rel=preload> below. The @font-face rules themselves come
+// from the fontsource CSS imports above (Vite resolves and hashes those
+// assets for us); importing the same woff2 with ?url here just gets us the
+// final hashed path so the latin subset - the only one any page's glyphs
+// will match, per each @font-face's unicode-range - can start downloading in
+// parallel with the CSS instead of after it. Self-hosted per Grafana's own
+// rule: never Google Fonts, because the OpenType features this site's
+// numerals depend on (tabular-nums) are exactly what the CDN builds drop.
+import interLatin from "@fontsource-variable/inter/files/inter-latin-wght-normal.woff2?url";
+import monoLatin from "@fontsource-variable/jetbrains-mono/files/jetbrains-mono-latin-wght-normal.woff2?url";
+
 import { getBlocs } from "../lib/data";
 import { PAIRS } from "../lib/pairs";
-import { DIMENSIONS, DIMENSION_LABELS } from "../lib/metrics";
+import { DIMENSIONS, DIMENSION_LABELS, DIMENSION_METRIC_COUNT } from "../lib/metrics";
 import { SCENARIOS } from "../lib/risk";
 
 // schema.org/Dataset JSON-LD - pass `structuredData` (a plain object) from
@@ -19,17 +32,29 @@ interface Props {
 }
 const { title, description = "", structuredData } = Astro.props;
 
-// Full site map in the sidebar, not just three top-level links - the site
-// has 61 pages reachable only through in-content links (a bloc page links
-// to its own compare pairs, but there was no way to jump from, say, the US
-// bloc page directly to the EU bloc page, or to any compare pair, without
-// going back to the homepage first). User feedback (2026-09-27): "web
-// arayüzü gezilebilir bulmadım" (didn't find the site navigable).
-const blocs = await getBlocs();
-const blocById = Object.fromEntries(blocs.map((b) => [b.bloc_id, b]));
 const path = Astro.url.pathname;
 const isActive = (href: string) => path === href || (href !== "/" && path.startsWith(href));
+
+// Full site map in the sidebar, not just three top-level links - the site
+// has 76 pages reachable only through in-content links. User feedback
+// (2026-09-27): "web arayüzü gezilebilir bulmadım" (couldn't find the site
+// navigable).
+//
+// The nav is deliberately flat - no <details> disclosure, no JS accordion.
+// The previous version's comment here claimed the two long groups "are
+// <details>" and computed three `*PairOpen` booleans to force a parent open,
+// but the markup was plain links and the booleans were never read, so the
+// comment described a component that did not exist. Flat is also the right
+// call: the whole list is 17 items (4 blocs + 6 pairs + 4 dimensions +
+// 3 modules), which is a short enough list that collapsing the two
+// navigational groups behind a click would cost more discoverability than
+// it bought back - especially given the navigability complaint this block
+// was written for.
+const blocs = await getBlocs();
+const blocById = Object.fromEntries(blocs.map((b) => [b.bloc_id, b]));
+const pairName = (p: (typeof PAIRS)[number]) => `${blocById[p.a]?.name ?? p.a} vs ${blocById[p.b]?.name ?? p.b}`;
 ---
+
 <!doctype html>
 <html lang="en">
   <head>
@@ -38,87 +63,176 @@ const isActive = (href: string) => path === href || (href !== "/" && path.starts
     <title>{title} — Global Monitor</title>
     {description && <meta name="description" content={description} />}
     <link rel="canonical" href={new URL(Astro.url.pathname, Astro.site)} />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="preload" href={interLatin} as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href={monoLatin} as="font" type="font/woff2" crossorigin />
     {structuredData && (
       <script type="application/ld+json" set:html={JSON.stringify(structuredData)} />
     )}
+    <!-- Runs before first paint, so the reveal transition below is armed
+         without a flash of already-visible content - and is NOT armed at
+         all when the reader has asked for reduced motion, which is also what
+         makes the no-JS case safe: the hidden state is gated behind this
+         class, so with JS off the content is simply visible. -->
+    <script is:inline>
+      if (!matchMedia("(prefers-reduced-motion: reduce)").matches) {
+        document.documentElement.classList.add("gm-motion");
+      }
+    </script>
   </head>
   <body>
+    <a href="#main" class="gm-skip-link">Skip to content</a>
     <div class="gm-shell">
       <input type="checkbox" id="gm-nav-toggle" class="gm-nav-toggle-checkbox" />
       <div class="gm-topbar-mobile">
-        <a href="/" class="gm-logo">Global Monitor</a>
+        <a href="/" class="gm-logo">
+          <span class="gm-logo__mark" aria-hidden="true"></span>
+          <span>Global Monitor</span>
+        </a>
         <label for="gm-nav-toggle" class="gm-nav-toggle-label">Menu</label>
       </div>
       <div class="gm-layout">
         <nav class="gm-sidebar" aria-label="Site navigation">
-          <a href="/" class="gm-logo gm-sidebar-brand">Global Monitor</a>
+          <a href="/" class="gm-logo gm-sidebar-brand">
+            <span class="gm-logo__mark" aria-hidden="true"></span>
+            <span>
+              Global Monitor
+              <span class="gm-logo__sub">Blocs &amp; Economies</span>
+            </span>
+          </a>
 
-          <div class="gm-sidebar-group">
-            <div class="gm-sidebar-heading">Blocs</div>
+          <div class="gm-nav-group">
+            <div class="gm-nav-heading">Blocs</div>
             {blocs.map((b) => (
-              <a href={`/bloc/${b.slug}/`} class:list={["gm-sidebar-link", { active: isActive(`/bloc/${b.slug}/`) }]}>
-                {b.name}
+              <a
+                href={`/bloc/${b.slug}/`}
+                class="gm-nav-item"
+                aria-current={isActive(`/bloc/${b.slug}/`) ? "page" : undefined}
+              >
+                <span class="gm-swatch" style={{ background: `var(--bloc-${b.bloc_id})` }} aria-hidden="true"></span>
+                <span class="gm-nav-item__label">{b.name}</span>
               </a>
             ))}
           </div>
 
-          <div class="gm-sidebar-group">
-            <div class="gm-sidebar-heading">Compare</div>
+          <div class="gm-nav-group">
+            <div class="gm-nav-heading">Compare</div>
             {PAIRS.map((p) => (
-              <a href={`/compare/${p.slug}/`} class:list={["gm-sidebar-link", { active: isActive(`/compare/${p.slug}/`) }]}>
-                {blocById[p.a]?.name ?? p.a} vs {blocById[p.b]?.name ?? p.b}
+              <a
+                href={`/compare/${p.slug}/`}
+                class:list={["gm-nav-item", p.featured && "gm-nav-item--featured"]}
+                aria-current={isActive(`/compare/${p.slug}/`) ? "page" : undefined}
+              >
+                <span class="gm-nav-item__label">{pairName(p)}</span>
+                {p.featured && <span class="gm-nav-item__flag">Primary</span>}
               </a>
             ))}
           </div>
 
-          <div class="gm-sidebar-group">
-            <div class="gm-sidebar-heading">Dimensions</div>
+          <div class="gm-nav-group">
+            <div class="gm-nav-heading">Dimensions</div>
             {DIMENSIONS.map((d) => (
-              <a href={`/dimension/${d}/`} class:list={["gm-sidebar-link", { active: isActive(`/dimension/${d}/`) }]}>
-                {DIMENSION_LABELS[d]}
+              <a
+                href={`/dimension/${d}/`}
+                class="gm-nav-item"
+                aria-current={isActive(`/dimension/${d}/`) ? "page" : undefined}
+              >
+                <span class="gm-nav-item__label">{DIMENSION_LABELS[d]}</span>
+                <span class="gm-nav-item__count">{DIMENSION_METRIC_COUNT[d]}</span>
               </a>
             ))}
           </div>
 
-          <div class="gm-sidebar-group">
-            <a href="/countries/" class:list={["gm-sidebar-link", { active: path.startsWith("/countries/") || path.startsWith("/country/") }]}>
-              Major Economies
+          <div class="gm-nav-group">
+            <div class="gm-nav-heading">Modules</div>
+            <a
+              href="/countries/"
+              class="gm-nav-item"
+              aria-current={path.startsWith("/countries/") || path.startsWith("/country/") ? "page" : undefined}
+            >
+              <span class="gm-nav-item__label">Major Economies</span>
             </a>
-          </div>
-
-          <div class="gm-sidebar-group">
-            <div class="gm-sidebar-heading">Risk Simulator</div>
-            <a href="/risk/" class:list={["gm-sidebar-link", { active: path === "/risk/" }]}>Overview</a>
-            {SCENARIOS.map((s) => (
-              <a href={`/risk/${s.slug}/`} class:list={["gm-sidebar-link", { active: isActive(`/risk/${s.slug}/`) }]}>
-                {s.name}
-              </a>
-            ))}
-          </div>
-
-          <div class="gm-sidebar-group">
-            <div class="gm-sidebar-heading">Current Tension</div>
-            <a href="/tension/" class:list={["gm-sidebar-link", { active: path === "/tension/" }]}>Overview</a>
-            <a href="/tension/countries/" class:list={["gm-sidebar-link", { active: path === "/tension/countries/" }]}>Compare any two countries</a>
-            {PAIRS.map((p) => (
-              <a href={`/tension/${p.slug}/`} class:list={["gm-sidebar-link", { active: isActive(`/tension/${p.slug}/`) }]}>
-                {blocById[p.a]?.name ?? p.a} vs {blocById[p.b]?.name ?? p.b}
-              </a>
-            ))}
+            <a href="/risk/" class="gm-nav-item" aria-current={path === "/risk/" ? "page" : undefined}>
+              <span class="gm-nav-item__label">Risk Simulator</span>
+              <span class="gm-nav-item__count">{SCENARIOS.length}</span>
+            </a>
+            <a href="/tension/" class="gm-nav-item" aria-current={path === "/tension/" ? "page" : undefined}>
+              <span class="gm-nav-item__label">Current Tension</span>
+            </a>
           </div>
         </nav>
 
         <div class="gm-main-col">
-          <main class="gm-container">
+          <main class="gm-container" id="main">
             <slot />
           </main>
           <footer class="gm-footer">
             <div class="gm-container">
-              Data from the World Bank, UN Comtrade, UNDP, and SIPRI, kept in sync automatically. Not affiliated with any of these organizations.
+              <div class="gm-footer-grid">
+                <div>
+                  <a href="/" class="gm-logo">
+                    <span class="gm-logo__mark" aria-hidden="true"></span>
+                    <span>Global Monitor</span>
+                  </a>
+                  <p style="font-size: var(--fs-sm); margin-top: var(--space-3); max-width: 34ch;">
+                    Bloc-level economic, trade, social and military data, refreshed automatically.
+                  </p>
+                </div>
+                <div>
+                  <p class="gm-nav-heading" style="padding: 0;">Sources</p>
+                  <p style="font-size: var(--fs-sm); max-width: 32ch;">
+                    World Bank, UN Comtrade, UNDP and SIPRI. Not affiliated with any of them.
+                  </p>
+                </div>
+                <div>
+                  <p class="gm-nav-heading" style="padding: 0;">Also here</p>
+                  <p style="font-size: var(--fs-sm); max-width: 32ch;">
+                    <a href="/countries/">Major Economies</a> · <a href="/risk/">Risk Simulator</a> ·
+                    <a href="/tension/">Current Tension</a>
+                  </p>
+                </div>
+              </div>
             </div>
           </footer>
         </div>
       </div>
     </div>
+
+    <script is:inline>
+      // Scroll reveal. Two rules, both load-bearing:
+      //  1. The hidden state lives behind the .gm-motion class the <head>
+      //     script adds, so with JS off (or reduced motion on) nothing is
+      //     ever hidden - an SEO-first site must never gate content behind an
+      //     observer that might not fire.
+      //  2. Only elements that actually intersect get revealed; everything
+      //     else is revealed unconditionally on a timer, so a broken
+      //     observer can only mean "no animation", never "invisible text".
+      (function () {
+        var targets = document.querySelectorAll("[data-reveal]");
+        if (!targets.length) return;
+        function showAll() {
+          targets.forEach(function (el) { el.classList.add("is-visible"); });
+        }
+        if (!document.documentElement.classList.contains("gm-motion") || !("IntersectionObserver" in window)) {
+          showAll();
+          return;
+        }
+        var io = new IntersectionObserver(
+          function (entries) {
+            entries.forEach(function (entry) {
+              if (!entry.isIntersecting) return;
+              var i = Array.prototype.indexOf.call(targets, entry.target);
+              entry.target.style.transitionDelay = Math.min(i % 6, 5) * 45 + "ms";
+              entry.target.classList.add("is-visible");
+              io.unobserve(entry.target);
+            });
+          },
+          { rootMargin: "0px 0px -6% 0px", threshold: 0.04 }
+        );
+        targets.forEach(function (el) { io.observe(el); });
+        // Backstop.
+        setTimeout(showAll, 2500);
+      })();
+    </script>
   </body>
 </html>

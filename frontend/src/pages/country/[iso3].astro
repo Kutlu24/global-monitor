@@ -35,20 +35,22 @@ const schema = datasetSchema({
   <a href="/countries/" class="gm-back-link">&larr; Major Economies</a>
   <p class="gm-hero-eyebrow">Major economy</p>
   <h1>{country.name}</h1>
-  <table>
-    <thead>
-      <tr><th>Metric</th><th>Value</th></tr>
-    </thead>
-    <tbody>
-      {ROWS.map(([metricId, label, format]) => {
-        const m = country.metrics[metricId];
-        return (
-          <tr>
-            <td>{label}</td>
-            <td>{m ? `${format(m.value)} (${m.period})` : "N/A"}</td>
-          </tr>
-        );
-      })}
-    </tbody>
-  </table>
+  <div class="gm-table-wrap">
+    <table>
+      <thead>
+        <tr><th>Metric</th><th>Value</th></tr>
+      </thead>
+      <tbody>
+        {ROWS.map(([metricId, label, format]) => {
+          const m = country.metrics[metricId];
+          return (
+            <tr>
+              <td>{label}</td>
+              <td>{m ? `${format(m.value)} (${m.period})` : "N/A"}</td>
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
+  </div>
 </BaseLayout>

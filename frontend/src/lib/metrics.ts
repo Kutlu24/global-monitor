@@ -85,3 +85,10 @@ export const DIMENSION_METRICS: Record<Dimension, MetricSpec[]> = {
 };
 
 export const ALL_METRICS: MetricSpec[] = DIMENSIONS.flatMap((d) => DIMENSION_METRICS[d]);
+
+// How many metrics each dimension actually has - used for the sidebar's
+// per-dimension count badge. Derived rather than hand-counted so it cannot
+// drift out of sync with DIMENSION_METRICS when a metric is added.
+export const DIMENSION_METRIC_COUNT = Object.fromEntries(
+  DIMENSIONS.map((d) => [d, DIMENSION_METRICS[d].length]),
+) as Record<Dimension, number>;

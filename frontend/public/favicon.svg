@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="Global Monitor">
+  <!-- Matches the .gm-logo__mark in global.css: a small rounded square.
+       Four marks, one per bloc, on the app's own surfaces so the icon needs
+       no media query to stay legible in a light or dark tab bar. -->
+  <rect width="32" height="32" rx="7" fill="#101214"/>
+  <rect x="6"  y="6"  width="8" height="8" rx="2" fill="#3987e5"/>
+  <rect x="18" y="6"  width="8" height="8" rx="2" fill="#c98500"/>
+  <rect x="6"  y="18" width="8" height="8" rx="2" fill="#008300"/>
+  <rect x="18" y="18" width="8" height="8" rx="2" fill="#d55181"/>
+</svg>

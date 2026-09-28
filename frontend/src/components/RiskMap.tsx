@@ -1,6 +1,6 @@
-import { ComposableMap, Geographies, Geography } from "react-simple-maps";
+import { ComposableMap, Geographies, Geography, Graticule } from "react-simple-maps";
 import { NUMERIC_TO_ISO3 } from "../lib/iso3166Numeric";
-import { NEUTRAL_MAP_FILL, STATUS_COLORS } from "../lib/colors";
+import { STATUS_COLORS } from "../lib/colors";
 import type { RankedCountry } from "../lib/risk";
 
 // A status-color choropleth (Resilient/Moderate/Vulnerable), not a
@@ -12,6 +12,10 @@ import type { RankedCountry } from "../lib/risk";
 // designed to be shown together and to never be confused with a
 // categorical series - so all three tiers can render on one map at once
 // safely, unlike a 4-5-bloc categorical choropleth would be.
+//
+// That is also why every tier here is mode-invariant and why the fills stay
+// hex literals rather than becoming CSS variables: the tier is a STATE, and
+// a state must not change meaning when the theme does.
 
 const GEO_URL = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json";
 
@@ -21,59 +25,66 @@ interface Props {
   countries: RankedCountry[];
 }
 
+const MAP_W = 1000;
+const MAP_H = 520;
+
 export default function RiskMap({ countries }: Props) {
   const byIso3 = new Map(countries.map((c) => [c.iso3, c]));
 
   return (
-    <div className="gm-world-map">
-      <style>{`
-        .gm-world-map { --gm-neutral: ${NEUTRAL_MAP_FILL.dark}; --gm-stroke: #1e1e1e; }
-        :root[data-theme="light"] .gm-world-map { --gm-neutral: ${NEUTRAL_MAP_FILL.light}; --gm-stroke: #fcfcfb; }
-        .gm-legend { display: flex; gap: 1.5rem; margin-bottom: 0.75rem; font-size: 0.9rem; flex-wrap: wrap; }
-        .gm-legend-item { display: flex; align-items: center; gap: 0.4rem; }
-        .gm-legend-swatch { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
-      `}</style>
-      <div className="gm-legend" role="list" aria-label="Map legend">
+    <figure className="gm-map">
+      <div className="gm-map__legend" role="list" aria-label="Map legend">
         {(Object.keys(TIER_LABELS) as (keyof typeof TIER_LABELS)[]).map((tier) => (
-          <span className="gm-legend-item" role="listitem" key={tier}>
-            <span className="gm-legend-swatch" style={{ background: STATUS_COLORS[tier] }} />
+          <span className="gm-map__legend-item" role="listitem" key={tier}>
+            <span className="gm-map__legend-swatch" style={{ background: STATUS_COLORS[tier] }} aria-hidden="true" />
             {TIER_LABELS[tier]}
           </span>
         ))}
-        <span className="gm-legend-item" role="listitem">
-          <span className="gm-legend-swatch" style={{ background: "var(--gm-neutral)" }} />
+        <span className="gm-map__legend-item gm-map__legend-item--muted" role="listitem">
+          <span className="gm-map__legend-swatch" style={{ background: "var(--map-country)" }} aria-hidden="true" />
           Not scored
         </span>
       </div>
-      <ComposableMap projectionConfig={{ scale: 140 }} width={800} height={420} role="img" aria-label="World map colored by resilience tier">
-        <Geographies geography={GEO_URL}>
-          {({ geographies }) =>
-            geographies.map((geo) => {
-              const iso3 = NUMERIC_TO_ISO3[geo.id as string];
-              const scored = iso3 ? byIso3.get(iso3) : undefined;
-              const fill = scored ? STATUS_COLORS[scored.tier] : "var(--gm-neutral)";
-              return (
-                <Geography
-                  key={geo.rsmKey}
-                  geography={geo}
-                  strokeWidth={0.5}
-                  style={{
-                    default: { fill, stroke: "var(--gm-stroke)", outline: "none" },
-                    hover: { fill, stroke: "var(--gm-stroke)", outline: "none", opacity: scored ? 0.85 : 1 },
-                    pressed: { fill, stroke: "var(--gm-stroke)", outline: "none" },
-                  }}
-                >
-                  <title>
-                    {scored
-                      ? `${geo.properties.name} — ${scored.tierLabel} (score ${scored.score.toFixed(2)}, rank #${scored.rank})`
-                      : geo.properties.name}
-                  </title>
-                </Geography>
-              );
-            })
-          }
-        </Geographies>
-      </ComposableMap>
-    </div>
+
+      <div className="gm-map__well">
+        <ComposableMap
+          projectionConfig={{ scale: 147 }}
+          width={MAP_W}
+          height={MAP_H}
+          role="img"
+          aria-label="World map colored by resilience tier"
+        >
+          <Graticule stroke="var(--map-grid)" strokeWidth={0.5} />
+          <Geographies geography={GEO_URL}>
+            {({ geographies }) =>
+              geographies.map((geo) => {
+                const iso3 = NUMERIC_TO_ISO3[geo.id as string];
+                const scored = iso3 ? byIso3.get(iso3) : undefined;
+                const fill = scored ? STATUS_COLORS[scored.tier] : "var(--map-country)";
+                return (
+                  <Geography
+                    key={geo.rsmKey}
+                    geography={geo}
+                    strokeWidth={0.5}
+                    className="gm-map__country"
+                    style={{
+                      default: { fill, stroke: "var(--map-stroke)", outline: "none" },
+                      hover: { outline: "none", filter: "brightness(1.24)", cursor: "default" },
+                      pressed: { outline: "none", filter: "brightness(1.08)" },
+                    }}
+                  >
+                    <title>
+                      {scored
+                        ? `${geo.properties.name} — ${scored.tierLabel} (score ${scored.score.toFixed(2)}, rank #${scored.rank})`
+                        : geo.properties.name}
+                    </title>
+                  </Geography>
+                );
+              })
+            }
+          </Geographies>
+        </ComposableMap>
+      </div>
+    </figure>
   );
 }

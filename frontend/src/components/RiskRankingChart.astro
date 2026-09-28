@@ -8,14 +8,27 @@ interface Props {
 const { countries } = Astro.props;
 const maxScore = Math.max(...countries.map((c) => c.score));
 ---
+
 <!-- Plain HTML/CSS horizontal bars, not SVG - a ranking of 19 items needs no
      custom geometry, and this sidesteps the exact class of bug the SVG bar
      chart (MetricCompareBars.tsx) hit (value labels wider than their box,
      clipped by SVG's default overflow:hidden). Zero JS: this is static
      once built, unlike WorldMap/MetricCompareBars which need a browser API
      (topojson fetch / island hydration) - a plain Astro component instead
-     of a React island. -->
+     of a React island.
+
+     Every bar shares ONE scale (0..maxScore) rather than each ranking its
+     own top bar to full width. The whole point of a ranking is that the
+     gaps between neighbours mean something; normalising each row to 100%
+     would flatten a 4.8-vs-4.7 pair to look identical. -->
 <div class="gm-risk-ranking" role="table" aria-label="Countries ranked by resilience score">
+  <div class="gm-risk-row gm-risk-row--head" role="row">
+    <span role="columnheader">#</span>
+    <span role="columnheader">Country</span>
+    <span role="columnheader" class="gm-risk-headbar">Score</span>
+    <span role="columnheader" class="gm-risk-score">Score</span>
+    <span role="columnheader" class="gm-risk-tier">Tier</span>
+  </div>
   {countries.map((c) => (
     <div class="gm-risk-row" role="row">
       <span class="gm-risk-rank" role="cell">{c.rank}</span>
@@ -27,27 +40,112 @@ const maxScore = Math.max(...countries.map((c) => c.score));
         />
       </span>
       <span class="gm-risk-score" role="cell">{c.score.toFixed(2)}</span>
-      <span class="gm-risk-tier" role="cell" style={{ color: STATUS_COLORS[c.tier] }}>{c.tierLabel}</span>
+      <span class="gm-risk-tier" role="cell">
+        <!-- The tier name is always spelled out next to its color. Never
+             color alone: STATUS_COLORS.good/warning/critical are a CVD
+             risk as a sole encoding, and a redundant text label costs
+             nothing. -->
+        <span class="gm-risk-dot" style={{ background: STATUS_COLORS[c.tier] }} aria-hidden="true"></span>
+        {c.tierLabel}
+      </span>
     </div>
   ))}
 </div>
+
 <style>
-  .gm-risk-ranking { display: flex; flex-direction: column; gap: 0.4rem; }
+  .gm-risk-ranking {
+    display: flex;
+    flex-direction: column;
+  }
   .gm-risk-row {
     display: grid;
-    grid-template-columns: 1.5rem minmax(90px, 9rem) 1fr 3.2rem minmax(72px, auto);
+    grid-template-columns: 2rem minmax(90px, 10rem) 1fr 3.4rem 7.5rem;
     align-items: center;
-    gap: 0.6rem;
-    font-size: 0.88rem;
+    gap: var(--space-3);
+    font-size: var(--fs-sm);
+    padding: 3px var(--space-2);
+    border-radius: var(--radius-xs);
+    transition: background-color 0.12s ease;
   }
-  .gm-risk-rank { color: var(--ink-muted); font-variant-numeric: tabular-nums; text-align: right; }
-  .gm-risk-name { color: var(--ink); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .gm-risk-track { background: var(--hairline); border-radius: 999px; height: 10px; overflow: hidden; }
-  .gm-risk-fill { display: block; height: 100%; border-radius: 999px; }
-  .gm-risk-score { color: var(--ink-secondary); font-variant-numeric: tabular-nums; text-align: right; }
-  .gm-risk-tier { font-size: 0.78rem; font-weight: 600; }
-  @media (max-width: 520px) {
-    .gm-risk-row { grid-template-columns: 1.2rem minmax(70px, 6rem) 1fr 2.6rem; }
-    .gm-risk-tier { display: none; }
+  .gm-risk-row:not(.gm-risk-row--head):hover {
+    background: var(--wash-1);
+  }
+  .gm-risk-row--head {
+    font-size: var(--fs-2xs);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-dim);
+    font-weight: 600;
+    padding-bottom: var(--space-2);
+    margin-bottom: var(--space-1);
+    border-bottom: 1px solid var(--hairline);
+  }
+  .gm-risk-row--head > *:last-child,
+  .gm-risk-row--head > .gm-risk-headbar {
+    justify-self: end;
+    text-align: right;
+  }
+  .gm-risk-headbar {
+    /* the bar column's own header, aligned over the bars it names */
+    text-align: left;
+  }
+  .gm-risk-rank {
+    /* --text-muted, not --text-faint: these are digits, and --text-faint
+       is reserved for rules and tick marks (it sits below the AA floor for
+       text at 3.4:1 on the lighter surfaces). */
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    font-size: var(--fs-xs);
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+  }
+  .gm-risk-name {
+    color: var(--text);
+    font-weight: 550;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .gm-risk-track {
+    background: var(--wash-1);
+    border-radius: var(--radius-full);
+    height: 8px;
+    overflow: hidden;
+  }
+  .gm-risk-fill {
+    display: block;
+    height: 100%;
+    border-radius: var(--radius-full);
+    box-shadow: inset 0 1px 0 var(--wash-2);
+  }
+  .gm-risk-score {
+    color: var(--text-secondary);
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+    font-size: var(--fs-xs);
+  }
+  .gm-risk-tier {
+    font-size: var(--fs-xs);
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    white-space: nowrap;
+  }
+  .gm-risk-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  @media (max-width: 560px) {
+    .gm-risk-row {
+      grid-template-columns: 1.5rem minmax(70px, 7rem) 1fr 2.8rem;
+      gap: var(--space-2);
+    }
+    .gm-risk-tier {
+      display: none;
+    }
   }
 </style>
