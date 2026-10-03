@@ -620,15 +620,18 @@ main {
   text-decoration: none;
 }
 .gm-logo:hover .gm-logo__mark {
-  background: var(--accent);
+  filter: brightness(1.14);
 }
+/* The mark is the full logo.svg (dark tile + four bloc squares + reticle),
+   sized so it reads at a glance instead of the old 9px grey placeholder.
+   Background-image rather than an <img>: the markup stays a decorative,
+   aria-hidden span in all three placements (mobile topbar, sidebar, footer). */
 .gm-logo__mark {
-  width: 9px;
-  height: 9px;
-  border-radius: 2px;
-  background: var(--border-strong);
+  width: 26px;
+  height: 26px;
   flex-shrink: 0;
-  transition: background-color 0.2s ease;
+  background: url("/logo.svg") center / contain no-repeat;
+  transition: filter 0.2s ease;
 }
 .gm-logo__sub {
   display: block;

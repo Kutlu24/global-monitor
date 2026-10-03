@@ -80,6 +80,18 @@ const riskScenarios = await getRiskScenarios().catch(() => []);
     {structuredData && (
       <script type="application/ld+json" set:html={JSON.stringify(structuredData)} />
     )}
+    <!-- Sets the data-theme attribute from the OS preference before first
+         paint. The light palette in global.css (`:root[data-theme="light"]`,
+         contrast-measured) had no setter anywhere, so every visitor got dark
+         mode regardless of their system setting. -->
+    <script is:inline>
+      const gmTheme = matchMedia("(prefers-color-scheme: light)");
+      const gmApplyTheme = () => {
+        document.documentElement.dataset.theme = gmTheme.matches ? "light" : "dark";
+      };
+      gmApplyTheme();
+      gmTheme.addEventListener("change", gmApplyTheme);
+    </script>
     <!-- Runs before first paint, so the reveal transition below is armed
          without a flash of already-visible content - and is NOT armed at
          all when the reader has asked for reduced motion, which is also what

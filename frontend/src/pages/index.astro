@@ -38,7 +38,10 @@ const summary = [
 <BaseLayout title="Home" description="Global Monitor compares BRICS, the EU, the US, and USMCA across economic, trade, social, and military data - led by the EU against the original BRICS five.">
   <section class="gm-hero">
     <p class="gm-live-badge"><span class="gm-live-dot" aria-hidden="true"></span>Data updated {lastUpdatedLabel}</p>
-    <p class="gm-hero-eyebrow">Bloc-vs-bloc comparison</p>
+    <p class="gm-hero-eyebrow">
+      <img src="/logo.svg" alt="" width="16" height="16" />
+      Bloc-vs-bloc comparison
+    </p>
     <h1>How the world's major blocs stack up</h1>
     <p class="gm-lede">
       Economic, trade, social, and military data for BRICS+, the EU, the US, and USMCA —
@@ -62,7 +65,7 @@ const summary = [
       const gdp = bloc.aggregates.gdp_current_usd;
       const pop = bloc.aggregates.population_total;
       return (
-        <a href={`/bloc/${bloc.slug}/`} class="gm-card" data-reveal>
+        <a href={`/bloc/${bloc.slug}/`} class="gm-card gm-card--bloc" style={`--bloc-color: var(--bloc-${bloc.bloc_id})`} data-reveal>
           <span class="gm-card-eyebrow">
             <span class="gm-swatch" style={{ background: `var(--bloc-${bloc.bloc_id})` }} />
             {gdp?.member_count ?? 0} member{(gdp?.member_count ?? 0) === 1 ? "" : "s"} with data
@@ -230,5 +233,25 @@ const summary = [
     .gm-featured-compare__names {
       font-size: var(--fs-lg);
     }
+  }
+
+  /* The homepage eyebrow carries the brand mark; the eyebrow itself is a
+     flex row in global.css, so only the size needs scoping here. */
+  .gm-hero-eyebrow img {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+  }
+
+  /* Bloc identity at the top edge of each bloc card, mirroring the 3px
+     accent edge on the featured-compare card. --bloc-color comes from the
+     inline style on the anchor (var(--bloc-*), themed per color scheme). */
+  .gm-card--bloc::before {
+    content: "";
+    position: absolute;
+    inset: 0 0 auto;
+    height: 3px;
+    background: var(--bloc-color);
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
   }
 </style>
