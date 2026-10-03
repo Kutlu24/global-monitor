@@ -7,6 +7,7 @@ is mounted last, at "/", via StaticFiles - see the bottom of this file.
 """
 from __future__ import annotations
 
+import secrets
 import subprocess
 from contextlib import asynccontextmanager
 from dataclasses import asdict
@@ -250,7 +251,11 @@ def _check_admin_token(authorization: str | None) -> None:
     if not settings.admin_token:
         raise HTTPException(503, "ADMIN_TOKEN is not configured")
     expected = f"Bearer {settings.admin_token}"
-    if authorization != expected:
+    # Constant-time compare on bytes: `!=` on the string leaks how much of
+    # the token matched, and str compare_digest raises on non-ASCII input
+    # (a malformed header would otherwise turn into a 500 instead of a 401).
+    provided = (authorization or "").encode("utf-8", "replace")
+    if not secrets.compare_digest(provided, expected.encode("utf-8")):
         raise HTTPException(401, "Invalid or missing admin token")
 
 
