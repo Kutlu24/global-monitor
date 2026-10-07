@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 44 44" role="img" aria-label="Geo Analysis Hub"><rect width="44" height="44" rx="10" fill="#101317"/><defs>
+              <clipPath id="ghf-clip"><circle cx="22" cy="22" r="19"/></clipPath>
+              <radialGradient id="ghf-bg" cx="35%" cy="30%" r="85%"><stop offset="0" stop-color="#22302f"/><stop offset="1" stop-color="#0b0f11"/></radialGradient>
+            </defs>
+            <circle cx="22" cy="22" r="19" fill="url(#ghf-bg)"/>
+            <g clip-path="url(#ghf-clip)" fill="none" stroke="#fff" stroke-opacity="0.24" stroke-width="1.1">
+              <ellipse cx="22" cy="22" rx="8" ry="19"/>
+              <ellipse cx="22" cy="22" rx="15" ry="19"/>
+              <path d="M3 22h38"/>
+              <path d="M5 13.5Q22 18.5 39 13.5"/>
+              <path d="M5 30.5Q22 35.5 39 30.5"/>
+            </g>
+            <g fill="none" stroke="#eceae4" stroke-opacity="0.7" stroke-width="1.4" stroke-linecap="round">
+              <path d="M14 17Q21 8.5 30 14"/>
+              <path d="M30 14Q35 23 25 30"/>
+              <path d="M25 30Q15.5 29.5 14 17"/>
+            </g>
+            <circle cx="14" cy="17" r="3.3" fill="#5ec2b7" stroke="#0b0f11" stroke-width="1.2"/>
+            <circle cx="30" cy="14" r="3.3" fill="#9b8cff" stroke="#0b0f11" stroke-width="1.2"/>
+            <circle cx="25" cy="30" r="3.3" fill="#e5604d" stroke="#0b0f11" stroke-width="1.2"/>
+            <circle cx="22" cy="22" r="18.4" fill="none" stroke="#fff" stroke-opacity="0.38" stroke-width="1.2"/></svg>

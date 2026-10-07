@@ -6,12 +6,12 @@
   <meta name="description" content="Three lenses on the world: Global Monitor compares BRICS+, the EU, the US and USMCA with official data; Current Tension tracks conflict and cooperation in real time; Risk Simulator ranks countries by resilience under six crisis scenarios.">
   <meta name="theme-color" content="#101317">
   <link rel="canonical" href="https://global-monitor-render-relay.onrender.com/hub/">
-  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="favicon.svg?v=4" type="image/svg+xml">
   <title>Geo Analysis Hub — Global Monitor &amp; Risk Simulator</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Work+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="stage.css?v=4">
+  <link rel="stylesheet" href="stage.css?v=5">
 </head>
 <body>
   <section class="stage" id="stage" aria-label="Geo Analysis Hub">
@@ -25,9 +25,27 @@
       <div class="brand">
         <a class="brand-logo" href="/hub/" aria-label="Geo Analysis Hub">
           <svg class="brand-mark" viewBox="0 0 44 44" aria-hidden="true">
-            <rect x="3" y="9" width="12" height="26" rx="3" fill="#5ec2b7" transform="rotate(-8 9 22)"/>
-            <rect x="16" y="6" width="12" height="32" rx="3" fill="#9b8cff"/>
-            <rect x="29" y="9" width="12" height="26" rx="3" fill="#e5604d" transform="rotate(8 35 22)"/>
+            <defs>
+              <clipPath id="gh-clip"><circle cx="22" cy="22" r="19"/></clipPath>
+              <radialGradient id="gh-bg" cx="35%" cy="30%" r="85%"><stop offset="0" stop-color="#22302f"/><stop offset="1" stop-color="#0b0f11"/></radialGradient>
+            </defs>
+            <circle cx="22" cy="22" r="19" fill="url(#gh-bg)"/>
+            <g clip-path="url(#gh-clip)" fill="none" stroke="#fff" stroke-opacity="0.24" stroke-width="1.1">
+              <ellipse cx="22" cy="22" rx="8" ry="19"/>
+              <ellipse cx="22" cy="22" rx="15" ry="19"/>
+              <path d="M3 22h38"/>
+              <path d="M5 13.5Q22 18.5 39 13.5"/>
+              <path d="M5 30.5Q22 35.5 39 30.5"/>
+            </g>
+            <g fill="none" stroke="#eceae4" stroke-opacity="0.7" stroke-width="1.4" stroke-linecap="round">
+              <path d="M14 17Q21 8.5 30 14"/>
+              <path d="M30 14Q35 23 25 30"/>
+              <path d="M25 30Q15.5 29.5 14 17"/>
+            </g>
+            <circle cx="14" cy="17" r="3.3" fill="#5ec2b7" stroke="#0b0f11" stroke-width="1.2"/>
+            <circle cx="30" cy="14" r="3.3" fill="#9b8cff" stroke="#0b0f11" stroke-width="1.2"/>
+            <circle cx="25" cy="30" r="3.3" fill="#e5604d" stroke="#0b0f11" stroke-width="1.2"/>
+            <circle cx="22" cy="22" r="18.4" fill="none" stroke="#fff" stroke-opacity="0.38" stroke-width="1.2"/>
           </svg>
           <span class="brand-text"><span class="brand-name">Geo Analysis</span><span class="brand-sub">Hub</span></span>
         </a>

@@ -74,7 +74,7 @@ body.stage-on .classic { display: none; }
 .stage-top > * { pointer-events: auto; }
 .brand { display: flex; flex-direction: column; gap: 0.5rem; }
 .brand-logo { display: inline-flex; align-items: center; gap: 0.75rem; color: var(--text); text-decoration: none; align-self: flex-start; }
-.brand-mark { width: clamp(2.7rem, 3.4vw, 3.4rem); height: clamp(2.7rem, 3.4vw, 3.4rem); flex: none; transition: transform 0.4s cubic-bezier(.2, .7, .2, 1); }
+.brand-mark { width: clamp(3rem, 4vw, 3.9rem); height: clamp(3rem, 4vw, 3.9rem); flex: none; transition: transform 0.4s cubic-bezier(.2, .7, .2, 1); }
 .brand-logo:hover .brand-mark { transform: rotate(-6deg) scale(1.06); }
 .brand-text { display: flex; flex-direction: column; gap: 0.2rem; }
 .brand-name { font: 700 clamp(1.55rem, 2.5vw, 2.25rem) / 1 "Work Sans", system-ui, sans-serif; letter-spacing: -0.035em; }
