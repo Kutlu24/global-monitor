@@ -270,7 +270,10 @@ body.stage-on .classic { display: none; }
   .stage-h1 {
     position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap;
   }
-  .stage-index { display: none; }
+  /* phones: a compact numbered pager (labels stay in the DOM for screen readers) */
+  .stage-index { justify-self: start; }
+  .stage-index button { font-size: 0; padding: 0.5rem 0.85rem; }
+  .stage-index button i { font-size: 0.78rem; opacity: 1; }
   .stage .lang-bar { justify-self: stretch; }
   .stage .lang-code { display: none; }
   .stage .lang-btn { padding: 0.3rem 0.55rem; }
