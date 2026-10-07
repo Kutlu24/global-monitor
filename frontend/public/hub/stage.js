@@ -290,11 +290,21 @@
     var mobile = W < 760;
     var ASPECT = window.StageArt ? window.StageArt.W / window.StageArt.H : 0.78;
     ph = mobile ? H * 0.38 : H * 0.58;
+    var mobTop = 0, mobAvail = 0;
+    if (mobile) {
+      /* phones: fit the plane between the real top bar and the real copy block */
+      mobTop = stage.querySelector('.stage-top').offsetHeight;
+      var need = 0;
+      copies.forEach(function (cp) { need = Math.max(need, cp.offsetHeight); });
+      mobAvail = H - mobTop - (need + 18) - 26;
+      ph = Math.max(140, Math.min(mobAvail, H * 0.42));
+    }
     pw = ph * ASPECT;
     var maxW = mobile ? W * 0.74 : W * 0.34;
     if (pw > maxW) { pw = maxW; ph = pw / ASPECT; }
     pitch = pw * (mobile ? 1.04 : 1.18);
-    cyPx = mobile ? H * 0.085 : H * 0.045;     /* px the plane centre sits above the viewport centre */
+    /* px the plane centre sits above the viewport centre */
+    cyPx = mobile ? H / 2 - (mobTop + 13 + mobAvail / 2) : H * 0.045;
     aspect = pw / ph;
     var cyScreen = H / 2 - cyPx;
     stage.style.setProperty('--plane-cy', cyScreen + 'px');
@@ -535,6 +545,7 @@
   document.body.classList.add('stage-on');
   if (fine) stage.classList.add('fine');
   resize();
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(resize);
   /* start on the slide matching a #b2/#c1/#essay/#grammatik hash */
   var h = (location.hash || '').replace('#', '');
   var hi = ['monitor', 'tension', 'risk'].indexOf(h);

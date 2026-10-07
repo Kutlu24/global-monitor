@@ -11,7 +11,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Work+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="stage.css?v=3">
+  <link rel="stylesheet" href="stage.css?v=4">
 </head>
 <body>
   <section class="stage" id="stage" aria-label="Geo Analysis Hub">
@@ -23,7 +23,14 @@
     <canvas aria-hidden="true"></canvas>
     <div class="stage-top">
       <div class="brand">
-        <span class="brand-name">Geo Analysis Hub</span>
+        <a class="brand-logo" href="/hub/" aria-label="Geo Analysis Hub">
+          <svg class="brand-mark" viewBox="0 0 44 44" aria-hidden="true">
+            <rect x="3" y="9" width="12" height="26" rx="3" fill="#5ec2b7" transform="rotate(-8 9 22)"/>
+            <rect x="16" y="6" width="12" height="32" rx="3" fill="#9b8cff"/>
+            <rect x="29" y="9" width="12" height="26" rx="3" fill="#e5604d" transform="rotate(8 35 22)"/>
+          </svg>
+          <span class="brand-text"><span class="brand-name">Geo Analysis</span><span class="brand-sub">Hub</span></span>
+        </a>
         <h1 class="stage-h1">Three lenses on the world: <em>compare blocs,</em> read the tension, stress-test countries.</h1>
       </div>
       <ol class="stage-index" aria-label="Tools">
@@ -69,7 +76,7 @@
     <a class="card" href="/risk-simulator/"><h2>Risk Simulator</h2><p>Rank 19 countries by resilience under six global-crisis scenarios.</p></a>
   </main>
 
-  <script src="stage-art.js?v=3"></script>
-  <script src="stage.js?v=3"></script>
+  <script src="stage-art.js?v=4"></script>
+  <script src="stage.js?v=4"></script>
 </body>
 </html>

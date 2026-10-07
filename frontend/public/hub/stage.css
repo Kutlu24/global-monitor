@@ -73,19 +73,21 @@ body.stage-on .classic { display: none; }
 }
 .stage-top > * { pointer-events: auto; }
 .brand { display: flex; flex-direction: column; gap: 0.5rem; }
-.brand-name {
-  font: 700 0.72rem / 1 var(--mono);
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--text);
-}
+.brand-logo { display: inline-flex; align-items: center; gap: 0.75rem; color: var(--text); text-decoration: none; align-self: flex-start; }
+.brand-mark { width: clamp(2.7rem, 3.4vw, 3.4rem); height: clamp(2.7rem, 3.4vw, 3.4rem); flex: none; transition: transform 0.4s cubic-bezier(.2, .7, .2, 1); }
+.brand-logo:hover .brand-mark { transform: rotate(-6deg) scale(1.06); }
+.brand-text { display: flex; flex-direction: column; gap: 0.2rem; }
+.brand-name { font: 700 clamp(1.55rem, 2.5vw, 2.25rem) / 1 "Work Sans", system-ui, sans-serif; letter-spacing: -0.035em; }
+.brand-sub { font: 700 clamp(0.72rem, 0.9vw, 0.9rem) / 1 var(--mono); letter-spacing: 0.34em; text-transform: uppercase; color: var(--accent); }
+.brand-logo:focus-visible { outline: 2px solid var(--text); outline-offset: 4px; border-radius: 8px; }
 .stage-h1 {
-  font-size: 0.95rem;
-  font-weight: 500;
-  line-height: 1.35;
-  letter-spacing: -0.005em;
-  color: var(--muted);
-  max-width: 17rem;
+  font-size: clamp(1.15rem, 1.9vw, 1.7rem);
+  font-weight: 650;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  color: var(--text);
+  max-width: 24rem;
+  margin-top: 0.35rem;
 }
 .stage-h1 em { font-style: normal; color: var(--accent); }
 
@@ -266,10 +268,8 @@ body.stage-on .classic { display: none; }
 /* ---- narrow screens ---- */
 @media (max-width: 760px) {
   .stage-top { grid-template-columns: 1fr; gap: 0.6rem; }
-  .brand { flex-direction: row; justify-content: space-between; align-items: center; }
-  .stage-h1 {
-    position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap;
-  }
+  .brand { flex-direction: column; align-items: flex-start; gap: 0.5rem; }
+  .stage-h1 { font-size: clamp(1.1rem, 5vw, 1.4rem); max-width: 21rem; margin-top: 0; }
   /* phones: a compact numbered pager (labels stay in the DOM for screen readers) */
   .stage-index { justify-self: start; }
   .stage-index button { font-size: 0; padding: 0.5rem 0.85rem; }
@@ -309,3 +309,8 @@ body { font-family: "Work Sans", system-ui, sans-serif; background: var(--bg); c
 .classic a.card:hover { border-color: var(--text); }
 .classic .card h2 { font-size: 1.25rem; margin-bottom: 0.4rem; }
 .classic .card p { color: var(--muted); line-height: 1.55; }
+
+@media (max-width: 760px) and (max-height: 720px) {
+  .sc-meta { display: none; }
+  .sc-body p { -webkit-line-clamp: 2; }
+}

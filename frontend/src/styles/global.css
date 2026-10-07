@@ -642,6 +642,16 @@ main {
   text-transform: uppercase;
 }
 
+/* Brand sizing: the wordmark and mark scale up so the site identity is readable
+   at a glance (topbar on phones, sidebar on desktop). */
+.gm-logo { font-size: clamp(1.15rem, 4.6vw, 1.3rem); gap: var(--space-3); }
+.gm-logo__mark { width: 34px; height: 34px; }
+.gm-sidebar-brand { gap: var(--space-3); }
+.gm-sidebar-brand.gm-logo { font-size: 1.28rem; line-height: 1.1; white-space: nowrap; }
+.gm-sidebar-brand .gm-logo__mark { width: 42px; height: 42px; }
+.gm-sidebar-brand .gm-logo__sub { font-size: var(--fs-xs); margin-top: 0.25rem; letter-spacing: 0.1em; }
+
+
 .gm-footer {
   border-top: 1px solid var(--hairline);
   margin-top: var(--space-20);
