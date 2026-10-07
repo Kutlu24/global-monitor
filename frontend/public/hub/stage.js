@@ -19,11 +19,11 @@
   } catch (e) { /* fall through */ }
   if (!gl) return;
 
-  var N = 2;
+  var N = 3;
   var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   var fine = window.matchMedia('(pointer: fine)').matches;
-  var COLORS = [[94, 194, 183], [229, 96, 77]];
-  var INK = ['#06201c', '#ffffff'];
+  var COLORS = [[94, 194, 183], [155, 140, 255], [229, 96, 77]];
+  var INK = ['#06201c', '#14102e', '#ffffff'];
 
   /* ------------------------------------------------------------ shaders */
   var VS = [
@@ -134,8 +134,34 @@
     '  return col;',
     '}',
 
+    /* Current Tension — event ripples (conflict red / cooperation blue) over a live signal trace */
+    'vec3 artTension(vec2 q, float t) {',
+    '  vec3 col = mix(u_c2, u_c * 0.16, 0.5 + 0.5 * q.y);',
+    '  vec2 g = q * 4.4; vec2 id = floor(g); vec2 f = fract(g) - 0.5;',
+    '  vec3 tint = vec3(0.0);',
+    '  for (int j = -1; j <= 1; j++) for (int i = -1; i <= 1; i++) {',
+    '    vec2 o = vec2(float(i), float(j)); vec2 cid = id + o;',
+    '    float h = hash(cid), h2 = hash(cid + 17.3);',
+    '    vec2 pos = o + (hash22(cid) - 0.5) * 0.7;',
+    '    float period = 5.0 + h * 6.0;',
+    '    float ph = fract((t + h * period) / period);',
+    '    float d = length(f - pos);',
+    '    float rd = (d - ph * 1.15) * 13.0;',
+    '    float ring = exp(-rd * rd) * (1.0 - ph);',
+    '    vec3 k = h2 < 0.45 ? vec3(0.88, 0.30, 0.25) : vec3(0.40, 0.62, 0.92);',
+    '    float on = step(0.38, h);',
+    '    tint += k * on * (ring + (1.0 - smoothstep(0.02, 0.055, d)) * (1.0 - ph) * 0.9);',
+    '  }',
+    '  col += tint * 0.95;',
+    '  float tr = 1.0 - smoothstep(0.0, 0.007, abs(q.y - 0.07 * sin(q.x * 7.0 + t * 0.6) - 0.04 * sin(q.x * 17.0 - t * 1.1)));',
+    '  col += u_c * tr * 0.7;',
+    '  col += u_c * 0.05 * (1.0 - smoothstep(0.0, 0.004, abs(fract(q.y * 8.0) - 0.5) - 0.495));',
+    '  return col;',
+    '}',
+
     'vec3 art(vec2 q, float t) {',
     '  if (u_kind < 0.5) return artBlocs(q, t);',
+    '  if (u_kind < 1.5) return artTension(q, t);',
     '  return artRisk(q, t);',
     '}',
 
@@ -239,6 +265,7 @@
   }
 
   /* ------------------------------------------------------------ state */
+  var quality = 1, slowEma = 0, lastDrop = 0;   /* adaptive render scale: sinks when frames get slow */
   var W = 0, H = 0, pw = 0, ph = 0, pitch = 0, cyPx = 0, aspect = 1;
   var pos = 0, target = 0, velS = 0, lastPos = 0;
   var mouse = { x: 0, y: 0, tx: 0, ty: 0, px: -999, py: -999 };
@@ -257,7 +284,7 @@
 
   function resize() {
     W = stage.clientWidth; H = stage.clientHeight;
-    var dpr = Math.min(window.devicePixelRatio || 1, W < 760 ? 1.6 : 2);
+    var dpr = Math.min(window.devicePixelRatio || 1, W < 760 ? 1.6 : 2) * quality;
     canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
     gl.viewport(0, 0, canvas.width, canvas.height);
     var mobile = W < 760;
@@ -401,7 +428,7 @@
     else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp' || e.key === 'PageUp') { go(document.dir === 'rtl' ? 1 : -1); e.preventDefault(); }
     else if (e.key === 'Home') goTo(0);
     else if (e.key === 'End') goTo(N - 1);
-    else if (/^[1-2]$/.test(e.key)) goTo(+e.key - 1);
+    else if (/^[1-3]$/.test(e.key)) goTo(+e.key - 1);
   });
 
   stage.querySelector('.arrow-prev').addEventListener('click', function () { go(-1); });
@@ -413,7 +440,12 @@
 
   function frame(now) {
     raf = requestAnimationFrame(frame);
-    var dt = Math.min(0.05, (now - last) / 1000); last = now;
+    var raw = (now - last) / 1000;
+    var dt = Math.min(0.05, raw); last = now;
+    if (now - t0 > 2500 && raw < 1) {
+      slowEma = slowEma * 0.9 + raw * 0.1;
+      if (slowEma > 0.042 && quality > 0.5 && now - lastDrop > 1200) { quality = Math.max(0.5, quality - 0.17); lastDrop = now; slowEma = 0.02; resize(); }
+    }
     if (!reduce) time += dt;
     var rate = drag && drag.moved ? 20 : (reduce ? 14 : 5.6);
     lastPos = pos;
@@ -455,7 +487,7 @@
     gl.uniform1f(U.u_aspect, aspect);
 
     /* paint far -> near */
-    var order = [0, 1].sort(function (a, b) { return Math.abs(wrap(b - pos)) - Math.abs(wrap(a - pos)); });
+    var order = [0, 1, 2].sort(function (a, b) { return Math.abs(wrap(b - pos)) - Math.abs(wrap(a - pos)); });
     for (var n = 0; n < N; n++) {
       var i = order[n], rel = wrap(i - pos), ar = Math.abs(rel);
       var rank = i;
@@ -505,7 +537,7 @@
   resize();
   /* start on the slide matching a #b2/#c1/#essay/#grammatik hash */
   var h = (location.hash || '').replace('#', '');
-  var hi = ['monitor', 'risk'].indexOf(h);
+  var hi = ['monitor', 'tension', 'risk'].indexOf(h);
   if (hi > 0) { pos = target = hi; lastPos = pos; }
   raf = requestAnimationFrame(frame);
 })();

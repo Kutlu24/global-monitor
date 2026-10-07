@@ -6,8 +6,8 @@
   'use strict';
   var W = 768, H = 985;
   var SANS = '"Work Sans", system-ui, sans-serif', MONO = '"Space Mono", ui-monospace, monospace';
-  var COL = ['#5ec2b7', '#e5604d'];
-  var PATH = ['global-monitor', 'risk-simulator'];
+  var COL = ['#5ec2b7', '#9b8cff', '#e5604d'];
+  var PATH = ['global-monitor', 'global-monitor / tension', 'risk-simulator'];
   var BLOC = [['BRICS+', '#e0b13e'], ['EU', '#6aa5e0'], ['US', '#d94f3d'], ['USMCA', '#5fb877']];
 
   function rr(c, x, y, w, h, r) {
@@ -73,6 +73,36 @@
     txt(c, 'World Bank · OECD · IMF · UN Comtrade · WTO · UNDP · SIPRI', x, 934, '400 21px ' + MONO, '#a3a3a0');
   }
 
+  /* ---- Current Tension: diverging conflict <-> cooperation gauges per bloc (shape only) ---- */
+  function tension(c) {
+    var a = COL[1], x = 70, y = 170, w = 628;
+    txt(c, 'GDELT 2.0 · EVENT DATA', x, y + 16, '700 22px ' + MONO, a);
+    txt(c, 'Conflict vs cooperation', x, y + 78, '700 44px ' + SANS, '#eceae4');
+    panel(c, x, y + 112, w, 470, 28, 'rgba(255,255,255,0.1)');
+    var vals = [0.42, -0.18, 0.12, -0.55];
+    BLOC.forEach(function (b, k) {
+      var by = y + 112 + 60 + k * 106, cx = x + w / 2, half = (w - 80) / 2;
+      c.beginPath(); c.arc(x + 42, by - 8, 8, 0, 7); c.fillStyle = b[1]; c.fill();
+      txt(c, b[0], x + 62, by, '700 24px ' + SANS, '#eceae4');
+      var ty = by + 22;
+      rr(c, x + 40, ty, w - 80, 20, 10); c.fillStyle = 'rgba(255,255,255,0.08)'; c.fill();
+      var v = vals[k], bw = Math.abs(v) * half;
+      rr(c, v >= 0 ? cx : cx - bw, ty, bw, 20, 10); c.fillStyle = v >= 0 ? '#6aa5e0' : '#db4538'; c.fill();
+      c.fillStyle = '#eceae4'; c.fillRect(cx - 1.5, ty - 6, 3, 32);
+    });
+    txt(c, '−10', x + 40, y + 112 + 456, '700 20px ' + MONO, '#db4538');
+    txt(c, '0', x + w / 2, y + 112 + 456, '700 20px ' + MONO, '#a3a3a0', 'center');
+    txt(c, '+10', x + w - 40, y + 112 + 456, '700 20px ' + MONO, '#6aa5e0', 'right');
+    ['Bloc vs bloc', 'Country vs country'].forEach(function (s, k) {
+      c.font = '700 24px ' + SANS;
+      var cw = c.measureText(s).width + 44, cxp = x + (k ? 214 : 0);
+      rr(c, cxp, y + 618, cw, 54, 27); c.strokeStyle = alpha(a, 0.7); c.lineWidth = 2; c.stroke();
+      txt(c, s, cxp + 22, y + 653, '700 24px ' + SANS, '#eceae4');
+    });
+    txt(c, 'Refreshed every few hours', x, 902, '700 20px ' + MONO, a);
+    txt(c, 'An interpretation, not a forecast.', x, 936, '400 21px ' + MONO, '#a3a3a0');
+  }
+
   /* ---- Risk Simulator: scenario chips, a gradient ranking, vulnerable <-> resilient ---- */
   function risk(c) {
     var a = COL[1], x = 70, y = 170, w = 628;
@@ -108,7 +138,7 @@
   }
   function mix(a, b, t) { return [Math.round(a[0] + (b[0] - a[0]) * t), Math.round(a[1] + (b[1] - a[1]) * t), Math.round(a[2] + (b[2] - a[2]) * t)]; }
 
-  var DRAW = [monitor, risk];
+  var DRAW = [monitor, tension, risk];
   window.StageArt = {
     W: W, H: H,
     draw: function (i, canvas) {
