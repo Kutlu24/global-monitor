@@ -7,7 +7,7 @@
 # run that actually changes values. See backend/src/global_monitor/api/app.py's
 # admin_rebuild() for the manual-trigger equivalent.
 
-FROM node:20-slim AS frontend-deps
+FROM node:22-slim AS frontend-deps
 WORKDIR /app/frontend
 COPY frontend/package.json frontend/package-lock.json* ./
 RUN npm install
@@ -21,9 +21,9 @@ ENV LANG=C.UTF-8 \
 
 # Node stays in the final image (see comment above) - installed via
 # NodeSource's setup script since Debian's own `nodejs` package on
-# python:3.11-slim's Debian release is too old for Astro 5.
+# python:3.11-slim's Debian release is too old for Astro 7 (needs Node >= 22.12).
 RUN apt-get update && apt-get install -y --no-install-recommends curl gnupg ca-certificates \
-    && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
     && apt-get install -y --no-install-recommends nodejs \
     && rm -rf /var/lib/apt/lists/*
 

@@ -79,9 +79,9 @@ def test_weighted_mean_without_weight_metric_raises(seeded):
 
 
 def test_unimplemented_aggregation_is_loud_not_silent(seeded):
-    mean_metric = Metric("m", "economic", "m", "u", "s", None, None, "annual", "mean")
+    bogus = Metric("m", "economic", "m", "u", "s", None, None, "annual", "median")  # not a real mode
     with pytest.raises(NotImplementedError):
-        aggregate.aggregate_metric("eu", mean_metric)
+        aggregate.aggregate_metric("eu", bogus)
 
 
 def test_single_country_bloc_gets_explicit_null_for_intra_bloc_trade(seeded):
@@ -98,7 +98,6 @@ def test_intra_bloc_trade_sums_flows(seeded):
     assert (agg.value, agg.member_count) == (12.0, 2)
 
 
-@pytest.mark.xfail(strict=True, raises=NotImplementedError, reason='KNOWN BUG: metrics.RISK_INPUT_METRICS use default_aggregation="mean" but aggregate_metric() only implements "sum"/"weighted_mean" and raises NotImplementedError; pipeline.run_all() calls aggregate_all() un-guarded, so the run aborts there. Remove this marker once fixed (strict xfail will remind you).')
 def test_aggregate_all_is_idempotent(seeded, obs):
     obs("gdp_current_usd", {"USA": ("2023", 100.0)})
     aggregate.aggregate_all()
@@ -107,10 +106,17 @@ def test_aggregate_all_is_idempotent(seeded, obs):
     assert db.latest_bloc_aggregate("us", "gdp_current_usd").value == first
 
 
-@pytest.mark.xfail(strict=True, reason="same known bug as test_aggregate_all_is_idempotent: \"mean\" metrics are in the catalog but not implemented")
 def test_every_catalog_aggregation_kind_is_implemented_by_aggregate_metric(seeded):
     """Guards the pipeline: aggregate_all() runs over the whole catalog, so a
     metric whose default_aggregation aggregate.py can't handle aborts the run.
-    (Currently fails for the "mean" metrics -- see the xfail reason above.)"""
-    unimplemented = {m.default_aggregation for m in db.get_metrics()} - {"sum", "weighted_mean"}
+    """
+    unimplemented = {m.default_aggregation for m in db.get_metrics()} - {"sum", "mean", "weighted_mean"}
     assert unimplemented == set(), f"aggregate.py cannot handle: {unimplemented}"
+
+
+def test_mean_is_unweighted_and_reports_coverage(seeded, obs):
+    mean_metric = next(m for m in db.get_metrics() if m.default_aggregation == "mean")
+    obs(mean_metric.metric_id, {"USA": ("2023", 10.0), "CAN": ("2023", 20.0)})   # MEX missing
+    aggregate.aggregate_metric("usmca", mean_metric)
+    agg = db.latest_bloc_aggregate("usmca", mean_metric.metric_id)
+    assert agg.value == pytest.approx(15.0) and agg.member_count == 2

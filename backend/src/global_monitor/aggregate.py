@@ -24,6 +24,19 @@ def _aggregate_sum(iso3_list: list[str], metric_id: str) -> list[tuple[str, floa
     return [(period, sum(values), len(values)) for period, values in by_period.items()]
 
 
+def _aggregate_mean(iso3_list: list[str], metric_id: str) -> list[tuple[str, float, int]]:
+    """Unweighted mean over the members that have a value for each period. Used for
+    scores/indices (e.g. the risk simulator's country-level indicators) where weighting
+    by population or GDP would let the largest member drown out the rest.
+    member_count reports coverage, so a thin mean is visible rather than silent."""
+    observations = db.get_observations(metric_id, iso3_list)
+    by_period: dict[str, list[float]] = defaultdict(list)
+    for obs in observations:
+        if obs.value is not None:
+            by_period[obs.period].append(obs.value)
+    return [(period, sum(values) / len(values), len(values)) for period, values in by_period.items()]
+
+
 def _aggregate_weighted_mean(
     iso3_list: list[str], metric_id: str, weight_metric_id: str
 ) -> list[tuple[str, float, int]]:
@@ -89,6 +102,8 @@ def aggregate_metric(bloc_id: str, metric: Metric) -> None:
         results = _aggregate_intra_bloc_trade(bloc_id, metric.metric_id)
     elif metric.default_aggregation == "sum":
         results = _aggregate_sum(members, metric.metric_id)
+    elif metric.default_aggregation == "mean":
+        results = _aggregate_mean(members, metric.metric_id)
     elif metric.default_aggregation == "weighted_mean":
         if not metric.weight_metric_id:
             raise ValueError(f"metric {metric.metric_id!r} is weighted_mean but has no weight_metric_id")

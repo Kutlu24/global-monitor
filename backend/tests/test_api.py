@@ -32,7 +32,6 @@ def test_bloc_detail_and_404(client, seeded):
     assert client.get("/api/blocs/atlantis").status_code == 404
 
 
-@pytest.mark.xfail(strict=True, raises=NotImplementedError, reason='KNOWN BUG: metrics.RISK_INPUT_METRICS use default_aggregation="mean" but aggregate_metric() only implements "sum"/"weighted_mean" and raises NotImplementedError; pipeline.run_all() calls aggregate_all() un-guarded, so the run aborts there. Remove this marker once fixed (strict xfail will remind you).')
 def test_bloc_aggregates_appear_after_aggregation(client, seeded, obs):
     obs("gdp_current_usd", {"USA": ("2023", 100.0), "CAN": ("2023", 20.0), "MEX": ("2023", 10.0)})
     aggregate.aggregate_all()
