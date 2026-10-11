@@ -16,6 +16,10 @@ import monoLatin from "@fontsource-variable/jetbrains-mono/files/jetbrains-mono-
 import { getBlocs, getRiskScenarios } from "../lib/data";
 import { PAIRS } from "../lib/pairs";
 import { DIMENSIONS, DIMENSION_LABELS, DIMENSION_METRIC_COUNT } from "../lib/metrics";
+import {
+  WORLDORA_URL, INTELLIGENCE_URL, worldoraSectionFor, worldoraSectionUrl,
+  intelligenceAskUrl, intelligenceBriefingUrl,
+} from "../lib/network";
 
 // schema.org/Dataset JSON-LD - pass `structuredData` (a plain object) from
 // any page that represents real data (bloc/compare/dimension/country
@@ -64,6 +68,12 @@ const pairName = (p: (typeof PAIRS)[number]) => `${blocById[p.a]?.name ?? p.a} v
 // catch, so if the ETL hasn't run the risk module fails the build loudly
 // rather than publishing an empty module.
 const riskScenarios = await getRiskScenarios().catch(() => []);
+
+// Contextual cross-links to the sibling sites, derived from the page being read.
+const wSection = worldoraSectionFor(path);
+const askQuestion = path === "/"
+  ? "What do current world developments mean for the balance between the EU, BRICS, the US and USMCA?"
+  : `What do current world developments mean for: ${title}? Relate the structural data to recent news.`;
 ---
 
 <!doctype html>
@@ -185,11 +195,38 @@ const riskScenarios = await getRiskScenarios().catch(() => []);
               <span class="gm-nav-item__label">Current Tension</span>
             </a>
           </div>
+
+          <div class="gm-nav-group">
+            <div class="gm-nav-heading">Related sites</div>
+            <a href={`${WORLDORA_URL}/`} class="gm-nav-item" rel="noopener" target="_blank">
+              <span class="gm-nav-item__label">Worldora news ↗</span>
+            </a>
+            <a href={INTELLIGENCE_URL} class="gm-nav-item" rel="noopener" target="_blank">
+              <span class="gm-nav-item__label">Worldora Intelligence ↗</span>
+            </a>
+          </div>
         </nav>
 
         <div class="gm-main-col">
           <main class="gm-container" id="main">
             <slot />
+            <aside class="gm-grid" aria-label="Related on the Worldora network" style="margin-top: var(--space-7, 3rem);">
+              <a class="gm-card" href={worldoraSectionUrl(wSection.slug)} rel="noopener" target="_blank">
+                <span class="gm-card-eyebrow">Worldora · news</span>
+                <h3>Latest: {wSection.label}</h3>
+                <p>What was reported in the last hours, one paragraph per story, with every outlet.</p>
+              </a>
+              <a class="gm-card" href={intelligenceAskUrl(askQuestion)} rel="noopener" target="_blank">
+                <span class="gm-card-eyebrow">Worldora Intelligence · analysis</span>
+                <h3>Analyse this with current news</h3>
+                <p>Opens the analysis workspace with this page's topic as the question.</p>
+              </a>
+              <a class="gm-card" href={intelligenceBriefingUrl} rel="noopener" target="_blank">
+                <span class="gm-card-eyebrow">Worldora Intelligence · briefing</span>
+                <h3>Daily briefing</h3>
+                <p>Ranked developments with an explainable importance score and cited sources.</p>
+              </a>
+            </aside>
           </main>
           <footer class="gm-footer">
             <div class="gm-container">
@@ -214,6 +251,11 @@ const riskScenarios = await getRiskScenarios().catch(() => []);
                   <p style="font-size: var(--fs-sm); max-width: 32ch;">
                     <a href="/countries/">Major Economies</a> · <a href="/risk/">Risk Simulator</a> ·
                     <a href="/tension/">Current Tension</a>
+                  </p>
+                  <p class="gm-nav-heading" style="padding: 0; margin-top: var(--space-3);">Worldora network</p>
+                  <p style="font-size: var(--fs-sm); max-width: 32ch;">
+                    <a href={`${WORLDORA_URL}/`} rel="noopener">Worldora news</a> ·
+                    <a href={INTELLIGENCE_URL} rel="noopener">Worldora Intelligence</a>
                   </p>
                 </div>
               </div>
