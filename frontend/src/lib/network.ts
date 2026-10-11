@@ -8,6 +8,11 @@ const clean = (u: string) => u.replace(/\/+$/, "");
 export const WORLDORA_URL = clean(process.env.WORLDORA_URL || "https://kutlu24.github.io/worldora");
 export const INTELLIGENCE_URL = process.env.INTELLIGENCE_URL || "https://gfca.onrender.com/ui/intel.html";
 
+/** The practice that runs the three sites: research page of the hub (static, DE/FR/EN). */
+export const HUB_URL = clean(process.env.HUB_URL || "https://wintech-partners.onrender.com");
+export const HUB_RESEARCH_URL = `${HUB_URL}/en/research.html`;
+export const HUB_NAME = "Winterthur Tech Partners";
+
 /** Worldora section that best matches the page being read. */
 export function worldoraSectionFor(path: string): { slug: string; label: string } {
   if (path.startsWith("/tension")) return { slug: "defense", label: "Defense & Security" };

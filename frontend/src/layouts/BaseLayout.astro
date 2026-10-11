@@ -17,7 +17,7 @@ import { getBlocs, getRiskScenarios } from "../lib/data";
 import { PAIRS } from "../lib/pairs";
 import { DIMENSIONS, DIMENSION_LABELS, DIMENSION_METRIC_COUNT } from "../lib/metrics";
 import {
-  WORLDORA_URL, INTELLIGENCE_URL, worldoraSectionFor, worldoraSectionUrl,
+  WORLDORA_URL, INTELLIGENCE_URL, HUB_RESEARCH_URL, HUB_NAME, worldoraSectionFor, worldoraSectionUrl,
   intelligenceAskUrl, intelligenceBriefingUrl,
 } from "../lib/network";
 
@@ -256,6 +256,9 @@ const askQuestion = path === "/"
                   <p style="font-size: var(--fs-sm); max-width: 32ch;">
                     <a href={`${WORLDORA_URL}/`} rel="noopener">Worldora news</a> ·
                     <a href={INTELLIGENCE_URL} rel="noopener">Worldora Intelligence</a>
+                  </p>
+                  <p style="font-size: var(--fs-sm); max-width: 32ch; margin-top: var(--space-3);">
+                    A project by <a href={HUB_RESEARCH_URL} rel="noopener">{HUB_NAME}</a>
                   </p>
                 </div>
               </div>
