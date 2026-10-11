@@ -6,8 +6,8 @@
   'use strict';
   var W = 768, H = 985;
   var SANS = '"Work Sans", system-ui, sans-serif', MONO = '"Space Mono", ui-monospace, monospace';
-  var COL = ['#5ec2b7', '#9b8cff', '#e5604d'];
-  var PATH = ['global-monitor', 'global-monitor / tension', 'risk-simulator'];
+  var COL = ['#5ec2b7', '#9b8cff', '#e5604d', '#e8b240', '#96c86e'];
+  var PATH = ['global-monitor', 'global-monitor / tension', 'risk-simulator', 'worldora / digest', 'worldora / intelligence'];
   var BLOC = [['BRICS+', '#e0b13e'], ['EU', '#6aa5e0'], ['US', '#d94f3d'], ['USMCA', '#5fb877']];
 
   function rr(c, x, y, w, h, r) {
@@ -136,9 +136,78 @@
     txt(c, 'VULNERABLE', x, py + 484, '700 20px ' + MONO, '#a3a3a0');
     txt(c, 'RESILIENT', x + w, py + 484, '700 20px ' + MONO, '#a3a3a0', 'right');
   }
+
+  /* ---- Worldora: an hourly digest - category chips, story cards, language chips ---- */
+  function worldora(c) {
+    var a = COL[3], x = 70, y = 170, w = 628;
+    var cats = ['World', 'Economy', 'Technology', 'Climate'];
+    var cx = x;
+    cats.forEach(function (s, k) {
+      c.font = '700 22px ' + SANS;
+      var cw = c.measureText(s).width + 40;
+      rr(c, cx, y, cw, 46, 23);
+      if (k === 0) { c.fillStyle = a; c.fill(); } else { c.fillStyle = 'rgba(16,19,24,0.8)'; c.fill(); c.strokeStyle = alpha(a, 0.6); c.lineWidth = 2; c.stroke(); }
+      txt(c, s, cx + 20, y + 31, '700 22px ' + SANS, k === 0 ? '#2a1c00' : '#eceae4');
+      cx += cw + 12;
+    });
+    /* story cards: headline + paragraph shapes, no real text */
+    var cy = y + 78;
+    var lens = [[0.78, 0.96, 0.9, 0.6], [0.66, 0.92, 0.84, 0.5], [0.84, 0.9, 0.7, 0.44]];
+    lens.forEach(function (L, k) {
+      panel(c, x, cy, w, 196, 26, 'rgba(255,255,255,0.1)');
+      rr(c, x + 30, cy + 30, (w - 60) * L[0], 20, 10); c.fillStyle = '#eceae4'; c.fill();
+      for (var r = 1; r < 4; r++) {
+        rr(c, x + 30, cy + 30 + r * 34, (w - 60) * L[r], 12, 6); c.fillStyle = 'rgba(236,234,228,0.26)'; c.fill();
+      }
+      txt(c, 'sources ↗', x + 30, cy + 178, '700 18px ' + MONO, a);
+      cy += 214;
+    });
+    var langs = ['EN', 'DE', 'FR', 'ES', 'AR', 'RU', 'ZH'];
+    langs.forEach(function (s, k) {
+      var lx = x + k * 90;
+      rr(c, lx, 880, 74, 40, 20); c.fillStyle = alpha(a, 0.16); c.fill(); c.strokeStyle = alpha(a, 0.7); c.lineWidth = 2; c.stroke();
+      txt(c, s, lx + 37, 908, '700 20px ' + MONO, '#eceae4', 'center');
+    });
+  }
+
+  /* ---- Worldora Intelligence: a question, importance vs attention, claim kinds ---- */
+  function intelligence(c) {
+    var a = COL[4], x = 70, y = 170, w = 628;
+    panel(c, x, y, w, 118, 26, alpha(a, 0.6));
+    txt(c, 'ASK', x + 30, y + 40, '700 20px ' + MONO, a);
+    rr(c, x + 30, y + 58, (w - 60) * 0.84, 16, 8); c.fillStyle = 'rgba(236,234,228,0.5)'; c.fill();
+    rr(c, x + 30, y + 86, (w - 60) * 0.52, 12, 6); c.fillStyle = 'rgba(236,234,228,0.24)'; c.fill();
+
+    /* importance vs attention: hollow = attention rank, filled = importance rank */
+    var py = y + 150;
+    panel(c, x, py, w, 316, 28, 'rgba(255,255,255,0.1)');
+    txt(c, 'IMPORTANCE vs ATTENTION', x + 30, py + 44, '700 20px ' + MONO, a);
+    var rows = [[0.22, 0.86], [0.74, 0.3], [0.5, 0.58], [0.34, 0.78], [0.82, 0.62]];
+    rows.forEach(function (r, k) {
+      var by = py + 86 + k * 44, x1 = x + 40 + (w - 80) * r[0], x2 = x + 40 + (w - 80) * r[1];
+      c.beginPath(); c.moveTo(Math.min(x1, x2), by); c.lineTo(Math.max(x1, x2), by);
+      c.strokeStyle = 'rgba(236,234,228,0.28)'; c.lineWidth = 3; c.stroke();
+      c.beginPath(); c.arc(x1, by, 10, 0, 7); c.strokeStyle = '#eceae4'; c.lineWidth = 2.5; c.stroke();
+      c.beginPath(); c.arc(x2, by, 10, 0, 7); c.fillStyle = a; c.fill();
+    });
+
+    /* claim kinds */
+    var kinds = [['established fact', a], ['supported inference', '#6aa5e0'], ['contested', '#e0b13e'], ['speculative', '#e5604d']];
+    var ky = py + 350;
+    kinds.forEach(function (k, i) {
+      c.font = '700 22px ' + SANS;
+      var kw = c.measureText(k[0]).width + 62;
+      var kx = x + (i % 2) * 318;
+      var kyy = ky + Math.floor(i / 2) * 62;
+      rr(c, kx, kyy, Math.min(kw, 306), 48, 24); c.fillStyle = alpha(k[1], 0.16); c.fill(); c.strokeStyle = alpha(k[1], 0.85); c.lineWidth = 2; c.stroke();
+      c.beginPath(); c.arc(kx + 26, kyy + 24, 8, 0, 7); c.fillStyle = k[1]; c.fill();
+      txt(c, k[0], kx + 44, kyy + 32, '700 22px ' + SANS, '#eceae4');
+    });
+    txt(c, 'Sources, limits and a public forecast record.', x, 930, '400 21px ' + MONO, '#a3a3a0');
+  }
   function mix(a, b, t) { return [Math.round(a[0] + (b[0] - a[0]) * t), Math.round(a[1] + (b[1] - a[1]) * t), Math.round(a[2] + (b[2] - a[2]) * t)]; }
 
-  var DRAW = [monitor, tension, risk];
+  var DRAW = [monitor, tension, risk, worldora, intelligence];
   window.StageArt = {
     W: W, H: H,
     draw: function (i, canvas) {

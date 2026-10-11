@@ -1,4 +1,4 @@
-/* Stage — a raw-WebGL slider for the four tools (no libraries, no assets).
+/* Stage — a raw-WebGL slider for the five destinations (no libraries, no assets).
  *
  * Each destination is a curved plane whose surface is a procedural shader "artwork".
  * One float `pos` drives everything: drag / wheel / keys move a target, a
@@ -19,11 +19,11 @@
   } catch (e) { /* fall through */ }
   if (!gl) return;
 
-  var N = 3;
+  var N = 5;
   var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   var fine = window.matchMedia('(pointer: fine)').matches;
-  var COLORS = [[94, 194, 183], [155, 140, 255], [229, 96, 77]];
-  var INK = ['#06201c', '#14102e', '#ffffff'];
+  var COLORS = [[94, 194, 183], [155, 140, 255], [229, 96, 77], [232, 178, 64], [150, 200, 110]];
+  var INK = ['#06201c', '#14102e', '#ffffff', '#2a1c00', '#10200a'];
 
   /* ------------------------------------------------------------ shaders */
   var VS = [
@@ -159,10 +159,61 @@
     '  return col;',
     '}',
 
+    /* Worldora — columns of text lines with an hourly sweep */
+    'vec3 artNews(vec2 q, float t) {',
+    '  vec3 col = mix(u_c2, u_c * 0.14, 0.5 + 0.5 * q.y);',
+    '  float cwid = 0.2;',
+    '  float cxi = floor((q.x + 0.5) / cwid);',
+    '  float lx = fract((q.x + 0.5) / cwid);',
+    '  float rowf = (q.y + 0.6) * 22.0;',
+    '  float row = floor(rowf); float ry = fract(rowf);',
+    '  float h = hash(vec2(cxi, row));',
+    '  float len = 0.35 + 0.6 * hash(vec2(row, cxi + 7.0));',
+    '  float line = step(0.25, ry) * step(ry, 0.62) * step(lx, len) * step(0.1, lx) * step(0.22, h);',
+    '  float head = step(0.9, hash(vec2(cxi + 3.0, floor(row / 5.0)))) * step(0.1, lx) * step(lx, 0.9) * step(0.15, ry) * step(ry, 0.85);',
+    '  float scan = fract(t * 0.06);',
+    '  float sy = (q.y + 0.6) / 1.2;',
+    '  float d = (sy - scan) * 9.0;',
+    '  float glow = exp(-d * d);',
+    '  col += u_c * line * (0.14 + 0.8 * glow);',
+    '  col += u_c * head * (0.18 + 0.4 * glow);',
+    '  col += u_c * 0.35 * glow * 0.15;',
+    '  return col;',
+    '}',
+
+    /* Worldora Intelligence — evidence nodes converging on one assessment */
+    'vec3 artIntel(vec2 q, float t) {',
+    '  vec3 col = mix(u_c2, u_c * 0.16, 0.5 + 0.5 * q.y);',
+    '  vec3 acc = vec3(0.0);',
+    '  for (int i = 0; i < 7; i++) {',
+    '    float fi = float(i);',
+    '    float a = fi * 0.8976 + t * (0.05 + 0.02 * fi);',
+    '    float r = 0.16 + 0.07 * mod(fi, 3.0);',
+    '    vec2 p = vec2(cos(a), sin(a)) * r * vec2(1.0, 1.15);',
+    '    float dn = length(q - p);',
+    '    acc += u_c * (1.0 - smoothstep(0.008, 0.022, dn));',
+    '    float L = length(p);',
+    '    vec2 dir = p / L;',
+    '    float along = clamp(dot(q, dir), 0.0, L);',
+    '    float de = length(q - dir * along);',
+    '    float ln = 1.0 - smoothstep(0.0, 0.004, de);',
+    '    float flow = smoothstep(0.7, 1.0, sin((along / L - t * 0.4 + fi * 0.3) * 18.0) * 0.5 + 0.5);',
+    '    acc += u_c * ln * (0.18 + 0.5 * flow);',
+    '  }',
+    '  float dc = length(q);',
+    '  acc += vec3(1.0) * (1.0 - smoothstep(0.02, 0.05, dc)) * (0.8 + 0.2 * sin(t * 0.9));',
+    '  acc += u_c * exp(-dc * dc * 40.0) * 0.5;',
+    '  float ring = 1.0 - smoothstep(0.0, 0.004, abs(dc - 0.1 - 0.2 * fract(t * 0.15)));',
+    '  acc += u_c * ring * 0.3;',
+    '  return col + acc;',
+    '}',
+
     'vec3 art(vec2 q, float t) {',
     '  if (u_kind < 0.5) return artBlocs(q, t);',
     '  if (u_kind < 1.5) return artTension(q, t);',
-    '  return artRisk(q, t);',
+    '  if (u_kind < 2.5) return artRisk(q, t);',
+    '  if (u_kind < 3.5) return artNews(q, t);',
+    '  return artIntel(q, t);',
     '}',
 
     'void main() {',
@@ -438,7 +489,7 @@
     else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp' || e.key === 'PageUp') { go(document.dir === 'rtl' ? 1 : -1); e.preventDefault(); }
     else if (e.key === 'Home') goTo(0);
     else if (e.key === 'End') goTo(N - 1);
-    else if (/^[1-3]$/.test(e.key)) goTo(+e.key - 1);
+    else if (/^[1-5]$/.test(e.key)) goTo(+e.key - 1);
   });
 
   stage.querySelector('.arrow-prev').addEventListener('click', function () { go(-1); });
@@ -497,7 +548,7 @@
     gl.uniform1f(U.u_aspect, aspect);
 
     /* paint far -> near */
-    var order = [0, 1, 2].sort(function (a, b) { return Math.abs(wrap(b - pos)) - Math.abs(wrap(a - pos)); });
+    var order = [0, 1, 2, 3, 4].sort(function (a, b) { return Math.abs(wrap(b - pos)) - Math.abs(wrap(a - pos)); });
     for (var n = 0; n < N; n++) {
       var i = order[n], rel = wrap(i - pos), ar = Math.abs(rel);
       var rank = i;
@@ -548,7 +599,7 @@
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(resize);
   /* start on the slide matching a #b2/#c1/#essay/#grammatik hash */
   var h = (location.hash || '').replace('#', '');
-  var hi = ['monitor', 'tension', 'risk'].indexOf(h);
+  var hi = ['monitor', 'tension', 'risk', 'worldora', 'intelligence'].indexOf(h);
   if (hi > 0) { pos = target = hi; lastPos = pos; }
   raf = requestAnimationFrame(frame);
 })();
