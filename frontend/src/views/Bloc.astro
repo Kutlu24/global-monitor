@@ -1,0 +1,94 @@
+---
+// The bloc profile body, parameterized by language. English is rendered by
+// src/pages/bloc/[bloc].astro; the other seven languages by
+// src/pages/[lang]/bloc/[bloc].astro. Bloc name/description/synthesis come
+// from the API already localized (?lang=); UI chrome from the dictionary.
+import BaseLayout from "../layouts/BaseLayout.astro";
+import WorldMap from "../components/WorldMap";
+import { getBloc } from "../lib/data";
+import { ALL_METRICS } from "../lib/metrics";
+import { PAIRS } from "../lib/pairs";
+import { datasetSchema } from "../lib/schema";
+import { createI18n, localizePath, type Lang } from "../i18n";
+
+interface Props {
+  lang: Lang;
+  blocId: string;
+}
+const { lang, blocId } = Astro.props;
+const { t, tn, metricLabel } = createI18n(lang);
+const L = (p: string) => localizePath(p, lang);
+
+const bloc = await getBloc(blocId, lang);
+
+// brics <-> brics5 are the same lineage at different membership snapshots
+// (see blocs.py) - cross-link them since neither page mentions the other
+// via the main compare structure.
+const historicalCounterpart = bloc.bloc_id === "brics" ? "brics5" : bloc.bloc_id === "brics5" ? "brics" : null;
+
+const comparePairs = PAIRS.filter((p) => p.a === bloc.bloc_id || p.b === bloc.bloc_id);
+
+const schema = datasetSchema({
+  name: `${bloc.name} — economic, trade, social, and military data`,
+  description: bloc.description,
+  url: new URL(localizePath(`/bloc/${bloc.slug}/`, lang), Astro.site).toString(),
+  apiPath: `/api/blocs/${bloc.bloc_id}`,
+});
+---
+<BaseLayout title={bloc.name} description={bloc.description} structuredData={schema} lang={lang}>
+  <a href={L("/")} class="gm-back-link">{t("back.globalMonitor")}</a>
+  <p class="gm-card-eyebrow"><span class="gm-swatch" style={{ background: `var(--bloc-${bloc.bloc_id})` }} /> {t("bloc.profile")}</p>
+  <h1>{bloc.name}</h1>
+  <p class="gm-lede">{bloc.description}</p>
+  {historicalCounterpart && (
+    <p>
+      <a href={L(`/bloc/${historicalCounterpart}/`)}>
+        {bloc.bloc_id === "brics" ? t("bloc.seeOriginal") : t("bloc.seeCurrent")}
+      </a>
+    </p>
+  )}
+
+  <div class="gm-viz-block">
+    <WorldMap client:visible highlights={[{ iso3: bloc.members ?? [], color: `var(--bloc-${bloc.bloc_id})`, label: bloc.name }]} lang={lang} />
+  </div>
+
+  {bloc.synthesis && (
+    <div class="gm-synthesis">
+      <p class="gm-synthesis-label">{t("synthesis.label")}</p>
+      <p>{bloc.synthesis.text}</p>
+    </div>
+  )}
+
+  <div class="gm-table-wrap">
+    <table>
+    <thead>
+      <tr><th>{t("table.metric")}</th><th>{t("table.value")}</th><th>{t("table.memberCoverage")}</th></tr>
+    </thead>
+    <tbody>
+      {ALL_METRICS.map((m) => {
+        const agg = bloc.aggregates[m.metric_id];
+        const count = agg?.member_count ?? 0;
+        return (
+          <tr>
+            <td>{metricLabel(lang, m.metric_id, m.label)}</td>
+            <td>{agg?.value != null ? `${m.format(agg.value)} (${agg.period})` : t("table.na")}</td>
+            <td>{agg ? tn("home.members", count) : "—"}</td>
+          </tr>
+        );
+      })}
+    </tbody>
+  </table>
+  </div>
+
+  {comparePairs.length > 0 && (
+    <>
+      <h2>{t("bloc.compare")}</h2>
+      <ul class="gm-link-list">
+        {comparePairs.map((p) => {
+          const other = p.a === bloc.bloc_id ? p.b : p.a;
+          return <li><a href={L(`/compare/${p.slug}/`)}>{t("home.vs")} {other.toUpperCase()}</a></li>;
+        })}
+      </ul>
+    </>
+  )}
+</BaseLayout>

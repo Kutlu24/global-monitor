@@ -1,0 +1,78 @@
+---
+// Global Risk Simulator index, parameterized by language. English is
+// rendered by src/pages/risk/index.astro; the other seven languages by
+// src/pages/[lang]/risk/index.astro.
+import BaseLayout from "../layouts/BaseLayout.astro";
+import { getRiskScenarios, getRiskScenario } from "../lib/data";
+import { getLastUpdated } from "../lib/sitemap";
+import { createI18n, localizePath, DATE_LOCALE, type Lang } from "../i18n";
+
+interface Props {
+  lang: Lang;
+}
+const { lang } = Astro.props;
+const { t } = createI18n(lang);
+const L = (p: string) => localizePath(p, lang);
+
+const [scenarios, general, lastUpdated] = await Promise.all([
+  getRiskScenarios(lang),
+  getRiskScenario("general-balanced-crisis", lang),
+  getLastUpdated(),
+]);
+
+const unranked = general.unranked.length;
+const lastUpdatedLabel = new Date(lastUpdated).toLocaleDateString(DATE_LOCALE[lang], {
+  year: "numeric", month: "short", day: "numeric",
+});
+
+const description = t("risk.description", { n: general.universe });
+---
+<BaseLayout title={t("risk.h1")} description={description} lang={lang}>
+  <a href={L("/")} class="gm-back-link">{t("back.globalMonitor")}</a>
+  <p class="gm-hero-eyebrow">{t("risk.eyebrow", { n: general.universe, date: lastUpdatedLabel })}</p>
+  <h1>{t("risk.h1")}</h1>
+  <p class="gm-lede">
+    {t("risk.lede", { n: general.universe })}
+  </p>
+
+  <p>
+    {t("risk.replaces", { n: general.universe, ranked: general.ranked.length, unranked })}
+  </p>
+
+  <h2>{t("risk.whatIsCombined")}</h2>
+  <p>{t("risk.whatIsCombinedBody")}</p>
+
+  <h2>{t("risk.chooseScenario")}</h2>
+  <div class="gm-grid">
+    {scenarios.map((s) => (
+      <a href={L(`/risk/${s.slug}/`)} class="gm-card">
+        <p class="gm-card-eyebrow">{t("risk.scenario")}</p>
+        <h3>{s.name}</h3>
+        <p>{s.explanation}</p>
+        {s.belligerents.length > 0 && (
+          <p class="gm-card-meta">
+            {t("risk.parties", { list: s.belligerents.join(", ") })}
+          </p>
+        )}
+      </a>
+    ))}
+  </div>
+
+  <h2>{t("risk.sixCriteria")}</h2>
+  <ul>
+    {Object.entries(general.criteria).map(([id, label]) => (
+      <li>
+        <strong>{label}</strong> — {t(`risk.criterionSource.${id}`)}
+      </li>
+    ))}
+  </ul>
+  <p class="gm-note">{t("risk.sourcesNote")}</p>
+</BaseLayout>
+
+<style>
+  .gm-card-meta {
+    font-size: var(--fs-xs);
+    color: var(--text-dim);
+    margin-top: var(--space-2);
+  }
+</style>

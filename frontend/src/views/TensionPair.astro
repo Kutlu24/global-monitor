@@ -1,0 +1,119 @@
+---
+// One bilateral tension pair, parameterized by language. English is
+// rendered by src/pages/tension/[pair].astro; the other seven languages by
+// src/pages/[lang]/tension/[pair].astro.
+import BaseLayout from "../layouts/BaseLayout.astro";
+import TensionGauge from "../components/TensionGauge.astro";
+import { getTensionPair } from "../lib/tension";
+import { getBlocs } from "../lib/data";
+import type { Pair } from "../lib/pairs";
+import { datasetSchema } from "../lib/schema";
+import { createI18n, localizePath, type Lang } from "../i18n";
+
+interface Props {
+  lang: Lang;
+  pair: Pair;
+}
+const { lang, pair } = Astro.props;
+const { t } = createI18n(lang);
+const L = (p: string) => localizePath(p, lang);
+
+const blocs = await getBlocs(lang);
+const blocById = Object.fromEntries(blocs.map((b) => [b.bloc_id, b]));
+const score = await getTensionPair(pair.a, pair.b, lang);
+const a = blocById[pair.a];
+const b = blocById[pair.b];
+const nameA = a?.name ?? pair.a;
+const nameB = b?.name ?? pair.b;
+
+const description = t("tension.pairDescription", { a: nameA, b: nameB });
+const schema = score
+  ? datasetSchema({
+      name: `${nameA} vs ${nameB} — ${t("tension.h1")}`,
+      description,
+      url: new URL(localizePath(`/tension/${pair.slug}/`, lang), Astro.site).toString(),
+      apiPath: `/api/tension/pair/${pair.a}/${pair.b}`,
+    })
+  : undefined;
+
+const trend = score?.goldstein_delta;
+const trendLabel =
+  trend == null ? null : trend > 0.1 ? t("tension.improving") : trend < -0.1 ? t("tension.worsening") : t("tension.steady");
+const conflictual = score?.examples.filter((e) => e.kind === "conflictual") ?? [];
+const cooperative = score?.examples.filter((e) => e.kind === "cooperative") ?? [];
+---
+<BaseLayout title={`${nameA} vs ${nameB} — ${t("tension.h1")}`} description={description} structuredData={schema} lang={lang}>
+  <a href={L("/tension/")} class="gm-back-link">{t("back.currentTension")}</a>
+  <p class="gm-hero-eyebrow">{t("tension.eyebrow")}</p>
+  <h1>{nameA} vs {nameB}</h1>
+
+  {!score && <p>{t("tension.noPairData")}</p>}
+
+  {score && (
+    <>
+      <div class="gm-viz-block">
+        <TensionGauge value={score.mean_goldstein} label={t("tension.meanGoldstein", { h: score.window_hours })} lang={lang} />
+        <p class="gm-stat-label">
+          {t("tension.bilateralEvents", { n: score.n_events })}
+          {trendLabel && ` · ${t("tension.trend", { label: trendLabel, value: `${trend! > 0 ? "+" : ""}${trend!.toFixed(2)}` })}`}
+        </p>
+      </div>
+
+      {score.synthesis && (
+        <div class="gm-synthesis">
+          <p class="gm-synthesis-label">{t("synthesis.notForecast")}</p>
+          <p>{score.synthesis.text}</p>
+        </div>
+      )}
+
+      <div class="gm-table-wrap">
+        <table>
+          <thead><tr><th>{t("table.metric")}</th><th>{t("table.value")}</th></tr></thead>
+          <tbody>
+            <tr><td>{t("tension.table.bilateralWindow")}</td><td>{score.n_events}</td></tr>
+            <tr><td>{t("tension.table.meanTone")}</td><td>{score.mean_tone != null ? score.mean_tone.toFixed(1) : t("table.na")} (-100..+100)</td></tr>
+            <tr><td>{t("tension.table.conflictShare")}</td><td>{score.conflict_share != null ? `${(score.conflict_share * 100).toFixed(0)}%` : t("table.na")}</td></tr>
+            <tr><td>{t("tension.table.verbalCoop")}</td><td>{score.verbal_cooperation}</td></tr>
+            <tr><td>{t("tension.table.materialCoop")}</td><td>{score.material_cooperation}</td></tr>
+            <tr><td>{t("tension.table.verbalConflict")}</td><td>{score.verbal_conflict}</td></tr>
+            <tr><td>{t("tension.table.materialConflict")}</td><td>{score.material_conflict}</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      {conflictual.length > 0 && (
+        <>
+          <h2>{t("tension.mostConflictual")}</h2>
+          <ul>
+            {conflictual.map((e) => (
+              <li>
+                [{e.date}] {e.actor1 ?? "?"} &rarr; {e.actor2 ?? "?"}
+                {e.location && ` at ${e.location}`}
+                {e.goldstein != null && ` (Goldstein ${e.goldstein.toFixed(1)})`}
+                {e.source_url && <> — <a href={e.source_url} target="_blank" rel="noopener noreferrer">{t("tension.source")}</a></>}
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+
+      {cooperative.length > 0 && (
+        <>
+          <h2>{t("tension.mostCooperative")}</h2>
+          <ul>
+            {cooperative.map((e) => (
+              <li>
+                [{e.date}] {e.actor1 ?? "?"} &rarr; {e.actor2 ?? "?"}
+                {e.location && ` at ${e.location}`}
+                {e.goldstein != null && ` (Goldstein ${e.goldstein.toFixed(1)})`}
+                {e.source_url && <> — <a href={e.source_url} target="_blank" rel="noopener noreferrer">{t("tension.source")}</a></>}
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+
+      <p class="gm-note">{t("tension.query.note")}</p>
+    </>
+  )}
+</BaseLayout>

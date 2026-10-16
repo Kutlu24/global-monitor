@@ -1,0 +1,63 @@
+---
+// One major-economy country page, parameterized by language. English is
+// rendered by src/pages/country/[iso3].astro; the other seven languages by
+// src/pages/[lang]/country/[iso3].astro.
+import BaseLayout from "../layouts/BaseLayout.astro";
+import { getCountry } from "../lib/data";
+import { datasetSchema } from "../lib/schema";
+import { createI18n, localizePath, type Lang } from "../i18n";
+
+interface Props {
+  lang: Lang;
+  iso3: string;
+}
+const { lang, iso3 } = Astro.props;
+const { t, metricLabel } = createI18n(lang);
+const L = (p: string) => localizePath(p, lang);
+
+const country = await getCountry(iso3, lang);
+
+const ROWS: [string, (v: number) => string][] = [
+  ["gdp_current_usd", (v) => `$${(v / 1e9).toFixed(1)}B`],
+  ["population_total", (v) => `${(v / 1e6).toFixed(1)}M`],
+  ["military_exp_pct_gdp", (v) => `${v.toFixed(1)}%`],
+  ["military_exp_usd", (v) => `$${(v / 1e9).toFixed(1)}B`],
+  ["trade_pct_gdp", (v) => `${v.toFixed(1)}%`],
+  ["trade_exports_world_usd", (v) => `$${(v / 1e9).toFixed(1)}B`],
+  ["trade_imports_world_usd", (v) => `$${(v / 1e9).toFixed(1)}B`],
+  ["life_expectancy_years", (v) => `${v.toFixed(1)}y`],
+  ["secondary_enrollment_pct", (v) => `${v.toFixed(1)}%`],
+  ["hdi", (v) => v.toFixed(3)],
+];
+
+const description = t("country.description", { name: country.name });
+const schema = datasetSchema({
+  name: `${country.name} — economic, trade, social, and military data`,
+  description,
+  url: new URL(localizePath(`/country/${country.iso3.toLowerCase()}/`, lang), Astro.site).toString(),
+  apiPath: `/api/countries/${country.iso3}`,
+});
+---
+<BaseLayout title={country.name} description={description} structuredData={schema} lang={lang}>
+  <a href={L("/countries/")} class="gm-back-link">{t("back.majorEconomies")}</a>
+  <p class="gm-hero-eyebrow">{t("country.eyebrow")}</p>
+  <h1>{country.name}</h1>
+  <div class="gm-table-wrap">
+    <table>
+      <thead>
+        <tr><th>{t("table.metric")}</th><th>{t("table.value")}</th></tr>
+      </thead>
+      <tbody>
+        {ROWS.map(([metricId, format]) => {
+          const m = country.metrics[metricId];
+          return (
+            <tr>
+              <td>{metricLabel(lang, metricId)}</td>
+              <td>{m ? `${format(m.value)} (${m.period})` : t("table.na")}</td>
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
+  </div>
+</BaseLayout>

@@ -1,0 +1,25 @@
+---
+// Localized bilateral tension pairs under /{lang}/tension/{slug}/. English
+// lives at the URL root.
+import TensionPair from "../../../views/TensionPair.astro";
+import { getBlocs } from "../../../lib/data";
+import { getTensionPair } from "../../../lib/tension";
+import { PAIRS } from "../../../lib/pairs";
+import { NON_DEFAULT_LANGS, type Lang } from "../../../i18n";
+
+export async function getStaticPaths() {
+  const blocs = await getBlocs();
+  const blocIds = new Set(blocs.map((b) => b.bloc_id));
+  const validPairs = PAIRS.filter((p) => blocIds.has(p.a) && blocIds.has(p.b));
+  // Prefetch once (any language) so slugs are validated against live scores
+  await Promise.all(validPairs.map((p) => getTensionPair(p.a, p.b)));
+  return NON_DEFAULT_LANGS.flatMap((lang) =>
+    validPairs.map((pair) => ({ params: { lang, pair: pair.slug }, props: { pair } }))
+  );
+}
+
+const lang = Astro.params.lang as Lang;
+const { pair } = Astro.props as { pair: (typeof PAIRS)[number] };
+---
+
+<TensionPair lang={lang} pair={pair} />

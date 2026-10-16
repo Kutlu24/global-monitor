@@ -1,11 +1,14 @@
 ---
 import { TENSION_DIVERGING } from "../lib/colors";
+import { createI18n, type Lang } from "../i18n";
 
 interface Props {
   value: number | null;
   label?: string;
+  lang?: Lang;
 }
-const { value, label } = Astro.props;
+const { value, label, lang = "en" } = Astro.props;
+const { t } = createI18n(lang);
 const DOMAIN = 10; // Goldstein scale: -10 (most conflictual) .. +10 (most cooperative)
 const clamped = value == null ? 0 : Math.max(-DOMAIN, Math.min(DOMAIN, value));
 const halfPct = (Math.abs(clamped) / DOMAIN) * 50; // 0..50, distance from center
@@ -15,11 +18,17 @@ const color = isPositive ? TENSION_DIVERGING.cooperation.dark : TENSION_DIVERGIN
 // A spoken form of the number, so the bar is not the only way to read the
 // value - and so the zero case says "neutral" instead of just showing 0.00.
 const magnitude = Math.abs(clamped);
-const verdict = magnitude < 0.5 ? "broadly neutral" : magnitude < 3 ? "mildly" : magnitude < 6.5 ? "clearly" : "strongly";
+const verdictKey =
+  magnitude < 0.5 ? "tension.verdict.neutral" : magnitude < 3 ? "tension.verdict.mildly" : magnitude < 6.5 ? "tension.verdict.clearly" : "tension.verdict.strongly";
+const poleKey = isPositive ? "tension.pole.cooperative" : "tension.pole.conflictual";
 const ariaLabel =
   value == null
-    ? "No tension data"
-    : `Mean Goldstein score ${clamped.toFixed(2)} out of a possible minus 10 to plus 10, i.e. ${verdict} ${isPositive ? "cooperative" : "conflictual"}`;
+    ? t("tension.aria.noData")
+    : t("tension.aria.score", {
+        value: clamped.toFixed(2),
+        verdict: t(verdictKey),
+        pole: t(poleKey),
+      });
 ---
 
 <!-- A diverging bar, not a sequential one - the dataviz skill's fixed
@@ -34,8 +43,8 @@ const ariaLabel =
 
   <div class="gm-tension__track">
     <span class="gm-tension__center" aria-hidden="true"></span>
-    {[-10, -5, 5, 10].map((t) => (
-      <span class="gm-tension__tick" style={{ left: `${((t + DOMAIN) / (2 * DOMAIN)) * 100}%` }} aria-hidden="true"></span>
+    {[-10, -5, 5, 10].map((tick) => (
+      <span class="gm-tension__tick" style={{ left: `${((tick + DOMAIN) / (2 * DOMAIN)) * 100}%` }} aria-hidden="true"></span>
     ))}
     {value != null && (
       <div
@@ -54,12 +63,12 @@ const ariaLabel =
   <div class="gm-tension__scale">
     <span>&minus;10</span>
     <span class="gm-tension__poles" aria-hidden="true">
-      <span>Conflict</span>
-      <span>Cooperation</span>
+      <span>{t("tension.pole.conflict")}</span>
+      <span>{t("tension.pole.cooperation")}</span>
     </span>
     <span>+10</span>
   </div>
   <div class="gm-tension__readout">
-    <span class="gm-tension__value">{value != null ? (clamped > 0 ? "+" : "") + clamped.toFixed(2) : "N/A"}</span>
+    <span class="gm-tension__value">{value != null ? (clamped > 0 ? "+" : "") + clamped.toFixed(2) : t("table.na")}</span>
   </div>
 </div>

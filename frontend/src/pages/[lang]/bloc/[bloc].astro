@@ -1,0 +1,23 @@
+---
+// Localized bloc profiles under /{lang}/bloc/{slug}/ for the seven
+// non-default languages. English lives at the URL root.
+import Bloc from "../../../views/Bloc.astro";
+import { getBlocs, type Bloc as BlocData } from "../../../lib/data";
+import { NON_DEFAULT_LANGS, type Lang } from "../../../i18n";
+
+export async function getStaticPaths() {
+  const paths = [];
+  for (const lang of NON_DEFAULT_LANGS) {
+    const blocs = await getBlocs(lang);
+    for (const bloc of blocs) {
+      paths.push({ params: { lang, bloc: bloc.slug }, props: { blocId: bloc.bloc_id } });
+    }
+  }
+  return paths;
+}
+
+const lang = Astro.params.lang as Lang;
+const { blocId } = Astro.props as { blocId: string };
+---
+
+<Bloc lang={lang} blocId={blocId} />

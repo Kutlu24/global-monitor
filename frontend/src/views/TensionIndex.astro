@@ -1,0 +1,75 @@
+---
+// Current Tension index, parameterized by language. English is rendered by
+// src/pages/tension/index.astro; the other seven languages by
+// src/pages/[lang]/tension/index.astro.
+import BaseLayout from "../layouts/BaseLayout.astro";
+import TensionGauge from "../components/TensionGauge.astro";
+import { getAllTensionScores } from "../lib/tension";
+import { getBlocs } from "../lib/data";
+import { PAIRS } from "../lib/pairs";
+import { createI18n, localizePath, type Lang } from "../i18n";
+
+interface Props {
+  lang: Lang;
+}
+const { lang } = Astro.props;
+const { t } = createI18n(lang);
+const L = (p: string) => localizePath(p, lang);
+
+const description = t("tension.description");
+const blocs = (await getBlocs(lang)).filter((b) => b.bloc_id !== "brics5");
+const scores = await getAllTensionScores(lang);
+const scoreByScope = new Map(scores.map((s) => [s.scope, s]));
+const blocById = Object.fromEntries(blocs.map((b) => [b.bloc_id, b]));
+// The lede embeds the GDELT product name as a link. Split on the exact
+// product string (a fixed brand name, identical in every language) so the
+// anchor lands in the right place inside the translated sentence.
+const GDELT = "GDELT 2.0 Event Database";
+const ledeParts = t("tension.lede").split(GDELT);
+---
+<BaseLayout title={t("tension.h1")} description={description} lang={lang}>
+  <a href={L("/")} class="gm-back-link">{t("back.globalMonitor")}</a>
+  <p class="gm-hero-eyebrow">{t("tension.eyebrow")}</p>
+  <h1>{t("tension.h1")}</h1>
+  <p class="gm-lede">
+    {ledeParts[0]}
+    <a href="https://www.gdeltproject.org/" target="_blank" rel="noopener noreferrer">{GDELT}</a>
+    {ledeParts[1]}
+  </p>
+  <p class="gm-note">
+    <strong>{t("tension.noteStrong")}</strong> {t("tension.note")}
+  </p>
+
+  <h2>{t("tension.byBloc")}</h2>
+  <div class="gm-grid">
+    {blocs.map((bloc) => {
+      const score = scoreByScope.get(`bloc:${bloc.bloc_id}`);
+      return (
+        <div class="gm-card" style="cursor: default;">
+          <p class="gm-card-eyebrow">{bloc.name}</p>
+          <TensionGauge value={score?.mean_goldstein ?? null} lang={lang} />
+          <p class="gm-stat-label">
+            {score ? t("tension.eventsWindow", { n: score.n_events, h: score.window_hours }) : t("tension.noData")}
+          </p>
+        </div>
+      );
+    })}
+  </div>
+
+  <h2>{t("tension.bilateral")}</h2>
+  <ul class="gm-link-list">
+    {PAIRS.map((p) => (
+      <li>
+        <a href={L(`/tension/${p.slug}/`)}>
+          {blocById[p.a]?.name ?? p.a} {t("home.vs")} {blocById[p.b]?.name ?? p.b}
+        </a>
+      </li>
+    ))}
+  </ul>
+
+  <h2>{t("tension.compareCountries")}</h2>
+  <p>
+    {t("tension.compareCountriesLede")}
+    <a href={L("/tension/countries/")}>{t("tension.openCountryQuery")}</a>
+  </p>
+</BaseLayout>

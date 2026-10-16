@@ -1,0 +1,12 @@
+---
+import PageHub from "../../../views/PageHub.astro";
+import { NON_DEFAULT_LANGS, type Lang } from "../../../i18n/config";
+
+export function getStaticPaths() {
+  return NON_DEFAULT_LANGS.map((lang) => ({ params: { lang } }));
+}
+
+const { lang } = Astro.params as { lang: Lang };
+---
+
+<PageHub lang={lang} />

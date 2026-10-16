@@ -1,70 +1,20 @@
 ---
-import BaseLayout from "../../layouts/BaseLayout.astro";
-import MetricCompareBars from "../../components/MetricCompareBars";
-import WorldMap from "../../components/WorldMap";
+// English compare overview at /compare/{slug}/ - the other seven languages
+// live under /{lang}/compare/{slug}/.
+import Compare from "../../views/Compare.astro";
 import { getComparePair } from "../../lib/data";
 import { PAIRS } from "../../lib/pairs";
-import { DIMENSIONS, DIMENSION_LABELS, HEADLINE_METRIC } from "../../lib/metrics";
-import { datasetSchema } from "../../lib/schema";
 
 export async function getStaticPaths() {
   return Promise.all(
     PAIRS.map(async (pair) => {
       const data = await getComparePair(pair.a, pair.b);
-      return { params: { pair: pair.slug }, props: { pair, data } };
+      return { params: { pair: pair.slug }, props: { pair } };
     })
   );
 }
 
-const { pair, data } = Astro.props;
-const { a, b } = data;
-
-function entityFor(bloc: typeof a) {
-  return {
-    id: bloc.bloc_id,
-    name: bloc.name,
-    values: Object.fromEntries(Object.entries(bloc.aggregates).map(([k, v]) => [k, v.value])),
-  };
-}
-const description = `Compare ${a.name} and ${b.name} across economic, trade, social, and military data.`;
-const schema = datasetSchema({
-  name: `${a.name} vs ${b.name}`,
-  description,
-  url: new URL(`/compare/${pair.slug}/`, Astro.site).toString(),
-  apiPath: `/api/compare/${pair.a}/${pair.b}`,
-});
+const { pair } = Astro.props as { pair: (typeof PAIRS)[number] };
 ---
-<BaseLayout title={`${a.name} vs ${b.name}`} description={description} structuredData={schema}>
-  <a href="/" class="gm-back-link">&larr; Global Monitor</a>
-  <p class="gm-hero-eyebrow">Bloc comparison</p>
-  <h1>{a.name} vs {b.name}</h1>
 
-  <div class="gm-viz-block">
-    <WorldMap
-      client:visible
-      highlights={[
-        { iso3: a.members ?? [], color: `var(--bloc-${a.bloc_id})`, label: a.name },
-        { iso3: b.members ?? [], color: `var(--bloc-${b.bloc_id})`, label: b.name },
-      ]}
-    />
-  </div>
-
-  {data.synthesis && (
-    <div class="gm-synthesis">
-      <p class="gm-synthesis-label">Summary</p>
-      <p>{data.synthesis.text}</p>
-    </div>
-  )}
-
-  <h2>Overview</h2>
-  <div class="gm-viz-block">
-    <MetricCompareBars client:visible a={entityFor(a)} b={entityFor(b)} metrics={DIMENSIONS.map((d) => HEADLINE_METRIC[d])} />
-  </div>
-
-  <h2>By dimension</h2>
-  <ul class="gm-link-list">
-    {DIMENSIONS.map((d) => (
-      <li><a href={`/compare/${pair.slug}/${d}/`}>{DIMENSION_LABELS[d]}</a></li>
-    ))}
-  </ul>
-</BaseLayout>
+<Compare lang="en" pair={pair} />

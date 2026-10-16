@@ -1,6 +1,5 @@
 ---
 import {
-  RISK_AXES,
   bucketFor,
   fmtKm,
   fmtPct,
@@ -9,6 +8,7 @@ import {
   rampVar,
   type RiskCountry,
 } from "../lib/risk";
+import { createI18n, type Lang } from "../i18n";
 
 interface Props {
   ranked: RiskCountry[];
@@ -23,8 +23,19 @@ interface Props {
   /** Straight from the API, so "scored on 20 of 22" cannot drift out of date
    *  when a criterion changes. */
   indicatorTotal: number;
+  lang?: Lang;
 }
-const { ranked, unranked, flags, undrawn = [], structBreaks, expoBreaks, indicatorTotal } = Astro.props;
+const {
+  ranked,
+  unranked,
+  flags,
+  undrawn = [],
+  structBreaks,
+  expoBreaks,
+  indicatorTotal,
+  lang = "en",
+} = Astro.props;
+const { t } = createI18n(lang);
 
 // One table containing every country, ranked and unranked, rather than a
 // ranked table with the other 36 hidden behind a disclosure. A country that
@@ -59,11 +70,11 @@ const flagControls = FLAG_ORDER.map((flag) => ({
 <div class="gm-risk" data-risk-table>
   <div class="gm-risk__controls">
     <label class="gm-risk__search">
-      <span class="gm-risk__searchlabel">Filter</span>
+      <span class="gm-risk__searchlabel">{t("risk.filter")}</span>
       <input
         type="search"
         class="gm-risk__input"
-        placeholder="Country name or ISO3"
+        placeholder={t("risk.placeholder")}
         autocomplete="off"
         data-risk-search
       />
@@ -76,26 +87,26 @@ const flagControls = FLAG_ORDER.map((flag) => ({
     ))}
     <label class="gm-risk__check">
       <input type="checkbox" data-risk-unranked />
-      Unscored only <span class="gm-risk__count">{unranked.length}</span>
+      {t("risk.unscoredOnly")} <span class="gm-risk__count">{unranked.length}</span>
     </label>
-    <p class="gm-risk__status" data-risk-status aria-live="polite">
-      {rows.length} countries
+    <p class="gm-risk__status" data-risk-status aria-live="polite" data-countries-label={t("risk.countriesCount", { n: "{n}" })}>
+      {t("risk.countriesCount", { n: rows.length })}
     </p>
   </div>
 
   <div class="gm-risk__scroll">
     <div class="gm-risk-row gm-risk-row--head" role="row">
       <span role="columnheader">#</span>
-      <span role="columnheader">Country</span>
+      <span role="columnheader">{t("table.country")}</span>
       <span role="columnheader" class="gm-risk-axishead">
-        {RISK_AXES.structural.title}
-        <em>{RISK_AXES.structural.direction}</em>
+        {t("risk.axis.structural.title")}
+        <em>{t("risk.axis.structural.direction")}</em>
       </span>
       <span role="columnheader" class="gm-risk-axishead">
-        {RISK_AXES.exposure.title}
-        <em>{RISK_AXES.exposure.direction}</em>
+        {t("risk.axis.exposure.title")}
+        <em>{t("risk.axis.exposure.direction")}</em>
       </span>
-      <span role="columnheader" class="gm-risk-flaghead">Flags</span>
+      <span role="columnheader" class="gm-risk-flaghead">{t("risk.flags")}</span>
     </div>
 
     {
@@ -120,8 +131,8 @@ const flagControls = FLAG_ORDER.map((flag) => ({
                 undrawnCountries() returns the names the map cannot draw, so
                 membership is the condition for the warning, not its absence. */}
             {undrawnSet.has(c.name) && (
-              <span class="gm-risk-nomap" title="This country has no polygon at the map's resolution - its figures are in this table only.">
-                not on map
+              <span class="gm-risk-nomap" title={t("risk.nomapTitle")}>
+                {t("risk.notOnMap")}
               </span>
             )}
           </span>
@@ -142,15 +153,19 @@ const flagControls = FLAG_ORDER.map((flag) => ({
                 {c.completeness !== undefined && c.completeness < 1 && (
                   <span
                     class="gm-risk-partial"
-                    title={`Scored on ${Math.round(c.completeness * indicatorTotal)} of ${indicatorTotal} indicators, so this is a partial read rather than a like-for-like one. Still clear of the threshold that would drop the country out of the ranking entirely. Missing: ${(c.missing ?? []).join(", ") || "unknown"}`}
+                    title={t("risk.scoredOn", {
+                      have: Math.round(c.completeness * indicatorTotal),
+                      total: indicatorTotal,
+                      missing: (c.missing ?? []).join(", ") || "unknown",
+                    })}
                   >
                     {fmtPct(c.completeness)}
                   </span>
                 )}
               </>
             ) : (
-              <span class="gm-risk-num gm-risk-num--none" title={`Not scored. Missing indicators: ${(c.missing ?? []).join(", ")}`}>
-                not scored
+              <span class="gm-risk-num gm-risk-num--none" title={t("risk.notScoredMissing", { missing: (c.missing ?? []).join(", ") })}>
+                {t("risk.notScored")}
               </span>
             )}
           </span>
@@ -170,9 +185,9 @@ const flagControls = FLAG_ORDER.map((flag) => ({
                 <span class="gm-risk-num">{fmtKm(c.exposure_km)}</span>
               </>
             ) : (
-              <span class="gm-risk-num" title="No percentile: this country is not in the ranked population, so it has nothing to be a percentile of.">
+              <span class="gm-risk-num" title={t("risk.noPercentile")}>
                 {fmtKm(c.exposure_km)}
-                <em class="gm-risk-nopct">unranked</em>
+                <em class="gm-risk-nopct">{t("risk.unranked")}</em>
               </span>
             )}
           </span>
@@ -184,7 +199,7 @@ const flagControls = FLAG_ORDER.map((flag) => ({
                 data-flag={f}
                 title={flags[f]?.basis ?? f}
               >
-                {f === "nuclear_armed" ? "nuclear" : f === "belligerent" ? "party" : "IDA"}
+                {f === "nuclear_armed" ? t("risk.flag.nuclear") : f === "belligerent" ? t("risk.flag.party") : t("risk.flag.ida")}
               </span>
             ))}
           </span>
@@ -196,8 +211,7 @@ const flagControls = FLAG_ORDER.map((flag) => ({
 
 <noscript>
   <p class="gm-note">
-    The filter controls above need JavaScript; without it the full list of {rows.length} countries is
-    still shown, unfiltered.
+    {t("risk.noJs", { n: rows.length })}
   </p>
 </noscript>
 
@@ -463,8 +477,11 @@ const flagControls = FLAG_ORDER.map((flag) => ({
         if (ok) shown++;
       }
       if (status) {
+        const tpl = status.getAttribute("data-countries-label") || "{n} countries";
         status.textContent =
-          shown === rows.length ? rows.length + " countries" : shown + " of " + rows.length;
+          shown === rows.length
+            ? tpl.replace("{n}", String(rows.length))
+            : shown + "/" + rows.length;
       }
     };
 

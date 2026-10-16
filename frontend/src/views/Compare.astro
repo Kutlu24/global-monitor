@@ -1,0 +1,81 @@
+---
+// The bloc-vs-bloc compare overview, parameterized by language. English is
+// rendered by src/pages/compare/[pair].astro; the other seven languages by
+// src/pages/[lang]/compare/[pair].astro.
+import BaseLayout from "../layouts/BaseLayout.astro";
+import MetricCompareBars from "../components/MetricCompareBars";
+import WorldMap from "../components/WorldMap";
+import { getComparePair } from "../lib/data";
+import type { Pair } from "../lib/pairs";
+import { DIMENSIONS, HEADLINE_METRIC } from "../lib/metrics";
+import { datasetSchema } from "../lib/schema";
+import { createI18n, localizePath, type Lang } from "../i18n";
+
+interface Props {
+  lang: Lang;
+  pair: Pair;
+}
+const { lang, pair } = Astro.props;
+const { t, dimensionLabel, metricShortLabel } = createI18n(lang);
+const L = (p: string) => localizePath(p, lang);
+
+const data = await getComparePair(pair.a, pair.b, lang);
+const { a, b } = data;
+
+function entityFor(bloc: typeof a) {
+  return {
+    id: bloc.bloc_id,
+    name: bloc.name,
+    values: Object.fromEntries(Object.entries(bloc.aggregates).map(([k, v]) => [k, v.value])),
+  };
+}
+// Metric labels are localized at build time and handed to the island as
+// plain strings - a MetricSpec's label must never be a function (see
+// lib/metrics.ts on the island-boundary rule).
+const headlineMetrics = DIMENSIONS.map((d) => {
+  const m = HEADLINE_METRIC[d];
+  return { ...m, label: metricShortLabel(lang, m.metric_id, m.label) };
+});
+const description = t("compare.description", { a: a.name, b: b.name });
+const schema = datasetSchema({
+  name: `${a.name} vs ${b.name}`,
+  description,
+  url: new URL(localizePath(`/compare/${pair.slug}/`, lang), Astro.site).toString(),
+  apiPath: `/api/compare/${pair.a}/${pair.b}`,
+});
+---
+<BaseLayout title={`${a.name} vs ${b.name}`} description={description} structuredData={schema} lang={lang}>
+  <a href={L("/")} class="gm-back-link">{t("back.globalMonitor")}</a>
+  <p class="gm-hero-eyebrow">{t("compare.eyebrow")}</p>
+  <h1>{a.name} vs {b.name}</h1>
+
+  <div class="gm-viz-block">
+    <WorldMap
+      client:visible
+      highlights={[
+        { iso3: a.members ?? [], color: `var(--bloc-${a.bloc_id})`, label: a.name },
+        { iso3: b.members ?? [], color: `var(--bloc-${b.bloc_id})`, label: b.name },
+      ]}
+      lang={lang}
+    />
+  </div>
+
+  {data.synthesis && (
+    <div class="gm-synthesis">
+      <p class="gm-synthesis-label">{t("synthesis.label")}</p>
+      <p>{data.synthesis.text}</p>
+    </div>
+  )}
+
+  <h2>{t("compare.overview")}</h2>
+  <div class="gm-viz-block">
+    <MetricCompareBars client:visible a={entityFor(a)} b={entityFor(b)} metrics={headlineMetrics} />
+  </div>
+
+  <h2>{t("compare.byDimension")}</h2>
+  <ul class="gm-link-list">
+    {DIMENSIONS.map((d) => (
+      <li><a href={L(`/compare/${pair.slug}/${d}/`)}>{dimensionLabel(d)}</a></li>
+    ))}
+  </ul>
+</BaseLayout>

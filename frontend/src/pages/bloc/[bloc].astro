@@ -1,85 +1,15 @@
 ---
-import BaseLayout from "../../layouts/BaseLayout.astro";
-import WorldMap from "../../components/WorldMap";
+// English bloc profile at /bloc/{slug}/ - the other seven languages live
+// under /{lang}/bloc/{slug}/ (see src/pages/[lang]/bloc/[bloc].astro).
+import Bloc from "../../views/Bloc.astro";
 import { getBlocs } from "../../lib/data";
-import { ALL_METRICS } from "../../lib/metrics";
-import { PAIRS } from "../../lib/pairs";
-import { datasetSchema } from "../../lib/schema";
 
 export async function getStaticPaths() {
   const blocs = await getBlocs();
-  return blocs.map((bloc) => ({ params: { bloc: bloc.slug }, props: { bloc } }));
+  return blocs.map((bloc) => ({ params: { bloc: bloc.slug }, props: { blocId: bloc.bloc_id } }));
 }
 
-const { bloc } = Astro.props;
-
-// brics <-> brics5 are the same lineage at different membership snapshots
-// (see blocs.py) - cross-link them since neither page mentions the other
-// via the main compare structure.
-const historicalCounterpart = bloc.bloc_id === "brics" ? "brics5" : bloc.bloc_id === "brics5" ? "brics" : null;
-
-const comparePairs = PAIRS.filter((p) => p.a === bloc.bloc_id || p.b === bloc.bloc_id);
-
-const schema = datasetSchema({
-  name: `${bloc.name} — economic, trade, social, and military data`,
-  description: bloc.description,
-  url: new URL(`/bloc/${bloc.slug}/`, Astro.site).toString(),
-  apiPath: `/api/blocs/${bloc.bloc_id}`,
-});
+const { blocId } = Astro.props as { blocId: string };
 ---
-<BaseLayout title={bloc.name} description={bloc.description} structuredData={schema}>
-  <a href="/" class="gm-back-link">&larr; Global Monitor</a>
-  <p class="gm-card-eyebrow"><span class="gm-swatch" style={{ background: `var(--bloc-${bloc.bloc_id})` }} /> Bloc profile</p>
-  <h1>{bloc.name}</h1>
-  <p class="gm-lede">{bloc.description}</p>
-  {historicalCounterpart && (
-    <p>
-      <a href={`/bloc/${historicalCounterpart}/`}>
-        {bloc.bloc_id === "brics" ? "See the original five-member BRICS instead →" : "See current BRICS+ (with the 2024-25 expansion) instead →"}
-      </a>
-    </p>
-  )}
 
-  <div class="gm-viz-block">
-    <WorldMap client:visible highlights={[{ iso3: bloc.members ?? [], color: `var(--bloc-${bloc.bloc_id})`, label: bloc.name }]} />
-  </div>
-
-  {bloc.synthesis && (
-    <div class="gm-synthesis">
-      <p class="gm-synthesis-label">Summary</p>
-      <p>{bloc.synthesis.text}</p>
-    </div>
-  )}
-
-  <div class="gm-table-wrap">
-    <table>
-    <thead>
-      <tr><th>Metric</th><th>Value</th><th>Member coverage</th></tr>
-    </thead>
-    <tbody>
-      {ALL_METRICS.map((m) => {
-        const agg = bloc.aggregates[m.metric_id];
-        return (
-          <tr>
-            <td>{m.label}</td>
-            <td>{agg?.value != null ? `${m.format(agg.value)} (${agg.period})` : "N/A"}</td>
-            <td>{agg ? `${agg.member_count} member(s) with data` : "—"}</td>
-          </tr>
-        );
-      })}
-    </tbody>
-  </table>
-  </div>
-
-  {comparePairs.length > 0 && (
-    <>
-      <h2>Compare</h2>
-      <ul class="gm-link-list">
-        {comparePairs.map((p) => {
-          const other = p.a === bloc.bloc_id ? p.b : p.a;
-          return <li><a href={`/compare/${p.slug}/`}>vs {other.toUpperCase()}</a></li>;
-        })}
-      </ul>
-    </>
-  )}
-</BaseLayout>
+<Bloc lang="en" blocId={blocId} />

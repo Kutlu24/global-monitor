@@ -136,6 +136,9 @@ def run_all(sources: list[str] | None = None) -> dict[str, int]:
     aggregate.aggregate_all()
     try:
         synthesis.generate_all()
+        # Backfill translations for anything the pass above left untranslated
+        # (a language added to i18n.LANGS, or a run that failed mid-way).
+        synthesis.generate_translations()
     except Exception:
         logger.exception("synthesis generation failed - leaving prior text in place, not crashing the ingest run")
     run_tension()

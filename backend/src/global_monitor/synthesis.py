@@ -23,9 +23,24 @@ from openai import OpenAI
 from . import db
 from .config import settings
 from .db import now
+from .i18n import DEFAULT_LANG, LANGS, NATIVE_NAME, synthesis_key
 from .models import SynthesisText
 
 logger = logging.getLogger(__name__)
+
+# Every language the site serves except English, which is what the prompts
+# above write natively. A translation is generated only for a page whose
+# English text was (re)generated, and is stored under its own key - so a
+# page with no LLM key at all simply has no synthesis in any language,
+# exactly as before.
+TRANSLATE_LANGS: tuple[str, ...] = tuple(l for l in LANGS if l != DEFAULT_LANG)
+
+_TRANSLATE_PROMPT = """You are translating one paragraph of neutral, factual data-dashboard copy \
+from English into {language}. Translate the prose, and also render country names, bloc names and \
+metric names in their conventional {language} forms (e.g. "Germany" -> Almanya in Turkish). Keep \
+every number, unit and figure exactly as written. Keep the same length and the same factual, \
+non-promotional tone. Do not add anything that is not in the source. Return only the translated \
+paragraph, with no preamble, no quotation marks and no notes."""
 
 
 def _data_hash(payload: dict) -> str:
@@ -103,6 +118,60 @@ def _maybe_generate(page_key: str, payload_for_hash: dict, prompt: str) -> None:
     db.upsert_synthesis(SynthesisText(
         page_key=page_key, text=text, data_hash=new_hash, generated_at=now(), provider=provider, model=model,
     ))
+    _maybe_translate(page_key, text, new_hash)
+
+
+def _maybe_translate(page_key: str, english_text: str, data_hash: str) -> None:
+    """Translate a page's freshly generated English text into the other seven
+    languages, each gated on the same data hash. A failed translation leaves
+    that language's previous text (or the English fallback the API serves)
+    in place - one missing language never blocks the other six."""
+    for lang in TRANSLATE_LANGS:
+        key = synthesis_key(page_key, lang)
+        existing = db.get_synthesis(key)
+        if existing is not None and existing.data_hash == data_hash:
+            continue
+        prompt = _TRANSLATE_PROMPT.format(language=NATIVE_NAME[lang]) + "\n\n" + english_text
+        try:
+            text, provider, model = _generate_text(prompt)
+        except Exception:
+            logger.exception("Synthesis translation failed for %s [%s] - keeping prior text", page_key, lang)
+            continue
+        if not text:
+            continue
+        db.upsert_synthesis(SynthesisText(
+            page_key=key, text=text, data_hash=data_hash, generated_at=now(), provider=provider, model=model,
+        ))
+
+
+def generate_translations() -> int:
+    """Backfill pass: every English synthesis row that exists but has no
+    translation (or one whose English text changed since) gets one. Called
+    from the daily pipeline so a language added later, or a failed run, is
+    repaired on the next cycle without a manual step. Returns the number of
+    rows translated."""
+    done = 0
+    for row in db.list_synthesis():
+        if "|" in row.page_key:
+            continue  # already a translation
+        for lang in TRANSLATE_LANGS:
+            existing = db.get_synthesis(synthesis_key(row.page_key, lang))
+            if existing is not None and existing.data_hash == row.data_hash:
+                continue
+            try:
+                text, provider, model = _generate_text(
+                    _TRANSLATE_PROMPT.format(language=NATIVE_NAME[lang]) + "\n\n" + row.text)
+            except Exception:
+                logger.exception("Synthesis backfill failed for %s [%s]", row.page_key, lang)
+                continue
+            if not text:
+                continue
+            db.upsert_synthesis(SynthesisText(
+                page_key=synthesis_key(row.page_key, lang), text=text, data_hash=row.data_hash,
+                generated_at=now(), provider=provider, model=model,
+            ))
+            done += 1
+    return done
 
 
 def _bloc_snapshot(bloc_id: str) -> dict:

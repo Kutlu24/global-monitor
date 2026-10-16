@@ -12,10 +12,10 @@ import subprocess
 from contextlib import asynccontextmanager
 from dataclasses import asdict
 
-from fastapi import FastAPI, Header, HTTPException
+from fastapi import FastAPI, Header, HTTPException, Query
 from fastapi.staticfiles import StaticFiles
 
-from .. import db, major_economies, pipeline, risk, scheduler
+from .. import db, i18n, i18n_countries, major_economies, pipeline, risk, scheduler
 from ..config import frontend_dir, settings
 
 
@@ -29,13 +29,27 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="Global Monitor", lifespan=lifespan)
 
 
+def _lang(lang: str | None) -> str:
+    """Normalizes the `?lang=` query parameter every string-serving endpoint
+    accepts. English is the default and any unknown code degrades to it - the
+    build never fails because a locale is missing."""
+    return i18n.norm_lang(lang)
+
+
+@app.get("/api/languages")
+def list_languages() -> list[dict]:
+    """The site's serving languages, so the frontend's switcher and hreflang
+    set are driven by one source of truth rather than a duplicated list."""
+    return [{"code": c, "native": i18n.NATIVE_NAME[c], "rtl": i18n.is_rtl(c)} for c in i18n.LANGS]
+
+
 @app.get("/api/health")
 def health() -> dict:
     return {"status": "ok"}
 
 
 @app.get("/api/blocs")
-def list_blocs() -> list[dict]:
+def list_blocs(lang: str | None = Query(default=None)) -> list[dict]:
     """Third field the plural endpoint was missing that only get_bloc()
     (singular) had - after synthesis (fixed 2026-09-27), `members` was the
     same story: bloc/[bloc].astro's getStaticPaths sources from THIS
@@ -43,33 +57,43 @@ def list_blocs() -> list[dict]:
     silently rendering an empty-highlight world map on all of them (user
     report 2026-09-27: "haritada AB ülkeleri işaretli değil" - not EU-
     specific, every bloc's map was affected identically)."""
+    lng = _lang(lang)
     result = []
     for bloc in db.get_blocs():
         members = db.get_current_members(bloc.bloc_id)
-        result.append({**asdict(bloc), "member_count": len(members), "members": sorted(members),
-                        "aggregates": _bloc_aggregates_payload(bloc.bloc_id),
-                        "synthesis": _synthesis_payload(f"bloc:{bloc.bloc_id}")})
+        result.append({**asdict(bloc),
+                       "name": i18n.pick(i18n.BLOC_NAME.get(bloc.bloc_id, {}), lng, bloc.name),
+                       "description": i18n.pick(i18n.BLOC_DESCRIPTION.get(bloc.bloc_id, {}), lng, bloc.description),
+                       "member_count": len(members), "members": sorted(members),
+                       "aggregates": _bloc_aggregates_payload(bloc.bloc_id),
+                       "synthesis": _synthesis_payload(f"bloc:{bloc.bloc_id}", lng)})
     return result
 
 
 @app.get("/api/blocs/{bloc_id}")
-def get_bloc(bloc_id: str) -> dict:
+def get_bloc(bloc_id: str, lang: str | None = Query(default=None)) -> dict:
     bloc = db.get_bloc(bloc_id)
     if bloc is None:
         raise HTTPException(404, f"No such bloc: {bloc_id!r}")
+    lng = _lang(lang)
     members = db.get_current_members(bloc_id)
-    return {**asdict(bloc), "member_count": len(members), "members": sorted(members),
+    return {**asdict(bloc),
+            "name": i18n.pick(i18n.BLOC_NAME.get(bloc_id, {}), lng, bloc.name),
+            "description": i18n.pick(i18n.BLOC_DESCRIPTION.get(bloc_id, {}), lng, bloc.description),
+            "member_count": len(members), "members": sorted(members),
             "aggregates": _bloc_aggregates_payload(bloc_id),
-            "synthesis": _synthesis_payload(f"bloc:{bloc_id}")}
+            "synthesis": _synthesis_payload(f"bloc:{bloc_id}", lng)}
 
 
 @app.get("/api/metrics")
-def list_metrics() -> list[dict]:
-    return [asdict(m) for m in db.get_metrics()]
+def list_metrics(lang: str | None = Query(default=None)) -> list[dict]:
+    lng = _lang(lang)
+    return [{**asdict(m), "name": i18n.pick(i18n.METRIC_NAME.get(m.metric_id, {}), lng, m.name)}
+            for m in db.get_metrics()]
 
 
 @app.get("/api/compare/{bloc_a}/{bloc_b}")
-def compare_blocs(bloc_a: str, bloc_b: str) -> dict:
+def compare_blocs(bloc_a: str, bloc_b: str, lang: str | None = Query(default=None)) -> dict:
     """Convenience wrapper the frontend's compare pages use instead of two
     separate GET /api/blocs/{id} calls - same underlying data, one round
     trip. Also includes intra-bloc trade flow member_count so the frontend
@@ -80,63 +104,78 @@ def compare_blocs(bloc_a: str, bloc_b: str) -> dict:
         raise HTTPException(404, f"No such bloc: {bloc_a!r}")
     if b is None:
         raise HTTPException(404, f"No such bloc: {bloc_b!r}")
+    lng = _lang(lang)
+
+    def _view(bloc) -> dict:
+        return {**asdict(bloc),
+                "name": i18n.pick(i18n.BLOC_NAME.get(bloc.bloc_id, {}), lng, bloc.name),
+                "description": i18n.pick(i18n.BLOC_DESCRIPTION.get(bloc.bloc_id, {}), lng, bloc.description),
+                "members": sorted(db.get_current_members(bloc.bloc_id)),
+                "aggregates": _bloc_aggregates_payload(bloc.bloc_id)}
+
     return {
-        "a": {**asdict(a), "members": sorted(db.get_current_members(bloc_a)),
-              "aggregates": _bloc_aggregates_payload(bloc_a)},
-        "b": {**asdict(b), "members": sorted(db.get_current_members(bloc_b)),
-              "aggregates": _bloc_aggregates_payload(bloc_b)},
-        "synthesis": _synthesis_payload(f"compare:{bloc_a}-vs-{bloc_b}"),
+        "a": _view(a),
+        "b": _view(b),
+        "synthesis": _synthesis_payload(f"compare:{bloc_a}-vs-{bloc_b}", lng),
         "synthesis_by_dimension": {
-            dimension: _synthesis_payload(f"compare:{bloc_a}-vs-{bloc_b}:{dimension}")
+            dimension: _synthesis_payload(f"compare:{bloc_a}-vs-{bloc_b}:{dimension}", lng)
             for dimension in ("economic", "trade", "social", "military")
         },
     }
 
 
 @app.get("/api/countries")
-def list_countries() -> list[dict]:
+def list_countries(lang: str | None = Query(default=None)) -> list[dict]:
     """The 'major economies' country-comparison module (see
     major_economies.py) - a SEPARATE concept from bloc comparison. Each
     country's OWN latest observations, not a bloc aggregate."""
-    return [_country_payload(iso3) for iso3 in major_economies.all_iso3()]
+    lng = _lang(lang)
+    return [_country_payload(iso3, lng) for iso3 in major_economies.all_iso3()]
 
 
 @app.get("/api/countries/{iso3}")
-def get_country(iso3: str) -> dict:
+def get_country(iso3: str, lang: str | None = Query(default=None)) -> dict:
     iso3 = iso3.upper()
     if iso3 not in major_economies.all_iso3():
         raise HTTPException(404, f"No such tracked major economy: {iso3!r}")
-    return _country_payload(iso3)
+    return _country_payload(iso3, _lang(lang))
 
 
-def _country_payload(iso3: str) -> dict:
+def _country_payload(iso3: str, lang: str = i18n.DEFAULT_LANG) -> dict:
     metrics_values: dict[str, dict] = {}
     for metric in db.get_metrics():
         obs = db.latest_observation(iso3, metric.metric_id)
         if obs is not None and obs.value is not None:
             metrics_values[metric.metric_id] = {"value": obs.value, "period": obs.period}
-    return {"iso3": iso3, "name": major_economies.country_name(iso3), "metrics": metrics_values}
+    english = major_economies.country_name(iso3)
+    return {"iso3": iso3,
+            "name": i18n_countries.country_name(iso3, lang, english),
+            "name_en": english,
+            "metrics": metrics_values}
 
 
 @app.get("/api/risk/scenarios")
-def list_risk_scenarios() -> list[dict]:
+def list_risk_scenarios(lang: str | None = Query(default=None)) -> list[dict]:
     """Scenario catalogue. The weights and epicentre labels are included so the
     UI can show what a scenario actually measures before rendering a ranking."""
+    lng = _lang(lang)
     return [
-        {"slug": s.slug, "name": s.name, "explanation": s.explanation,
-         "not_measured": s.not_measured, "weights": s.weights,
-         "epicentres": [{"lat": a, "lon": b, "label": c} for a, b, c in s.epicentres],
-         # Was missing here while /api/risk/{slug} included it, so the index
-         # page could not say which countries a scenario is about without
-         # fetching all six detail payloads at build time. Kept in step with
-         # the detail endpoint on purpose: same field, same meaning.
-         "belligerents": list(s.belligerents)}
+        i18n.localize_scenario_dict(
+            {"slug": s.slug, "name": s.name, "explanation": s.explanation,
+             "not_measured": s.not_measured, "weights": s.weights,
+             "epicentres": [{"lat": a, "lon": b, "label": c} for a, b, c in s.epicentres],
+             # Was missing here while /api/risk/{slug} included it, so the index
+             # page could not say which countries a scenario is about without
+             # fetching all six detail payloads at build time. Kept in step with
+             # the detail endpoint on purpose: same field, same meaning.
+             "belligerents": list(s.belligerents)},
+            lng)
         for s in risk.SCENARIOS
     ]
 
 
 @app.get("/api/risk/{slug}")
-def get_risk(slug: str) -> dict:
+def get_risk(slug: str, lang: str | None = Query(default=None)) -> dict:
     """Computed per request, not stored - the percentile ranks depend on the
     whole country universe, so a cached copy would go stale the moment any
     indicator refreshes. See risk.score() for the no-imputation rule."""
@@ -144,7 +183,7 @@ def get_risk(slug: str) -> dict:
     if scenario is None:
         raise HTTPException(404, f"No such risk scenario: {slug!r}")
     try:
-        return risk.score(scenario)
+        return i18n.localize_risk_payload(risk.score(scenario), _lang(lang))
     except RuntimeError as exc:
         # Almost always "the worldbank_risk ingest has not run yet" - a 503
         # says "temporarily unavailable", where a 500 would read as a bug.
@@ -159,7 +198,7 @@ def last_updated() -> dict:
     return {"last_updated": db.latest_data_update()}
 
 
-def _tension_payload(score) -> dict:
+def _tension_payload(score, lang: str = i18n.DEFAULT_LANG) -> dict:
     return {
         "scope": score.scope, "window_hours": score.window_hours, "n_events": score.n_events,
         "mean_goldstein": score.mean_goldstein, "mean_tone": score.mean_tone,
@@ -167,49 +206,52 @@ def _tension_payload(score) -> dict:
         "verbal_conflict": score.verbal_conflict, "material_conflict": score.material_conflict,
         "conflict_share": score.conflict_share, "goldstein_delta": score.goldstein_delta,
         "examples": score.examples, "computed_at": score.computed_at,
-        "synthesis": _synthesis_payload(f"tension:{score.scope}"),
+        "synthesis": _synthesis_payload(f"tension:{score.scope}", lang),
     }
 
 
 @app.get("/api/tension")
-def list_tension() -> list[dict]:
+def list_tension(lang: str | None = Query(default=None)) -> list[dict]:
     """Real-time (GDELT-derived) conflict/cooperation scores, one row per
     bloc plus one per bloc-pair - see tension.py's own docstring for where
     this comes from. Consumed at Astro build time the same way every other
     endpoint here is; the frontend rebuilds every ~2h to pick up fresh
     values (scheduler.py's tension-refresh job), not just daily."""
-    return [_tension_payload(s) for s in db.get_all_tension_scores()]
+    lng = _lang(lang)
+    return [_tension_payload(s, lng) for s in db.get_all_tension_scores()]
 
 
 @app.get("/api/tension/bloc/{bloc_id}")
-def get_tension_bloc(bloc_id: str) -> dict:
+def get_tension_bloc(bloc_id: str, lang: str | None = Query(default=None)) -> dict:
     score = db.get_tension_score(f"bloc:{bloc_id}")
     if score is None:
         raise HTTPException(404, f"No tension data yet for bloc {bloc_id!r}")
-    return _tension_payload(score)
+    return _tension_payload(score, _lang(lang))
 
 
 @app.get("/api/tension/pair/{bloc_a}/{bloc_b}")
-def get_tension_pair(bloc_a: str, bloc_b: str) -> dict:
+def get_tension_pair(bloc_a: str, bloc_b: str, lang: str | None = Query(default=None)) -> dict:
     score = db.get_tension_score(f"pair:{bloc_a}-{bloc_b}")
     if score is None:
         raise HTTPException(404, f"No tension data yet for pair {bloc_a!r}-{bloc_b!r}")
-    return _tension_payload(score)
+    return _tension_payload(score, _lang(lang))
 
 
 @app.get("/api/tension/countries")
-def list_tension_countries() -> list[dict]:
+def list_tension_countries(lang: str | None = Query(default=None)) -> list[dict]:
     """Every tracked country (name + ISO3) - the reference list for the
     ad-hoc two-country query picker below, and for the 'which codes can I
     use' side panel on that page (user feedback 2026-09-27: GFCA's own
     country-code-based queries were missing from the bloc-only port, and
     the codes themselves should be shown, not just hidden behind a
     picker)."""
-    return [{"iso3": c.iso3, "name": c.name} for c in db.get_all_countries()]
+    lng = _lang(lang)
+    return [{"iso3": c.iso3, "name": i18n_countries.country_name(c.iso3, lng, c.name), "name_en": c.name}
+            for c in db.get_all_countries()]
 
 
 @app.get("/api/tension/query/{iso3_a}/{iso3_b}")
-def query_tension_countries(iso3_a: str, iso3_b: str) -> dict:
+def query_tension_countries(iso3_a: str, iso3_b: str, lang: str | None = Query(default=None)) -> dict:
     """Ad-hoc, on-demand analysis between any two specific countries - the
     counterpart to GFCA's own CLI (`analyze IR US`). Called directly from
     the BROWSER at runtime (see frontend/src/components/CountryTensionQuery.tsx),
@@ -223,14 +265,21 @@ def query_tension_countries(iso3_a: str, iso3_b: str) -> dict:
     score = tension.query_pair(iso3_a, iso3_b)
     if score is None:
         raise HTTPException(503, "No GDELT data cached yet - try again in a few minutes")
-    return _tension_payload(score)
+    return _tension_payload(score, _lang(lang))
 
 
-def _synthesis_payload(page_key: str) -> dict | None:
-    s = db.get_synthesis(page_key)
+def _synthesis_payload(page_key: str, lang: str = i18n.DEFAULT_LANG) -> dict | None:
+    """A page's synthesis text in the requested language, falling back to the
+    English original. Synthesis rows are stored per (page_key, lang) - see
+    synthesis.py's TRANSLATE_LANGS."""
+    s = db.get_synthesis(i18n.synthesis_key(page_key, lang))
+    if s is None and lang != i18n.DEFAULT_LANG:
+        s = db.get_synthesis(page_key)
     if s is None:
         return None
-    return {"text": s.text, "provider": s.provider, "generated_at": s.generated_at}
+    return {"text": s.text, "provider": s.provider, "generated_at": s.generated_at,
+            "lang": i18n.DEFAULT_LANG if s.page_key == page_key else lang}
+
 
 
 def _bloc_aggregates_payload(bloc_id: str) -> dict[str, dict]:

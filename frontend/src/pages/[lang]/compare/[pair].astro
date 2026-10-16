@@ -1,0 +1,18 @@
+---
+// Localized compare overviews under /{lang}/compare/{slug}/. English lives
+// at the URL root.
+import Compare from "../../../views/Compare.astro";
+import { NON_DEFAULT_LANGS, type Lang } from "../../../i18n";
+import { PAIRS } from "../../../lib/pairs";
+
+export function getStaticPaths() {
+  return NON_DEFAULT_LANGS.flatMap((lang) =>
+    PAIRS.map((pair) => ({ params: { lang, pair: pair.slug }, props: { pair } }))
+  );
+}
+
+const lang = Astro.params.lang as Lang;
+const { pair } = Astro.props as { pair: (typeof PAIRS)[number] };
+---
+
+<Compare lang={lang} pair={pair} />

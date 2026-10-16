@@ -1,0 +1,227 @@
+---
+// One risk scenario page, parameterized by language. English is rendered by
+// src/pages/risk/[scenario].astro; the other seven languages by
+// src/pages/[lang]/risk/[scenario].astro.
+import BaseLayout from "../layouts/BaseLayout.astro";
+import RiskMap from "../components/RiskMap";
+import RiskCountryTable from "../components/RiskCountryTable.astro";
+import { getRiskScenario, getRiskScenarios } from "../lib/data";
+import { getLastUpdated } from "../lib/sitemap";
+import { undrawnCountries } from "../lib/atlas";
+import { fmtPct, quintileBreaks } from "../lib/risk";
+import { datasetSchema } from "../lib/schema";
+import { createI18n, localizePath, DATE_LOCALE, type Lang } from "../i18n";
+
+interface Props {
+  lang: Lang;
+  slug: string;
+}
+const { lang, slug } = Astro.props;
+const { t } = createI18n(lang);
+const L = (p: string) => localizePath(p, lang);
+
+const [data, all, lastUpdated] = await Promise.all([
+  getRiskScenario(slug, lang),
+  getRiskScenarios(lang),
+  getLastUpdated(),
+]);
+
+const lastUpdatedLabel = new Date(lastUpdated).toLocaleDateString(DATE_LOCALE[lang], {
+  year: "numeric", month: "short", day: "numeric",
+});
+
+// One fetch for both maps, and for the table's unranked rows: the API splits
+// `ranked` and `unranked` because only ranked countries have a percentile,
+// but the map's exposure view is meaningful for unranked countries too (they
+// have a real distance in km), so both views get the union.
+const allCountries = [...data.ranked, ...data.unranked];
+const sc = data.scenario;
+const undrawn = undrawnCountries(allCountries);
+
+// One cut-point set per axis, computed once here and handed to BOTH the maps
+// and the table, so a bar in the table and a country on the map are coloured
+// from the same threshold.
+const structBreaks = quintileBreaks(data.ranked.map((c) => c.structural_score ?? 0));
+const expoBreaks = quintileBreaks(allCountries.map((c) => c.exposure_km));
+
+const description = `${sc.name} — ${t("risk.h1")}. ${t("risk.scenarioEyebrow", { n: data.universe, date: lastUpdatedLabel })}`;
+const schema = datasetSchema({
+  name: `${t("risk.h1")} — ${sc.name}`,
+  description,
+  url: new URL(localizePath(`/risk/${sc.slug}/`, lang), Astro.site).toString(),
+  apiPath: `/risk/${sc.slug}.json`,
+});
+
+const thinCriteria = Object.entries(data.criteria)
+  .map(([id, label]) => ({
+    id,
+    label,
+    n: allCountries.filter((c) => c.missing?.includes(id)).length,
+  }))
+  .filter((c) => c.n > 0)
+  .sort((a, b) => b.n - a.n);
+const partial = allCountries.filter((c) => (c.completeness ?? 1) < 1);
+
+const nuclearCount = allCountries.filter((c) => c.nuclear_armed).length;
+const idaCount = allCountries.filter((c) => c.ida_credit).length;
+const partiesPhrase =
+  sc.belligerents.length > 0 ? `${t("risk.partiesFilter", { n: sc.belligerents.length })} ` : "";
+---
+<BaseLayout title={`${sc.name} — ${t("risk.h1")}`} description={description} structuredData={schema} lang={lang}>
+  <a href={L("/risk/")} class="gm-back-link">{t("back.riskSimulator")}</a>
+  <p class="gm-hero-eyebrow">{t("risk.scenarioEyebrow", { n: all.length, date: lastUpdatedLabel })}</p>
+  <h1>{sc.name}</h1>
+  <p class="gm-lede">{sc.explanation}</p>
+
+  <p class="gm-note" style="max-width: none;">
+    <strong>{t("risk.notMeasured")}</strong> {sc.not_measured}
+  </p>
+
+  <ul class="gm-link-list">
+    {all.filter((s) => s.slug !== sc.slug).map((s) => (
+      <li><a href={L(`/risk/${s.slug}/`)}>{s.name}</a></li>
+    ))}
+  </ul>
+
+  <h2>{t("risk.twoAxes")}</h2>
+  <p>{t("risk.twoAxesBody", { ranked: data.ranked.length, universe: data.universe, unranked: data.unranked.length })}</p>
+
+  <div class="gm-risk-maps">
+    <div class="gm-viz-block">
+      <RiskMap
+        client:visible
+        idPrefix="risk-structural"
+        axis="structural"
+        countries={allCountries}
+        undrawn={undrawn}
+        breaks={structBreaks}
+        unit="score"
+        lang={lang}
+      />
+    </div>
+    <div class="gm-viz-block">
+      <RiskMap
+        client:visible
+        idPrefix="risk-exposure"
+        axis="exposure"
+        countries={allCountries}
+        undrawn={undrawn}
+        breaks={expoBreaks}
+        unit="km"
+        epicentres={sc.epicentres}
+        lang={lang}
+      />
+    </div>
+  </div>
+
+  <h2>{t("risk.everyCountry")}</h2>
+  <p>
+    {t("risk.everyCountryBody", {
+      nuclear: nuclearCount,
+      parties: partiesPhrase,
+      ida: idaCount,
+    })}
+  </p>
+  <div class="gm-viz-block">
+    <RiskCountryTable
+      ranked={data.ranked}
+      unranked={data.unranked}
+      flags={data.flags}
+      undrawn={undrawn}
+      structBreaks={structBreaks}
+      expoBreaks={expoBreaks}
+      indicatorTotal={data.indicator_total}
+      lang={lang}
+    />
+  </div>
+
+  <h2>{t("risk.howBuilt")}</h2>
+  <p>{t("risk.howBuiltBody")}</p>
+  <div class="gm-risk__weights">
+    {Object.entries(data.criteria).map(([id, label]) => {
+      const w = data.weights[id] ?? 0;
+      return (
+        <div class="gm-risk__weight">
+          <span class="gm-risk__weightlabel">{label}</span>
+          <span class="gm-risk__weighttrack">
+            <span
+              class="gm-risk__weightfill"
+              style={{ width: `${(w / 0.3) * 100}%` }}
+            />
+          </span>
+          <span class="gm-risk__weightnum">{fmtPct(w)}</span>
+        </div>
+      );
+    })}
+  </div>
+
+  {
+    thinCriteria.length > 0 && (
+      <p class="gm-note">
+        {t("risk.partialNote", {
+          partial: partial.length,
+          total: allCountries.length,
+          gaps: thinCriteria.slice(0, 3).map((c) => `${c.label} (${t("risk.countriesCount", { n: c.n })})`).join(", "),
+        })}
+      </p>
+    )
+  }
+
+  <h2>{t("risk.reportedNotScored")}</h2>
+  <p>{t("risk.reportedNotScoredBody")}</p>
+  <ul>
+    {Object.entries(data.flags).map(([key, f]) => (
+      <li>
+        <strong>{f.label}</strong> — {f.basis}
+      </li>
+    ))}
+  </ul>
+</BaseLayout>
+
+<style>
+  .gm-risk-maps {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-5);
+  }
+  .gm-risk__weights {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    max-width: 34rem;
+  }
+  .gm-risk__weight {
+    display: grid;
+    grid-template-columns: minmax(9rem, 13rem) 1fr 3rem;
+    align-items: center;
+    gap: var(--space-3);
+    font-size: var(--fs-sm);
+  }
+  .gm-risk__weightlabel {
+    color: var(--text-secondary);
+  }
+  .gm-risk__weighttrack {
+    background: var(--wash-1);
+    border-radius: var(--radius-full);
+    height: 7px;
+    overflow: hidden;
+  }
+  .gm-risk__weightfill {
+    display: block;
+    height: 100%;
+    background: var(--risk-struct-4);
+    border-radius: var(--radius-full);
+  }
+  .gm-risk__weightnum {
+    font-family: var(--font-mono);
+    font-size: var(--fs-xs);
+    color: var(--text-dim);
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+  @media (max-width: 1000px) {
+    .gm-risk-maps {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

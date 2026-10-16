@@ -2,6 +2,7 @@ import { useState } from "react";
 import { TENSION_DIVERGING } from "../lib/colors";
 import type { CountryRef, TensionScore } from "../lib/tension";
 import WorldMap from "./WorldMap";
+import { t as tRaw, type Lang } from "../i18n/ui";
 
 // Country A/B identity colors for the map below - deliberately NOT blue/red
 // (TENSION_DIVERGING's own cooperation/conflict poles, used on the gauge
@@ -24,20 +25,33 @@ const ENTITY_B_COLOR = "var(--bloc-usmca)"; // magenta
 
 const DOMAIN = 10;
 
+// Client-side twin of createI18n - the island can't call Astro's server
+// helper, but ui.ts's raw t() is pure data lookup, safe in the browser.
+function makeT(lang: Lang) {
+  return (key: string, vars?: Record<string, string | number>) => tRaw(lang, key, vars);
+}
+
 // Renders the shared .gm-tension markup - the same class names
 // TensionGauge.astro emits - so both gauges are styled by the single
 // definition in global.css and cannot drift apart.
-function Gauge({ value }: { value: number | null }) {
+function Gauge({ value, lang }: { value: number | null; lang: Lang }) {
+  const t = makeT(lang);
   const clamped = value == null ? 0 : Math.max(-DOMAIN, Math.min(DOMAIN, value));
   const halfPct = (Math.abs(clamped) / DOMAIN) * 50;
   const isPositive = clamped >= 0;
   const color = isPositive ? TENSION_DIVERGING.cooperation.dark : TENSION_DIVERGING.conflict.dark;
   const magnitude = Math.abs(clamped);
-  const verdict = magnitude < 0.5 ? "broadly neutral" : magnitude < 3 ? "mildly" : magnitude < 6.5 ? "clearly" : "strongly";
+  const verdictKey =
+    magnitude < 0.5 ? "tension.verdict.neutral" : magnitude < 3 ? "tension.verdict.mildly" : magnitude < 6.5 ? "tension.verdict.clearly" : "tension.verdict.strongly";
+  const poleKey = isPositive ? "tension.pole.cooperative" : "tension.pole.conflictual";
   const ariaLabel =
     value == null
-      ? "No tension data"
-      : `Mean Goldstein score ${clamped.toFixed(2)} out of a possible minus 10 to plus 10, i.e. ${verdict} ${isPositive ? "cooperative" : "conflictual"}`;
+      ? t("tension.aria.noData")
+      : t("tension.aria.score", {
+          value: clamped.toFixed(2),
+          verdict: t(verdictKey),
+          pole: t(poleKey),
+        });
   return (
     <div
       className="gm-tension"
@@ -49,8 +63,8 @@ function Gauge({ value }: { value: number | null }) {
     >
       <div className="gm-tension__track">
         <span className="gm-tension__center" aria-hidden="true"></span>
-        {[-10, -5, 5, 10].map((t) => (
-          <span key={t} className="gm-tension__tick" style={{ left: `${((t + DOMAIN) / (2 * DOMAIN)) * 100}%` }} aria-hidden="true"></span>
+        {[-10, -5, 5, 10].map((tick) => (
+          <span key={tick} className="gm-tension__tick" style={{ left: `${((tick + DOMAIN) / (2 * DOMAIN)) * 100}%` }} aria-hidden="true"></span>
         ))}
         {value != null && (
           <div
@@ -68,14 +82,14 @@ function Gauge({ value }: { value: number | null }) {
       <div className="gm-tension__scale">
         <span>&minus;10</span>
         <span className="gm-tension__poles" aria-hidden="true">
-          <span>Conflict</span>
-          <span>Cooperation</span>
+          <span>{t("tension.pole.conflict")}</span>
+          <span>{t("tension.pole.cooperation")}</span>
         </span>
         <span>+10</span>
       </div>
       <div className="gm-tension__readout">
         <span className="gm-tension__value">
-          {value != null ? (clamped > 0 ? "+" : "") + clamped.toFixed(2) : "N/A"}
+          {value != null ? (clamped > 0 ? "+" : "") + clamped.toFixed(2) : t("table.na")}
         </span>
       </div>
     </div>
@@ -84,9 +98,11 @@ function Gauge({ value }: { value: number | null }) {
 
 interface Props {
   countries: CountryRef[];
+  lang?: Lang;
 }
 
-export default function CountryTensionQuery({ countries }: Props) {
+export default function CountryTensionQuery({ countries, lang = "en" }: Props) {
+  const t = makeT(lang);
   const [a, setA] = useState(countries[0]?.iso3 ?? "");
   const [b, setB] = useState(countries[1]?.iso3 ?? "");
   const [result, setResult] = useState<TensionScore | null>(null);
@@ -102,7 +118,7 @@ export default function CountryTensionQuery({ countries }: Props) {
   async function run() {
     if (!a || !b || a === b) {
       setStatus("error");
-      setErrorMessage("Pick two different countries.");
+      setErrorMessage(t("tension.query.sameCountries"));
       return;
     }
     setStatus("loading");
@@ -118,7 +134,7 @@ export default function CountryTensionQuery({ countries }: Props) {
       setStatus("idle");
     } catch (err) {
       setStatus("error");
-      setErrorMessage(err instanceof Error ? err.message : "Something went wrong.");
+      setErrorMessage(err instanceof Error ? err.message : t("tension.query.error"));
     }
   }
 
@@ -130,19 +146,19 @@ export default function CountryTensionQuery({ countries }: Props) {
     <div className="gm-country-query">
       <div className="gm-country-query-form">
         <label className="gm-country-query-field">
-          Country A
+          {t("tension.query.countryA")}
           <select value={a} onChange={(e) => setA(e.target.value)}>
             {countries.map((c) => <option key={c.iso3} value={c.iso3}>{c.name} ({c.iso3})</option>)}
           </select>
         </label>
         <label className="gm-country-query-field">
-          Country B
+          {t("tension.query.countryB")}
           <select value={b} onChange={(e) => setB(e.target.value)}>
             {countries.map((c) => <option key={c.iso3} value={c.iso3}>{c.name} ({c.iso3})</option>)}
           </select>
         </label>
         <button onClick={run} disabled={status === "loading"}>
-          {status === "loading" ? "Analyzing…" : "Analyze"}
+          {status === "loading" ? t("tension.query.analyzing") : t("tension.query.submit")}
         </button>
       </div>
       {status === "error" && <p className="gm-country-query-error">{errorMessage}</p>}
@@ -151,7 +167,7 @@ export default function CountryTensionQuery({ countries }: Props) {
         <div className="gm-country-query-result">
           <div className="gm-panel">
             <div className="gm-panel__head">
-              <h3 className="gm-panel__title">Geography</h3>
+              <h3 className="gm-panel__title">{t("tension.query.geography")}</h3>
             </div>
             <div className="gm-panel__body">
             <WorldMap
@@ -159,25 +175,26 @@ export default function CountryTensionQuery({ countries }: Props) {
                 { iso3: [queriedPair[0]], color: ENTITY_A_COLOR, label: nameFor(queriedPair[0]) },
                 { iso3: [queriedPair[1]], color: ENTITY_B_COLOR, label: nameFor(queriedPair[1]) },
               ]}
+              lang={lang}
             />
             </div>
           </div>
-          <Gauge value={result.mean_goldstein} />
+          <Gauge value={result.mean_goldstein} lang={lang} />
           <p className="gm-stat-label">
-            {result.n_events} bilateral events in the last {result.window_hours}h
-            {result.conflict_share != null && ` · conflict share: ${(result.conflict_share * 100).toFixed(0)}%`}
+            {t("tension.query.bilateralWindow", { n: result.n_events, h: result.window_hours })}
+            {result.conflict_share != null && ` · ${t("tension.query.conflictShare", { pct: `${(result.conflict_share * 100).toFixed(0)}%` })}`}
           </p>
 
           {conflictual.length > 0 && (
             <>
-              <h3>Most conflictual real events</h3>
+              <h3>{t("tension.mostConflictual")}</h3>
               <ul>
                 {conflictual.map((e, i) => (
                   <li key={i}>
                     [{e.date}] {e.actor1 ?? "?"} &rarr; {e.actor2 ?? "?"}
                     {e.location && ` at ${e.location}`}
                     {e.goldstein != null && ` (Goldstein ${e.goldstein.toFixed(1)})`}
-                    {e.source_url && <> — <a href={e.source_url} target="_blank" rel="noopener noreferrer">source</a></>}
+                    {e.source_url && <> — <a href={e.source_url} target="_blank" rel="noopener noreferrer">{t("tension.source")}</a></>}
                   </li>
                 ))}
               </ul>
@@ -185,24 +202,23 @@ export default function CountryTensionQuery({ countries }: Props) {
           )}
           {cooperative.length > 0 && (
             <>
-              <h3>Most cooperative real events</h3>
+              <h3>{t("tension.mostCooperative")}</h3>
               <ul>
                 {cooperative.map((e, i) => (
                   <li key={i}>
                     [{e.date}] {e.actor1 ?? "?"} &rarr; {e.actor2 ?? "?"}
                     {e.location && ` at ${e.location}`}
                     {e.goldstein != null && ` (Goldstein ${e.goldstein.toFixed(1)})`}
-                    {e.source_url && <> — <a href={e.source_url} target="_blank" rel="noopener noreferrer">source</a></>}
+                    {e.source_url && <> — <a href={e.source_url} target="_blank" rel="noopener noreferrer">{t("tension.source")}</a></>}
                   </li>
                 ))}
               </ul>
             </>
           )}
-          {result.n_events === 0 && <p>No bilateral events found between these two countries in the last {result.window_hours}h.</p>}
-          <p className="gm-note">
-            Computed on demand from real GDELT events - not a prediction or forecast, and not the
-            sole basis for any decision.
-          </p>
+          {result.n_events === 0 && (
+            <p>{t("tension.query.noEvents", { h: result.window_hours })}</p>
+          )}
+          <p className="gm-note">{t("tension.query.note")}</p>
         </div>
       )}
     </div>

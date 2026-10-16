@@ -1,0 +1,18 @@
+---
+// Localized cross-bloc dimension pages under /{lang}/dimension/{dim}/.
+// English lives at the URL root.
+import Dimension from "../../../views/Dimension.astro";
+import { NON_DEFAULT_LANGS, type Lang } from "../../../i18n";
+import { DIMENSIONS, type Dimension as Dim } from "../../../lib/metrics";
+
+export function getStaticPaths() {
+  return NON_DEFAULT_LANGS.flatMap((lang) =>
+    DIMENSIONS.map((dimension) => ({ params: { lang, dimension } }))
+  );
+}
+
+const lang = Astro.params.lang as Lang;
+const { dimension } = Astro.params as { dimension: Dim };
+---
+
+<Dimension lang={lang} dimension={dimension} />

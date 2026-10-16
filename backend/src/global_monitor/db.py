@@ -381,6 +381,16 @@ def get_synthesis(page_key: str) -> SynthesisText | None:
         return SynthesisText(**dict(row)) if row else None
 
 
+def list_synthesis() -> list[SynthesisText]:
+    """Every stored synthesis row - used only by synthesis.generate_translations's
+    backfill pass, never by a request path."""
+    with _conn() as conn:
+        rows = conn.execute(
+            "SELECT page_key, text, data_hash, generated_at, provider, model FROM synthesis_text"
+        ).fetchall()
+        return [SynthesisText(**dict(r)) for r in rows]
+
+
 def upsert_synthesis(s: SynthesisText) -> None:
     with _conn() as conn:
         conn.execute(

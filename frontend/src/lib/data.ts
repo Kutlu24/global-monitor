@@ -1,4 +1,5 @@
 import type { RiskScenario, RiskScenarioMeta } from "./risk";
+import { DEFAULT_LANG, type Lang } from "../i18n/config";
 
 // Build-time data access - Astro calls these from page frontmatter, which
 // runs in Node during `astro build`, not in the browser. This talks to the
@@ -36,6 +37,14 @@ export interface ComparePair {
   synthesis_by_dimension?: Record<string, Synthesis | null>;
 }
 
+// Every endpoint takes an optional `lang` query parameter (backend
+// i18n.py's localisation of bloc/metric/scenario/country names). Paths are
+// cache keys, so including `?lang=` in the path gives each language its
+// own inflight entry - correct, because the resolved payloads differ.
+function withLang(path: string, lang: Lang = DEFAULT_LANG): string {
+  return lang === DEFAULT_LANG ? path : `${path}${path.includes("?") ? "&" : "?"}lang=${lang}`;
+}
+
 async function fetchJSON<T>(path: string): Promise<T> {
   const res = await fetch(`${API_URL}${path}`);
   if (!res.ok) {
@@ -71,16 +80,16 @@ function getJSON<T>(path: string): Promise<T> {
   return p;
 }
 
-export function getBlocs(): Promise<Bloc[]> {
-  return getJSON<Bloc[]>("/api/blocs");
+export function getBlocs(lang: Lang = DEFAULT_LANG): Promise<Bloc[]> {
+  return getJSON<Bloc[]>(withLang("/api/blocs", lang));
 }
 
-export function getBloc(blocId: string): Promise<Bloc> {
-  return getJSON<Bloc>(`/api/blocs/${blocId}`);
+export function getBloc(blocId: string, lang: Lang = DEFAULT_LANG): Promise<Bloc> {
+  return getJSON<Bloc>(withLang(`/api/blocs/${blocId}`, lang));
 }
 
-export function getComparePair(blocA: string, blocB: string): Promise<ComparePair> {
-  return getJSON<ComparePair>(`/api/compare/${blocA}/${blocB}`);
+export function getComparePair(blocA: string, blocB: string, lang: Lang = DEFAULT_LANG): Promise<ComparePair> {
+  return getJSON<ComparePair>(withLang(`/api/compare/${blocA}/${blocB}`, lang));
 }
 
 export interface CountryMetricValue {
@@ -96,12 +105,12 @@ export interface Country {
 
 // The "major economies" country-comparison module - a SEPARATE concept
 // from bloc comparison (see backend/src/global_monitor/major_economies.py).
-export function getCountries(): Promise<Country[]> {
-  return getJSON<Country[]>("/api/countries");
+export function getCountries(lang: Lang = DEFAULT_LANG): Promise<Country[]> {
+  return getJSON<Country[]>(withLang("/api/countries", lang));
 }
 
-export function getCountry(iso3: string): Promise<Country> {
-  return getJSON<Country>(`/api/countries/${iso3}`);
+export function getCountry(iso3: string, lang: Lang = DEFAULT_LANG): Promise<Country> {
+  return getJSON<Country>(withLang(`/api/countries/${iso3}`, lang));
 }
 
 // -- Risk simulator --------------------------------------------------------
@@ -109,10 +118,10 @@ export function getCountry(iso3: string): Promise<Country> {
 // (see lib/risk.ts's replacement of the hardcoded 19-country model). These
 // two calls are its entire data dependency.
 
-export function getRiskScenarios(): Promise<RiskScenarioMeta[]> {
-  return getJSON<RiskScenarioMeta[]>("/api/risk/scenarios");
+export function getRiskScenarios(lang: Lang = DEFAULT_LANG): Promise<RiskScenarioMeta[]> {
+  return getJSON<RiskScenarioMeta[]>(withLang("/api/risk/scenarios", lang));
 }
 
-export function getRiskScenario(slug: string): Promise<RiskScenario> {
-  return getJSON<RiskScenario>(`/api/risk/${slug}`);
+export function getRiskScenario(slug: string, lang: Lang = DEFAULT_LANG): Promise<RiskScenario> {
+  return getJSON<RiskScenario>(withLang(`/api/risk/${slug}`, lang));
 }

@@ -1,5 +1,5 @@
 import type { APIRoute } from "astro";
-import { urlEntry, urlset, getLastUpdated } from "../lib/sitemap";
+import { urlEntry, urlset, getLastUpdated, localizedLocs } from "../lib/sitemap";
 import { getRiskScenarios } from "../lib/data";
 
 // Risk pages use the ETL's real `getLastUpdated()` now, not a hand-set
@@ -12,8 +12,10 @@ export const GET: APIRoute = async ({ site }) => {
   const base = site?.toString().replace(/\/$/, "") ?? "";
   const [scenarios, lastmod] = await Promise.all([getRiskScenarios(), getLastUpdated()]);
   const entries = [
-    urlEntry(`${base}/risk/`, lastmod),
-    ...scenarios.map((s) => urlEntry(`${base}/risk/${s.slug}/`, lastmod)),
+    ...localizedLocs(base, "/risk/").map((loc) => urlEntry(loc, lastmod)),
+    ...scenarios.flatMap((s) =>
+      localizedLocs(base, `/risk/${s.slug}/`).map((loc) => urlEntry(loc, lastmod)),
+    ),
   ];
   return new Response(urlset(entries), { headers: { "Content-Type": "application/xml" } });
 };

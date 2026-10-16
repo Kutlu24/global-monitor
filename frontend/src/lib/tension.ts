@@ -4,6 +4,15 @@
 // FastAPI backend in the same container/process group.
 const API_URL = process.env.API_URL || "http://127.0.0.1:7860";
 
+import { DEFAULT_LANG, type Lang } from "../i18n/config";
+
+// Same `?lang=` convention as data.ts: score payloads carry localized
+// synthesis text and country names, so the language belongs in the cache
+// key (the path).
+function withLang(path: string, lang: Lang = DEFAULT_LANG): string {
+  return lang === DEFAULT_LANG ? path : `${path}${path.includes("?") ? "&" : "?"}lang=${lang}`;
+}
+
 export interface TensionExample {
   kind: "conflictual" | "cooperative";
   date: string;
@@ -44,16 +53,16 @@ async function getJSON<T>(path: string): Promise<T | null> {
   return res.json() as Promise<T>;
 }
 
-export function getAllTensionScores(): Promise<TensionScore[]> {
-  return getJSON<TensionScore[]>("/api/tension").then((r) => r ?? []);
+export function getAllTensionScores(lang: Lang = DEFAULT_LANG): Promise<TensionScore[]> {
+  return getJSON<TensionScore[]>(withLang("/api/tension", lang)).then((r) => r ?? []);
 }
 
-export function getTensionBloc(blocId: string): Promise<TensionScore | null> {
-  return getJSON<TensionScore>(`/api/tension/bloc/${blocId}`);
+export function getTensionBloc(blocId: string, lang: Lang = DEFAULT_LANG): Promise<TensionScore | null> {
+  return getJSON<TensionScore>(withLang(`/api/tension/bloc/${blocId}`, lang));
 }
 
-export function getTensionPair(blocA: string, blocB: string): Promise<TensionScore | null> {
-  return getJSON<TensionScore>(`/api/tension/pair/${blocA}/${blocB}`);
+export function getTensionPair(blocA: string, blocB: string, lang: Lang = DEFAULT_LANG): Promise<TensionScore | null> {
+  return getJSON<TensionScore>(withLang(`/api/tension/pair/${blocA}/${blocB}`, lang));
 }
 
 export interface CountryRef {
@@ -61,6 +70,6 @@ export interface CountryRef {
   name: string;
 }
 
-export function getTensionCountries(): Promise<CountryRef[]> {
-  return getJSON<CountryRef[]>("/api/tension/countries").then((r) => r ?? []);
+export function getTensionCountries(lang: Lang = DEFAULT_LANG): Promise<CountryRef[]> {
+  return getJSON<CountryRef[]>(withLang("/api/tension/countries", lang)).then((r) => r ?? []);
 }

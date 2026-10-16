@@ -19,6 +19,8 @@ import {
   type RiskCountry,
   type RiskEpicentre,
 } from "../lib/risk";
+import { t as tRaw, type Lang } from "../i18n/ui";
+import { pluralCategory } from "../i18n/plural";
 
 // Self-hosted, and at 50m rather than the 110m both this file and
 // WorldMap.tsx used to pull from a jsDelivr URL. Two reasons, both measured
@@ -64,6 +66,7 @@ interface Props {
   /** The unit the breaks are in, for the legend labels. */
   unit: string;
   idPrefix: string;
+  lang?: Lang;
 }
 
 const MAP_W = 1000;
@@ -108,8 +111,25 @@ export default function RiskMap({
   breaks,
   unit,
   idPrefix,
+  lang = "en",
 }: Props) {
+  const t = (key: string, vars?: Record<string, string | number>) => tRaw(lang, key, vars);
+  const tn = (base: string, n: number, vars?: Record<string, string | number>) => {
+    const all = { n, ...vars };
+    const category = pluralCategory(lang, n);
+    const exact = tRaw(lang, `${base}.${category}`, all);
+    if (exact !== `${base}.${category}`) return exact;
+    const other = tRaw(lang, `${base}.other`, all);
+    if (other !== `${base}.other`) return other;
+    return tRaw(lang, base, all);
+  };
   const meta = RISK_AXES[axis];
+  // Axis titles/captions/direction come from the UI dictionary, not
+  // RISK_AXES' English-only fields - RISK_AXES keeps the numeric ramp and
+  // boolean higherIsStronger.
+  const axisTitle = t(`risk.axis.${axis}.title`);
+  const axisCaption = t(`risk.axis.${axis}.caption`);
+  const axisDirection = t(`risk.axis.${axis}.direction`);
   const byIso3 = useMemo(() => new Map(countries.map((c) => [c.iso3, c])), [countries]);
   const labels = breakLabels(breaks);
 
@@ -118,11 +138,11 @@ export default function RiskMap({
   return (
     <figure className="gm-map">
       <figcaption className="gm-map__caption">
-        <h3 className="gm-map__title">{meta.title}</h3>
-        <p className="gm-map__sub">{meta.caption}</p>
+        <h3 className="gm-map__title">{axisTitle}</h3>
+        <p className="gm-map__sub">{axisCaption}</p>
       </figcaption>
 
-      <div className="gm-map__legend" id={legendId} role="list" aria-label={`${meta.title} legend`}>
+      <div className="gm-map__legend" id={legendId} role="list" aria-label={t("risk.legendLabel", { title: axisTitle })}>
         {labels.map((label, i) => (
           <span className="gm-map__legend-item" role="listitem" key={label}>
             <span
@@ -135,10 +155,10 @@ export default function RiskMap({
         ))}
         <span className="gm-map__legend-item gm-map__legend-item--muted" role="listitem">
           <span className="gm-map__legend-swatch" style={{ background: "var(--map-country)" }} aria-hidden="true" />
-          No score
+          {t("risk.map.noScore")}
         </span>
         <span className="gm-map__legend-direction">
-          {meta.direction} &middot; bands in {unit}
+          {axisDirection} &middot; {t("risk.map.bandsIn", { unit })}
         </span>
       </div>
 
@@ -172,15 +192,15 @@ export default function RiskMap({
                   : [
                       geo.properties.name,
                       c.structural_score !== undefined
-                        ? `structural ${c.structural_score.toFixed(1)}`
-                        : "structural not scored",
-                      `exposure ${fmtKm(c.exposure_km)}`,
+                        ? `${t("risk.axis.structural.title")} ${c.structural_score.toFixed(1)}`
+                        : `${t("risk.axis.structural.title")} ${t("risk.notScored")}`,
+                      `${t("risk.axis.exposure.title")} ${fmtKm(c.exposure_km)}`,
                       c.exposure_percentile !== undefined
                         ? `(${c.exposure_percentile.toFixed(0)}th pct)`
-                        : "(unranked)",
-                      ...(c.nuclear_armed ? ["nuclear-armed"] : []),
-                      ...(c.belligerent ? ["party to this scenario"] : []),
-                      ...(c.ida_credit ? ["IDA credit"] : []),
+                        : `(${t("risk.unranked")})`,
+                      ...(c.nuclear_armed ? [t("risk.flag.nuclear")] : []),
+                      ...(c.belligerent ? [t("risk.flag.party")] : []),
+                      ...(c.ida_credit ? [t("risk.flag.ida")] : []),
                     ].join(" — ");
 
                 return (
@@ -209,7 +229,7 @@ export default function RiskMap({
                   diamond reads as an annotation about the map rather than a
                   country. Filled so it survives over any ramp step. */}
               <path d="M0,-5L5,0L0,5L-5,0Z" fill="var(--text)" stroke="var(--map-bg)" strokeWidth={1.5}>
-                <title>{`${label} — exposure is measured from here`}</title>
+                <title>{t("risk.map.epicentreFrom", { label })}</title>
               </path>
             </Marker>
           ))}
@@ -218,15 +238,15 @@ export default function RiskMap({
 
       {epicentres && (
         <p className="gm-map__footnote">
-          <strong>&#9670; {epicentres.length} epicentre{epicentres.length === 1 ? "" : "s"}</strong>{" "}
+          <strong>&#9670; {tn("risk.map.epicentres", epicentres.length)}</strong>{" "}
           &mdash; {epicentres.map((e) => e.label).join(", ")}
         </p>
       )}
       {undrawn.length > 0 && (
         <p className="gm-map__footnote">
-          {undrawn.length === 1 ? "1 country is" : `${undrawn.length} countries are`} too small
-          for this map resolution to draw ({undrawn.join(", ")}).{" "}
-          {undrawn.length === 1 ? "It is" : "They are"} still scored in full in the table below.
+          {undrawn.length === 1
+            ? t("risk.map.tooSmall.one", { list: undrawn.join(", ") })
+            : t("risk.map.tooSmall.other", { n: undrawn.length, list: undrawn.join(", ") })}
         </p>
       )}
     </figure>

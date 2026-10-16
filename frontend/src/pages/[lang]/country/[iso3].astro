@@ -1,0 +1,22 @@
+---
+// Localized country pages under /{lang}/country/{iso3}/. English lives at
+// the URL root.
+import Country from "../../../views/Country.astro";
+import { getCountries } from "../../../lib/data";
+import { NON_DEFAULT_LANGS, type Lang } from "../../../i18n";
+
+export async function getStaticPaths() {
+  const countries = await getCountries();
+  return NON_DEFAULT_LANGS.flatMap((lang) =>
+    countries.map((c) => ({
+      params: { lang, iso3: c.iso3.toLowerCase() },
+      props: { iso3: c.iso3 },
+    }))
+  );
+}
+
+const lang = Astro.params.lang as Lang;
+const { iso3 } = Astro.props as { iso3: string };
+---
+
+<Country lang={lang} iso3={iso3} />

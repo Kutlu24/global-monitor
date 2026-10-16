@@ -1,0 +1,93 @@
+---
+// One dimension of a bloc-vs-bloc comparison, parameterized by language.
+// English is rendered by src/pages/compare/[pair]/[dimension].astro; the
+// other seven languages by src/pages/[lang]/compare/[pair]/[dimension].astro.
+import BaseLayout from "../layouts/BaseLayout.astro";
+import MetricCompareBars from "../components/MetricCompareBars";
+import { getComparePair } from "../lib/data";
+import { DIMENSIONS, DIMENSION_METRICS, type Dimension } from "../lib/metrics";
+import { datasetSchema } from "../lib/schema";
+import { createI18n, localizePath, type Lang } from "../i18n";
+import type { Pair } from "../lib/pairs";
+
+interface Props {
+  lang: Lang;
+  pair: Pair;
+  dimension: Dimension;
+}
+const { lang, pair, dimension } = Astro.props;
+const { t, dimensionLabel, metricLabel } = createI18n(lang);
+const L = (p: string) => localizePath(p, lang);
+
+const data = await getComparePair(pair.a, pair.b, lang);
+const { a, b } = data;
+const dimLabel = dimensionLabel(dimension);
+// Metric labels localized for both the island and the table - the island
+// must receive plain strings (formatType only), never MetricSpec.format.
+const metrics = DIMENSION_METRICS[dimension].map((m) => ({
+  ...m,
+  label: metricLabel(lang, m.metric_id, m.label),
+}));
+
+function entityFor(bloc: typeof a) {
+  return {
+    id: bloc.bloc_id,
+    name: bloc.name,
+    values: Object.fromEntries(Object.entries(bloc.aggregates).map(([k, v]) => [k, v.value])),
+  };
+}
+const description = t("compare.dimensionDescription", { dim: dimLabel, a: a.name, b: b.name });
+const schema = datasetSchema({
+  name: `${a.name} vs ${b.name} — ${dimLabel}`,
+  description,
+  url: new URL(localizePath(`/compare/${pair.slug}/${dimension}/`, lang), Astro.site).toString(),
+  apiPath: `/api/compare/${pair.a}/${pair.b}`,
+});
+const dimensionSynthesis = data.synthesis_by_dimension?.[dimension];
+---
+<BaseLayout
+  title={`${a.name} vs ${b.name} — ${dimLabel}`}
+  description={description}
+  structuredData={schema}
+  lang={lang}
+>
+  <a href={L(`/compare/${pair.slug}/`)} class="gm-back-link">&larr; {a.name} vs {b.name}</a>
+  <p class="gm-hero-eyebrow">{dimLabel}</p>
+  <h1>{a.name} vs {b.name} — {dimLabel}</h1>
+
+  <div class="gm-viz-block">
+    <MetricCompareBars client:visible a={entityFor(a)} b={entityFor(b)} metrics={metrics} />
+  </div>
+
+  {dimensionSynthesis && (
+    <div class="gm-synthesis">
+      <p class="gm-synthesis-label">{t("synthesis.label")}</p>
+      <p>{dimensionSynthesis.text}</p>
+    </div>
+  )}
+
+  <div class="gm-table-wrap">
+    <table>
+      <thead>
+        <tr><th>{t("table.metric")}</th><th>{a.name}</th><th>{b.name}</th></tr>
+      </thead>
+      <tbody>
+        {metrics.map((m) => {
+          const va = a.aggregates[m.metric_id];
+          const vb = b.aggregates[m.metric_id];
+          return (
+            <tr>
+              <td>{m.label}</td>
+              <td>{va?.value != null ? `${m.format(va.value)} (${va.period})` : t("table.na")}</td>
+              <td>{vb?.value != null ? `${m.format(vb.value)} (${vb.period})` : t("table.na")}</td>
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
+  </div>
+
+  <p>
+    <a href={L(`/dimension/${dimension}/`)}>{t("compare.seeAllDimensions", { dim: dimLabel })}</a>
+  </p>
+</BaseLayout>

@@ -1,0 +1,70 @@
+---
+// Major-economies country index, parameterized by language. English is
+// rendered by src/pages/countries/index.astro; the other seven languages by
+// src/pages/[lang]/countries/index.astro.
+import BaseLayout from "../layouts/BaseLayout.astro";
+import { getCountries } from "../lib/data";
+import { createI18n, localizePath, type Lang } from "../i18n";
+
+interface Props {
+  lang: Lang;
+}
+const { lang } = Astro.props;
+const { t } = createI18n(lang);
+const L = (p: string) => localizePath(p, lang);
+
+const countries = await getCountries(lang);
+
+// The lede carries one inline link ({link} -> "bloc comparisons"). Split on
+// a marker so the translated sentence keeps its word order around the anchor.
+const LINK_MARK = "<<<link>>>";
+const ledeParts = t("countries.lede", { link: LINK_MARK }).split(LINK_MARK);
+
+function fmt(value: number | undefined, kind: "usd" | "people" | "pct" | "years" | "index"): string {
+  if (value === undefined) return "—";
+  switch (kind) {
+    case "usd": return `$${(value / 1e9).toFixed(1)}B`;
+    case "people": return `${(value / 1e6).toFixed(1)}M`;
+    case "pct": return `${value.toFixed(1)}%`;
+    case "years": return `${value.toFixed(1)}y`;
+    case "index": return value.toFixed(3);
+  }
+}
+---
+<BaseLayout title={t("countries.h1")} description={t("countries.description")} lang={lang}>
+  <a href={L("/")} class="gm-back-link">{t("back.globalMonitor")}</a>
+  <p class="gm-hero-eyebrow">{t("countries.eyebrow")}</p>
+  <h1>{t("countries.h1")}</h1>
+  <p class="gm-lede">
+    {ledeParts[0]}
+    <a href={L("/")}>{t("countries.ledeLink")}</a>
+    {ledeParts[1]}
+  </p>
+  <p class="gm-note" style="max-width: 68ch;">
+    {t("countries.note")}
+  </p>
+  <div class="gm-table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>{t("table.country")}</th>
+          <th>{t("table.gdp")}</th>
+          <th>{t("table.population")}</th>
+          <th>{t("table.militaryPct")}</th>
+          <th>{t("table.hdi")}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {countries.map((c) => (
+          <tr>
+            <td><a href={L(`/country/${c.iso3.toLowerCase()}/`)}>{c.name}</a></td>
+            <td>{fmt(c.metrics.gdp_current_usd?.value, "usd")}</td>
+            <td>{fmt(c.metrics.population_total?.value, "people")}</td>
+            <td>{fmt(c.metrics.military_exp_pct_gdp?.value, "pct")}</td>
+            <td>{fmt(c.metrics.hdi?.value, "index")}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+</BaseLayout>

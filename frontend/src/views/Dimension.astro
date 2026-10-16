@@ -1,0 +1,86 @@
+---
+// One dimension across all four compare blocs, parameterized by language.
+// English is rendered by src/pages/dimension/[dimension].astro; the other
+// seven languages by src/pages/[lang]/dimension/[dimension].astro.
+import BaseLayout from "../layouts/BaseLayout.astro";
+import WorldMap from "../components/WorldMap";
+import { getBlocs } from "../lib/data";
+import { DIMENSIONS, DIMENSION_METRICS, type Dimension } from "../lib/metrics";
+import { datasetSchema } from "../lib/schema";
+import { createI18n, localizePath, type Lang } from "../i18n";
+
+interface Props {
+  lang: Lang;
+  dimension: Dimension;
+}
+const { lang, dimension } = Astro.props;
+const { t, dimensionLabel, metricLabel } = createI18n(lang);
+const L = (p: string) => localizePath(p, lang);
+
+const compareBlocIds = ["brics", "eu", "us", "usmca"];
+const blocs = (await getBlocs(lang)).filter((b) => compareBlocIds.includes(b.bloc_id));
+const dimLabel = dimensionLabel(dimension);
+const metrics = DIMENSION_METRICS[dimension].map((m) => ({
+  ...m,
+  label: metricLabel(lang, m.metric_id, m.label),
+}));
+const pageTitle = t("dimension.allBlocs", { dim: dimLabel });
+const description = pageTitle;
+const schema = datasetSchema({
+  name: pageTitle,
+  description,
+  url: new URL(localizePath(`/dimension/${dimension}/`, lang), Astro.site).toString(),
+  apiPath: "/api/blocs",
+});
+---
+<BaseLayout title={pageTitle} description={description} structuredData={schema} lang={lang}>
+  <a href={L("/")} class="gm-back-link">{t("back.globalMonitor")}</a>
+  <p class="gm-hero-eyebrow">{t("dimension.crossBloc")}</p>
+  <h1>{t("dimension.allBlocs", { dim: dimLabel })}</h1>
+
+  <ul class="gm-link-list">
+    {DIMENSIONS.filter((d) => d !== dimension).map((d) => (
+      <li><a href={L(`/dimension/${d}/`)}>{dimensionLabel(d)}</a></li>
+    ))}
+  </ul>
+
+  <div class="gm-viz-block">
+    <WorldMap
+      client:visible
+      highlights={blocs.map((bloc) => ({
+        iso3: bloc.members ?? [],
+        color: `var(--bloc-${bloc.bloc_id})`,
+        label: bloc.name,
+      }))}
+      lang={lang}
+    />
+  </div>
+
+  <div class="gm-table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>{t("table.metric")}</th>
+          {blocs.map((bloc) => <th>{bloc.name}</th>)}
+        </tr>
+      </thead>
+      <tbody>
+        {metrics.map((m) => (
+          <tr>
+            <td>{m.label}</td>
+            {blocs.map((bloc) => {
+              const agg = bloc.aggregates[m.metric_id];
+              return <td>{agg?.value != null ? `${m.format(agg.value)} (${agg.period})` : t("table.na")}</td>;
+            })}
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+
+  {dimension === "social" && (
+    <p class="gm-note" style="max-width: 68ch;">
+      {t("note.grossEnrollment")}
+    </p>
+  )}
+</BaseLayout>

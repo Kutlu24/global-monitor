@@ -1,56 +1,15 @@
 ---
-import BaseLayout from "../../layouts/BaseLayout.astro";
+// English country page at /country/{iso3}/ - the other seven languages live
+// under /{lang}/country/{iso3}/.
+import Country from "../../views/Country.astro";
 import { getCountries } from "../../lib/data";
-import { datasetSchema } from "../../lib/schema";
 
 export async function getStaticPaths() {
   const countries = await getCountries();
-  return countries.map((c) => ({ params: { iso3: c.iso3.toLowerCase() }, props: { country: c } }));
+  return countries.map((c) => ({ params: { iso3: c.iso3.toLowerCase() }, props: { iso3: c.iso3 } }));
 }
 
-const { country } = Astro.props;
-
-const ROWS: [string, string, (v: number) => string][] = [
-  ["gdp_current_usd", "GDP (current US$)", (v) => `$${(v / 1e9).toFixed(1)}B`],
-  ["population_total", "Population", (v) => `${(v / 1e6).toFixed(1)}M`],
-  ["military_exp_pct_gdp", "Military expenditure (% of GDP)", (v) => `${v.toFixed(1)}%`],
-  ["military_exp_usd", "Military expenditure (current US$)", (v) => `$${(v / 1e9).toFixed(1)}B`],
-  ["trade_pct_gdp", "Trade (% of GDP)", (v) => `${v.toFixed(1)}%`],
-  ["trade_exports_world_usd", "Exports to the world", (v) => `$${(v / 1e9).toFixed(1)}B`],
-  ["trade_imports_world_usd", "Imports from the world", (v) => `$${(v / 1e9).toFixed(1)}B`],
-  ["life_expectancy_years", "Life expectancy at birth", (v) => `${v.toFixed(1)} years`],
-  ["secondary_enrollment_pct", "Secondary school enrollment", (v) => `${v.toFixed(1)}%`],
-  ["hdi", "Human Development Index", (v) => v.toFixed(3)],
-];
-
-const description = `Economic, trade, social, and military data for ${country.name}.`;
-const schema = datasetSchema({
-  name: `${country.name} — economic, trade, social, and military data`,
-  description,
-  url: new URL(`/country/${country.iso3.toLowerCase()}/`, Astro.site).toString(),
-  apiPath: `/api/countries/${country.iso3}`,
-});
+const { iso3 } = Astro.props as { iso3: string };
 ---
-<BaseLayout title={country.name} description={description} structuredData={schema}>
-  <a href="/countries/" class="gm-back-link">&larr; Major Economies</a>
-  <p class="gm-hero-eyebrow">Major economy</p>
-  <h1>{country.name}</h1>
-  <div class="gm-table-wrap">
-    <table>
-      <thead>
-        <tr><th>Metric</th><th>Value</th></tr>
-      </thead>
-      <tbody>
-        {ROWS.map(([metricId, label, format]) => {
-          const m = country.metrics[metricId];
-          return (
-            <tr>
-              <td>{label}</td>
-              <td>{m ? `${format(m.value)} (${m.period})` : "N/A"}</td>
-            </tr>
-          );
-        })}
-      </tbody>
-    </table>
-  </div>
-</BaseLayout>
+
+<Country lang="en" iso3={iso3} />

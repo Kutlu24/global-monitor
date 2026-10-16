@@ -1,0 +1,24 @@
+---
+// Localized dimension-of-compare pages under
+// /{lang}/compare/{slug}/{dim}/. English lives at the URL root.
+import CompareDimension from "../../../../views/CompareDimension.astro";
+import { NON_DEFAULT_LANGS, type Lang } from "../../../../i18n";
+import { PAIRS } from "../../../../lib/pairs";
+import { DIMENSIONS, type Dimension } from "../../../../lib/metrics";
+
+export function getStaticPaths() {
+  return NON_DEFAULT_LANGS.flatMap((lang) =>
+    PAIRS.flatMap((pair) =>
+      DIMENSIONS.map((dimension) => ({
+        params: { lang, pair: pair.slug, dimension },
+        props: { pair, dimension },
+      }))
+    )
+  );
+}
+
+const lang = Astro.params.lang as Lang;
+const { pair, dimension } = Astro.props as { pair: (typeof PAIRS)[number]; dimension: Dimension };
+---
+
+<CompareDimension lang={lang} pair={pair} dimension={dimension} />

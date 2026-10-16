@@ -1,5 +1,6 @@
 import { ComposableMap, Geographies, Geography, Graticule } from "react-simple-maps";
 import { NUMERIC_TO_ISO3 } from "../lib/iso3166Numeric";
+import { t as tRaw, type Lang } from "../i18n/ui";
 
 // The "emphasis" form (dataviz skill: "one series is the point, rest are
 // context -> emphasis, highlight one, gray the rest"), not a full
@@ -40,12 +41,14 @@ export interface Highlight {
 
 interface Props {
   highlights: Highlight[]; // 1 or 2 - see the module comment above
+  lang?: Lang;
 }
 
 const MAP_W = 1000;
 const MAP_H = 520;
 
-export default function WorldMap({ highlights }: Props) {
+export default function WorldMap({ highlights, lang = "en" }: Props) {
+  const t = (key: string, vars?: Record<string, string | number>) => tRaw(lang, key, vars);
   const iso3ToHighlight = new Map<string, Highlight>();
   for (const h of highlights) {
     for (const iso3 of h.iso3) iso3ToHighlight.set(iso3, h);
@@ -53,7 +56,7 @@ export default function WorldMap({ highlights }: Props) {
 
   return (
     <figure className="gm-map">
-      <div className="gm-map__legend" role="list" aria-label="Map legend">
+      <div className="gm-map__legend" role="list" aria-label={t("a11y.mapLegend")}>
         {highlights.map((h) => (
           <span className="gm-map__legend-item" role="listitem" key={h.label}>
             <span className="gm-map__legend-swatch" style={{ background: h.color }} aria-hidden="true" />
@@ -62,7 +65,7 @@ export default function WorldMap({ highlights }: Props) {
         ))}
         <span className="gm-map__legend-item gm-map__legend-item--muted" role="listitem">
           <span className="gm-map__legend-swatch" style={{ background: "var(--map-country)" }} aria-hidden="true" />
-          Not in either bloc
+          {t("map.notInBlocs")}
         </span>
       </div>
 
@@ -72,7 +75,7 @@ export default function WorldMap({ highlights }: Props) {
           width={MAP_W}
           height={MAP_H}
           role="img"
-          aria-label="World map with highlighted countries"
+          aria-label={t("a11y.worldMap")}
         >
           {/* The graticule sits UNDER the land, so a country fill always wins
               the pixel and the grid only shows in the ocean. */}

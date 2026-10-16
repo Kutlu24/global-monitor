@@ -1,0 +1,19 @@
+---
+// Localized risk scenario pages under /{lang}/risk/{slug}/. English lives
+// at the URL root.
+import RiskScenario from "../../../views/RiskScenario.astro";
+import { getRiskScenarios } from "../../../lib/data";
+import { NON_DEFAULT_LANGS, type Lang } from "../../../i18n";
+
+export async function getStaticPaths() {
+  const scenarios = await getRiskScenarios();
+  return NON_DEFAULT_LANGS.flatMap((lang) =>
+    scenarios.map((s) => ({ params: { lang, scenario: s.slug } }))
+  );
+}
+
+const lang = Astro.params.lang as Lang;
+const { scenario: slug } = Astro.params as { scenario: string };
+---
+
+<RiskScenario lang={lang} slug={slug} />

@@ -1,0 +1,15 @@
+---
+// Localized homepages under /{lang}/ for the seven non-default languages.
+// English is NOT generated here - it lives at the URL root (see
+// src/pages/index.astro and i18n/config.ts's URL strategy).
+import Home from "../../views/Home.astro";
+import { NON_DEFAULT_LANGS, type Lang } from "../../i18n";
+
+export function getStaticPaths() {
+  return NON_DEFAULT_LANGS.map((lang) => ({ params: { lang } }));
+}
+
+const lang = Astro.params.lang as Lang;
+---
+
+<Home lang={lang} />

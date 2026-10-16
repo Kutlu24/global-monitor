@@ -1,0 +1,193 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import { createI18n, type Lang } from "../i18n";
+import { WORLDORA_URL, INTELLIGENCE_URL } from "../lib/network";
+import { localizePath } from "../i18n/config";
+
+interface Props {
+  lang?: Lang;
+}
+const { lang = "en" } = Astro.props;
+const { t } = createI18n(lang);
+
+const L = (p: string) => localizePath(p, lang);
+
+// Stage destinations: the CTA hrefs. Risk Simulator points at the site's
+// own /risk/ module (not the separate Streamlit app at /risk-simulator/,
+// which is only kept for legacy links and has no cross-links back).
+const slides = [
+  {
+    i: 0,
+    level: t("hub.level.blocs"),
+    title: "Global Monitor",
+    sub: t("hub.slide.gm.sub"),
+    meta: t("hub.slide.gm.meta"),
+    body: t("hub.slide.gm.body"),
+    cta: t("hub.cta.gm"),
+    href: L("/"),
+  },
+  {
+    i: 1,
+    level: t("hub.level.realtime"),
+    title: "Current Tension",
+    sub: t("hub.slide.ct.sub"),
+    meta: t("hub.slide.ct.meta"),
+    body: t("hub.slide.ct.body"),
+    cta: t("hub.cta.ct"),
+    href: L("/tension/"),
+  },
+  {
+    i: 2,
+    level: t("hub.level.scenarios"),
+    title: "Risk Simulator",
+    sub: t("hub.slide.rs.sub"),
+    meta: t("hub.slide.rs.meta"),
+    body: t("hub.slide.rs.body"),
+    cta: t("hub.cta.rs"),
+    href: L("/risk/"),
+  },
+  {
+    i: 3,
+    level: t("hub.level.news"),
+    title: "Worldora",
+    sub: t("hub.slide.wo.sub"),
+    meta: t("hub.slide.wo.meta"),
+    body: t("hub.slide.wo.body"),
+    cta: t("hub.cta.wo"),
+    href: `${WORLDORA_URL}/`,
+    external: true,
+  },
+  {
+    i: 4,
+    level: t("hub.level.analysis"),
+    title: "Worldora Intelligence",
+    sub: t("hub.slide.wi.sub"),
+    meta: t("hub.slide.wi.meta"),
+    body: t("hub.slide.wi.body"),
+    cta: t("hub.cta.wi"),
+    href: INTELLIGENCE_URL,
+    external: true,
+  },
+];
+const indexLabels = ["Global Monitor", "Current Tension", "Risk Simulator", "Worldora", "Intelligence"];
+---
+
+<BaseLayout title={t("hub.classic.h1")} description={t("hub.meta.description")} lang={lang}>
+  <section class="stage" id="stage" aria-label={t("hub.aria.stage")}>
+    <div class="giants">
+      {["GM", "CT", "RS", "WO", "WI"].map((abbr, i) => (
+        <span class="giant" data-i={i} aria-hidden="true">{abbr}</span>
+      ))}
+    </div>
+    <canvas aria-hidden="true"></canvas>
+    <div class="stage-top">
+      <div class="brand">
+        <a class="brand-logo" href={L("/hub/")} aria-label={t("hub.aria.brand")}>
+          <svg class="brand-mark" viewBox="0 0 44 44" aria-hidden="true">
+            <defs>
+              <clipPath id="gh-clip"><circle cx="22" cy="22" r="19" /></clipPath>
+              <radialGradient id="gh-bg" cx="35%" cy="30%" r="85%">
+                <stop offset="0" stop-color="#22302f" />
+                <stop offset="1" stop-color="#0b0f11" />
+              </radialGradient>
+            </defs>
+            <circle cx="22" cy="22" r="19" fill="url(#gh-bg)" />
+            <g clip-path="url(#gh-clip)" fill="none" stroke="#fff" stroke-opacity="0.24" stroke-width="1.1">
+              <ellipse cx="22" cy="22" rx="8" ry="19" />
+              <ellipse cx="22" cy="22" rx="15" ry="19" />
+              <path d="M3 22h38" />
+              <path d="M5 13.5Q22 18.5 39 13.5" />
+              <path d="M5 30.5Q22 35.5 39 30.5" />
+            </g>
+            <g fill="none" stroke="#eceae4" stroke-opacity="0.7" stroke-width="1.4" stroke-linecap="round">
+              <path d="M14 17Q21 8.5 30 14" />
+              <path d="M30 14Q35 23 25 30" />
+              <path d="M25 30Q15.5 29.5 14 17" />
+            </g>
+            <circle cx="14" cy="17" r="3.3" fill="#5ec2b7" stroke="#0b0f11" stroke-width="1.2" />
+            <circle cx="30" cy="14" r="3.3" fill="#9b8cff" stroke="#0b0f11" stroke-width="1.2" />
+            <circle cx="25" cy="30" r="3.3" fill="#e5604d" stroke="#0b0f11" stroke-width="1.2" />
+            <circle cx="22" cy="22" r="18.4" fill="none" stroke="#fff" stroke-opacity="0.38" stroke-width="1.2" />
+          </svg>
+          <span class="brand-text">
+            <span class="brand-name">Geo Analysis</span>
+            <span class="brand-sub">Hub</span>
+          </span>
+        </a>
+        <h1 class="stage-h1">{t("hub.h1")}</h1>
+      </div>
+      <ol class="stage-index" aria-label={t("hub.aria.tools")}>
+        {indexLabels.map((label, i) => (
+          <li>
+            <button type="button" aria-current={i === 0 ? "true" : undefined}>
+              <i>{String(i + 1).padStart(2, "0")}</i>
+              {label}
+            </button>
+          </li>
+        ))}
+      </ol>
+      <div></div>
+    </div>
+    <button class="arrow arrow-prev" type="button" aria-label={t("hub.aria.prev")}>
+      <span>&larr;</span>
+    </button>
+    <button class="arrow arrow-next" type="button" aria-label={t("hub.aria.next")}>
+      <span>&rarr;</span>
+    </button>
+    <div class="copy" aria-live="polite">
+      {slides.map((s) => (
+        <article class="slide-copy" data-i={s.i} aria-hidden="true">
+          <div class="sc-title">
+            <span class="sc-level">{s.level}</span>
+            <h2>
+              {s.title} <span class="h2-sub">— {s.sub}</span>
+            </h2>
+            <span class="sc-meta">{s.meta}</span>
+          </div>
+          <div class="sc-body">
+            <p>{s.body}</p>
+            <a
+              class="cta"
+              href={s.href}
+              tabindex="-1"
+              rel={s.external ? "noopener" : undefined}
+              target={s.external ? "_blank" : undefined}
+            >
+              <span>{s.cta}</span>
+            </a>
+          </div>
+        </article>
+      ))}
+    </div>
+    <span class="hint stage-count" aria-hidden="true">01 / 05</span>
+  </section>
+
+  <!-- Fallback when JS or WebGL is unavailable: shown by default, hidden once the stage starts. -->
+  <main class="classic">
+    <h1>{t("hub.classic.h1")}</h1>
+    <a class="card" href={L("/")}>
+      <h2>Global Monitor</h2>
+      <p>{t("hub.classic.gm.desc")}</p>
+    </a>
+    <a class="card" href={L("/tension/")}>
+      <h2>Current Tension</h2>
+      <p>{t("hub.classic.ct.desc")}</p>
+    </a>
+    <a class="card" href={L("/risk/")}>
+      <h2>Risk Simulator</h2>
+      <p>{t("hub.classic.rs.desc")}</p>
+    </a>
+    <a class="card" href={`${WORLDORA_URL}/`} rel="noopener" target="_blank">
+      <h2>Worldora</h2>
+      <p>{t("hub.classic.wo.desc")}</p>
+    </a>
+    <a class="card" href={INTELLIGENCE_URL} rel="noopener" target="_blank">
+      <h2>Worldora Intelligence</h2>
+      <p>{t("hub.classic.wi.desc")}</p>
+    </a>
+  </main>
+
+  <link rel="stylesheet" href="/hub/stage.css?v=7" slot="head" />
+  <script is:inline src="/hub/stage-art.js?v=5"></script>
+  <script is:inline src="/hub/stage.js?v=5"></script>
+</BaseLayout>

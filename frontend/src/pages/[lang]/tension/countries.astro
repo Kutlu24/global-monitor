@@ -1,0 +1,14 @@
+---
+// Localized country tension query under /{lang}/tension/countries/.
+// English lives at the URL root.
+import TensionCountries from "../../../views/TensionCountries.astro";
+import { NON_DEFAULT_LANGS, type Lang } from "../../../i18n";
+
+export function getStaticPaths() {
+  return NON_DEFAULT_LANGS.map((lang) => ({ params: { lang } }));
+}
+
+const lang = Astro.params.lang as Lang;
+---
+
+<TensionCountries lang={lang} />

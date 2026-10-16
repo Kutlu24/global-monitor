@@ -1,0 +1,98 @@
+---
+// Any-two-country tension query page, parameterized by language. English is
+// rendered by src/pages/tension/countries.astro; the other seven languages
+// by src/pages/[lang]/tension/countries.astro.
+import BaseLayout from "../layouts/BaseLayout.astro";
+import CountryTensionQuery from "../components/CountryTensionQuery";
+import { getTensionCountries } from "../lib/tension";
+import { createI18n, localizePath, type Lang } from "../i18n";
+
+interface Props {
+  lang: Lang;
+}
+const { lang } = Astro.props;
+const { t } = createI18n(lang);
+const L = (p: string) => localizePath(p, lang);
+
+const description = t("tension.countriesLede", { n: 0 }).replace("0 ", "");
+const countries = await getTensionCountries(lang);
+---
+<BaseLayout title={`${t("tension.countriesH1")} — ${t("tension.h1")}`} description={description} lang={lang}>
+  <a href={L("/tension/")} class="gm-back-link">{t("back.currentTension")}</a>
+  <p class="gm-hero-eyebrow">{t("tension.eyebrow")}</p>
+  <h1>{t("tension.countriesH1")}</h1>
+  <p class="gm-lede">
+    {t("tension.countriesLede", { n: countries.length })}
+  </p>
+
+  <div class="gm-query-layout">
+    <div class="gm-query-main">
+      <CountryTensionQuery client:load countries={countries} lang={lang} />
+    </div>
+    <aside class="gm-query-reference">
+      <p class="gm-sidebar-heading" style="padding: 0;">{t("tension.countryCodes")}</p>
+      <ul class="gm-code-list">
+        {countries.map((c) => (
+          <li><span class="gm-code-badge">{c.iso3}</span> {c.name}</li>
+        ))}
+      </ul>
+    </aside>
+  </div>
+</BaseLayout>
+<style>
+  .gm-query-layout {
+    display: flex;
+    flex-direction: column-reverse;
+    gap: var(--space-6);
+    margin-top: var(--space-6);
+  }
+  .gm-query-reference {
+    background: var(--surface);
+    border: 1px solid var(--hairline);
+    border-radius: var(--radius-lg);
+    padding: var(--space-4);
+  }
+  .gm-code-list {
+    list-style: none;
+    margin: var(--space-2) 0 0;
+    padding: 0;
+    max-height: 280px;
+    overflow-y: auto;
+    font-size: 0.85rem;
+    columns: 2;
+  }
+  .gm-code-list li {
+    padding: 0.2rem 0;
+    break-inside: avoid;
+  }
+  .gm-code-badge {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    display: inline-block;
+    width: 2.6rem;
+  }
+  /* "on the side" only once there's real room for a second column - see
+     user feedback (2026-09-27) asking for the country codes to be shown
+     alongside the query form, not just above/below it. */
+  @media (min-width: 900px) {
+    .gm-query-layout {
+      flex-direction: row;
+      align-items: flex-start;
+    }
+    .gm-query-main {
+      flex: 2;
+      min-width: 0;
+    }
+    .gm-query-reference {
+      flex: 1;
+      max-width: 320px;
+      position: sticky;
+      top: var(--space-6);
+    }
+    .gm-code-list {
+      max-height: calc(100vh - 220px);
+      columns: 1;
+    }
+  }
+</style>

@@ -1,0 +1,14 @@
+---
+// Localized Risk Simulator index under /{lang}/risk/. English lives at the
+// URL root.
+import RiskIndex from "../../../views/RiskIndex.astro";
+import { NON_DEFAULT_LANGS, type Lang } from "../../../i18n";
+
+export function getStaticPaths() {
+  return NON_DEFAULT_LANGS.map((lang) => ({ params: { lang } }));
+}
+
+const lang = Astro.params.lang as Lang;
+---
+
+<RiskIndex lang={lang} />

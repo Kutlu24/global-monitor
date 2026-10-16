@@ -1,0 +1,269 @@
+---
+// The homepage body, parameterized by language. English is rendered by
+// src/pages/index.astro at the URL root; the other seven languages by
+// src/pages/[lang]/index.astro under /{lang}/. All strings come from the
+// i18n dictionary; all internal links go through localizePath so they
+// stay inside the current language tree.
+import BaseLayout from "../layouts/BaseLayout.astro";
+import { getBlocs } from "../lib/data";
+import { PAIRS, FEATURED_PAIR } from "../lib/pairs";
+import { ALL_METRICS, DIMENSIONS } from "../lib/metrics";
+import { getLastUpdated } from "../lib/sitemap";
+import { createI18n, localizePath, DATE_LOCALE, type Lang } from "../i18n";
+
+interface Props {
+  lang: Lang;
+}
+const { lang } = Astro.props;
+const { t, tn, dimensionLabel, metricShortLabel, metricLabel } = createI18n(lang);
+const L = (p: string) => localizePath(p, lang);
+
+// brics5 is not a bloc CARD on the homepage - it is a comparison target (the
+// featured pair), so it stays out of the grid but is still needed by name.
+const allBlocs = await getBlocs(lang);
+const blocs = allBlocs.filter((b) => b.bloc_id !== "brics5");
+const blocName = (id: string) => allBlocs.find((b) => b.bloc_id === id)?.name ?? id;
+const otherPairs = PAIRS.filter((p) => !p.featured);
+const lastUpdated = await getLastUpdated();
+const lastUpdatedLabel = new Date(lastUpdated).toLocaleDateString(DATE_LOCALE[lang], {
+  year: "numeric", month: "short", day: "numeric",
+});
+
+function formatUsd(value: number | null): string {
+  if (value === null) return "—";
+  return `$${(value / 1e12).toFixed(2)}T`;
+}
+function formatPeople(value: number | null): string {
+  if (value === null) return "—";
+  return `${(value / 1e6).toFixed(0)}M`;
+}
+
+// Real counts, derived - never typed in by hand, so they cannot go stale
+// when a bloc, a pair or a metric is added.
+const summary = [
+  { value: String(blocs.length), label: t("home.summary.blocs") },
+  { value: String(ALL_METRICS.length), label: t("home.summary.metrics") },
+  { value: String(PAIRS.length), label: t("home.summary.pairs") },
+  { value: String(DIMENSIONS.length), label: t("home.summary.dimensions") },
+];
+---
+
+<BaseLayout title={t("home.title")} description={t("home.description")} lang={lang}>
+  <section class="gm-hero">
+    <p class="gm-live-badge"><span class="gm-live-dot" aria-hidden="true"></span>{t("home.badge", { date: lastUpdatedLabel })}</p>
+    <p class="gm-hero-eyebrow">
+      <img src="/logo.svg" alt="" width="16" height="16" />
+      {t("home.eyebrow")}
+    </p>
+    <h1>{t("home.h1")}</h1>
+    <p class="gm-lede">{t("home.lede")}</p>
+  </section>
+
+  <dl class="gm-summary-strip" data-reveal>
+    {summary.map((s) => (
+      <div class="gm-summary-cell">
+        <dt>{s.label}</dt>
+        <dd>{s.value}</dd>
+      </div>
+    ))}
+  </dl>
+
+  <h2>{t("home.startWithBloc")}</h2>
+  <div class="gm-grid">
+    {blocs.map((bloc) => {
+      const gdp = bloc.aggregates.gdp_current_usd;
+      const pop = bloc.aggregates.population_total;
+      const members = gdp?.member_count ?? 0;
+      return (
+        <a href={L(`/bloc/${bloc.slug}/`)} class="gm-card gm-card--bloc" style={`--bloc-color: var(--bloc-${bloc.bloc_id})`} data-reveal>
+          <span class="gm-card-eyebrow">
+            <span class="gm-swatch" style={{ background: `var(--bloc-${bloc.bloc_id})` }} />
+            {tn("home.members", members)}
+          </span>
+          <h3>{bloc.name}</h3>
+          <div class="gm-card-stats">
+            <div>
+              <div class="gm-stat-value">{formatUsd(gdp?.value ?? null)}</div>
+              <div class="gm-stat-label">{metricShortLabel("gdp_current_usd")}{gdp ? ` (${gdp.period})` : ""}</div>
+            </div>
+            <div>
+              <div class="gm-stat-value">{formatPeople(pop?.value ?? null)}</div>
+              <div class="gm-stat-label">{metricLabel("population_total")}{pop ? ` (${pop.period})` : ""}</div>
+            </div>
+          </div>
+        </a>
+      );
+    })}
+  </div>
+
+  <h2>{t("home.goDeeper")}</h2>
+  <div class="gm-grid">
+    <a href={L("/countries/")} class="gm-card" data-reveal>
+      <span class="gm-card-eyebrow">{t("card.module")}</span>
+      <h3>{t("home.majorEconomiesTitle")}</h3>
+      <p>{t("home.majorEconomiesDesc")}</p>
+    </a>
+    <a href={L("/risk/")} class="gm-card" data-reveal>
+      <span class="gm-card-eyebrow">{t("card.module")}</span>
+      <h3>{t("home.riskTitle")}</h3>
+      <p>{t("home.riskDesc")}</p>
+    </a>
+    <a href={L("/tension/")} class="gm-card" data-reveal>
+      <span class="gm-card-eyebrow">{t("card.moduleRealtime")}</span>
+      <h3>{t("home.tensionTitle")}</h3>
+      <p>{t("home.tensionDesc")}</p>
+    </a>
+    <a href="/hub/" class="gm-card" data-reveal>
+      <span class="gm-card-eyebrow">{t("card.hub")}</span>
+      <h3>{t("home.hubTitle")}</h3>
+      <p>{t("home.hubDesc")}</p>
+    </a>
+  </div>
+
+  <h2>{t("home.compareTwoBlocs")}</h2>
+
+  <a href={L(`/compare/${FEATURED_PAIR.slug}/`)} class="gm-featured-compare" data-reveal>
+    <span class="gm-card-eyebrow">{t("home.primaryComparison")}</span>
+    <span class="gm-featured-compare__names">
+      <span class="gm-featured-compare__side">
+        <span class="gm-swatch" style={`background: var(--bloc-${FEATURED_PAIR.a})`} aria-hidden="true"></span>
+        {blocName(FEATURED_PAIR.a)}
+      </span>
+      <span class="gm-featured-compare__vs">{t("home.vs")}</span>
+      <span class="gm-featured-compare__side">
+        <span class="gm-swatch" style={`background: var(--bloc-${FEATURED_PAIR.b})`} aria-hidden="true"></span>
+        {blocName(FEATURED_PAIR.b)}
+      </span>
+    </span>
+    <span class="gm-featured-compare__note">{t("home.featuredNote")}</span>
+    <span class="gm-featured-compare__cta">{t("home.openComparison")}</span>
+  </a>
+
+  <ul class="gm-link-list" data-reveal>
+    {otherPairs.map((p) => <li><a href={L(`/compare/${p.slug}/`)}>{blocName(p.a)} vs {blocName(p.b)}</a></li>)}
+  </ul>
+
+  <h2>{t("home.orByDimension")}</h2>
+  <ul class="gm-link-list" data-reveal>
+    {DIMENSIONS.map((d) => <li><a href={L(`/dimension/${d}/`)}>{dimensionLabel(d)}</a></li>)}
+  </ul>
+</BaseLayout>
+
+<style>
+  /* An at-a-glance strip between the hero and the first grid. A definition
+     list rather than a div soup, because these really are label/value pairs
+     and screen readers should say so. The 1px-gap-over-a-border
+     background gives a hairline grid with no per-cell borders. */
+  .gm-summary-strip {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 1px;
+    margin: var(--space-8) 0 var(--space-2);
+    background: var(--hairline);
+    border: 1px solid var(--hairline);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+  }
+  .gm-summary-cell {
+    background: var(--surface);
+    padding: var(--space-4) var(--space-5);
+  }
+  .gm-summary-cell dt {
+    font-size: var(--fs-2xs);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+    font-weight: 600;
+    margin-bottom: var(--space-2);
+  }
+  .gm-summary-cell dd {
+    margin: 0;
+    font-family: var(--font-mono);
+    font-size: var(--fs-2xl);
+    font-weight: 650;
+    letter-spacing: -0.03em;
+    line-height: 1;
+    color: var(--text);
+  }
+
+  /* The primary comparison. An <a> card rather than a nested <ul>, because it
+     is one destination with a title, not a list of peers - the other pairs
+     stay a plain link list below it. */
+  .gm-featured-compare {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    padding: var(--space-5);
+    margin-bottom: var(--space-4);
+    background: var(--surface);
+    border: 1px solid var(--hairline);
+    /* An accent edge, so it is separable from the plain cards in the grid
+       above without relying on a second colour. */
+    border-left: 3px solid var(--accent);
+    border-radius: var(--radius-lg);
+    text-decoration: none;
+    color: var(--text);
+    transition: border-color 0.15s ease, background-color 0.15s ease;
+  }
+  .gm-featured-compare:hover {
+    text-decoration: none;
+    background: var(--wash-1);
+  }
+  .gm-featured-compare__names {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+    font-size: var(--fs-xl);
+    font-weight: 650;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+  }
+  .gm-featured-compare__side {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+  .gm-featured-compare__vs {
+    font-size: var(--fs-sm);
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+  }
+  .gm-featured-compare__note {
+    font-size: var(--fs-sm);
+    color: var(--text-secondary);
+    max-width: 62ch;
+  }
+  .gm-featured-compare__cta {
+    font-size: var(--fs-sm);
+    font-weight: 600;
+    color: var(--accent);
+  }
+  @media (max-width: 560px) {
+    .gm-featured-compare__names {
+      font-size: var(--fs-lg);
+    }
+  }
+
+  /* The homepage eyebrow carries the brand mark; the eyebrow itself is a
+     flex row in global.css, so only the size needs scoping here. */
+  .gm-hero-eyebrow img {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+  }
+
+  /* Bloc identity at the top edge of each bloc card, mirroring the 3px
+     accent edge on the featured-compare card. --bloc-color comes from the
+     inline style on the anchor (var(--bloc-*), themed per color scheme). */
+  .gm-card--bloc::before {
+    content: "";
+    position: absolute;
+    inset: 0 0 auto;
+    height: 3px;
+    background: var(--bloc-color);
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  }
+</style>
