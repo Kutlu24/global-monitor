@@ -46,9 +46,18 @@ const summary = [
   { value: String(PAIRS.length), label: t("home.summary.pairs") },
   { value: String(DIMENSIONS.length), label: t("home.summary.dimensions") },
 ];
+
+const siteSchema = {
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  name: "Global Monitor",
+  url: new URL(L("/"), Astro.site).toString(),
+  description: t("home.description"),
+  inLanguage: lang,
+};
 ---
 
-<BaseLayout title={t("home.title")} description={t("home.description")} lang={lang}>
+<BaseLayout title={t("home.title")} description={t("home.description")} structuredData={siteSchema} lang={lang}>
   <section class="gm-hero">
     <p class="gm-live-badge"><span class="gm-live-dot" aria-hidden="true"></span>{t("home.badge", { date: lastUpdatedLabel })}</p>
     <p class="gm-hero-eyebrow">
