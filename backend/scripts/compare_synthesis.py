@@ -18,6 +18,7 @@ import sys
 import time
 
 from global_monitor import db, verify_synthesis as vs
+from global_monitor.config import settings
 from global_monitor.models import SynthesisText
 from global_monitor.synthesis import _COMPARE_PAIRS, _DIMENSIONS, _bloc_prompt, _call_glm, _compare_prompt
 
@@ -77,6 +78,8 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", default="synthesis_comparison.json")
     args = ap.parse_args()
+    if not settings.glm_api_key:
+        raise SystemExit("GLM_API_KEY is not set in this process (environment or global-monitor/.env).")
 
     baseline = {r.page_key: r for r in db.list_synthesis() if "|" not in r.page_key}
     arms: dict[str, list] = {"baseline": [], "glm": [], "glm+retry": []}
