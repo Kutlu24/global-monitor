@@ -53,7 +53,7 @@ RISK_INDICATORS: dict[str, str] = {
     "unemployment_pct": "SL.UEM.TOTL.ZS",
     "gini_index": "SI.POV.GINI",
     "poverty_headcount_pct": "SI.POV.DDAY",
-    "female_labor_participation_pct": "SL.FAM.WORK.FE.ZS",
+    "female_labor_participation_pct": "SL.TLF.CACT.FE.ZS",
     "health_exp_per_capita_usd": "SH.XPD.CHEX.PC.CD",
     "physicians_per_1000": "SH.MED.PHYS.ZS",
     "internet_users_pct": "IT.NET.USER.ZS",

@@ -72,7 +72,7 @@ posture are separate reported axes and are never added to this number.
 | Criterion | Indicators (metric_id <- WB code) |
 |---|---|
 | Economic Resilience | `gdp_per_capita_ppp` <- NY.GDP.PCAP.PP.KD (+1, **w3**), `gdp_growth_3y_pct` <- NY.GDP.MKTP.KD.ZG (+1, w1), `govt_debt_pct_gdp` <- GGXWDG_NGDP (-1, w1), `industry_pct_gdp` <- NV.IND.TOTL.ZS (+1, w1), `current_account_pct_gdp` <- BN.CAB.XOKA.GD.ZS (0, w1) |
-| Domestic Social Stability | `unemployment_pct` <- SL.UEM.TOTL.ZS (-1), `gini_index` <- SI.POV.GINI (-1), `poverty_headcount_pct` <- SI.POV.DDAY (-1), `female_labor_participation_pct` <- SL.FAM.WORK.FE.ZS (+1) |
+| Domestic Social Stability | `unemployment_pct` <- SL.UEM.TOTL.ZS (-1), `gini_index` <- SI.POV.GINI (-1), `poverty_headcount_pct` <- SI.POV.DDAY (-1), `female_labor_participation_pct` <- SL.TLF.CACT.FE.ZS (+1) |
 | Human & Physical Infrastructure | `life_expectancy_years` (existing), `mean_years_schooling` <- UNDP `mys_2023` (+1), `health_exp_per_capita_usd` <- SH.XPD.CHEX.PC.CD (+1), `physicians_per_1000` <- SH.MED.PHYS.ZS (+1), `internet_users_pct` <- IT.NET.USER.ZS (+1) |
 | Climate Resilience | `co2_per_capita_t` <- EN.GHG.CO2.PC.CE.AR5 (-1), `renewable_electricity_pct` <- EG.ELC.RNEW.ZS (+1), `forest_area_pct` <- AG.LND.FRST.ZS (+1) |
 | Energy Independence | `fossil_fuel_energy_pct` <- EG.USE.COMM.FO.ZS (-1), `fuel_exports_pct` <- TX.VAL.FUEL.ZS.UN (+1) |

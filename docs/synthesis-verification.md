@@ -8,9 +8,11 @@ LLM, no network. Run: `python -m global_monitor.cli verify-synthesis [--json]`.
 
 ## Results (2026-10-27)
 
-Same 35 English bloc/compare pages, same prompts, same audit, three sources of text:
+Same 35 English bloc/compare pages, same prompts, same audit, three sources of text. The first
+column is the *development* database on the author's workstation, whose paragraphs were written by
+the local fallback model; it is not what the live site served (see "Production" below).
 
-| | stored text (`qwen2.5-coder:3b`) | GLM `glm-4.5-flash`, one shot | GLM + audit-and-retry |
+| | dev-DB text (`qwen2.5-coder:3b`) | GLM `glm-4.5-flash`, one shot | GLM + audit-and-retry |
 |---|---|---|---|
 | pages with no unverified number | 9 / 35 | 28 / 35 | 35 / 35 |
 | numbers that can be judged* | 446 | 675 | 666 |
@@ -19,13 +21,13 @@ Same 35 English bloc/compare pages, same prompts, same audit, three sources of t
 | of which off by a power of ten | 27 | 6 | 0 |
 | pages with broken decimals ("5. 467") | 3 | 0 | 0 |
 
-\* years, bare small integers and constants in metric names (such as "$3.65/day") are set aside.
+\* years, bare small integers and constants in metric names (such as "$3.00/day") are set aside.
 
 - The retry loop (at most 2 rewrites, offending numbers named in the request) fixed all 7
   pages GLM got wrong on the first try.
 - GLM also writes more figures per paragraph (19 judgeable per page against 13), so the
   gap is not explained by it saying less.
-- Example of what the audit caught in the stored text: the EU/US military page said the US
+- Example of what the audit caught in the dev-DB text: the EU/US military page said the US
   spends "$95.44 billion" and the EU "$4.606 billion"; the database holds $954.4 billion and
   $460.6 billion. GLM wrote $954.4 billion and $460.6 billion.
 - The first version of the audit read GLM's verbatim copies of the prompt's own `3.077e+13`
@@ -35,6 +37,13 @@ Same 35 English bloc/compare pages, same prompts, same audit, three sources of t
 The audit is wired into generation: `synthesis._verified_text` rewrites a paragraph that fails
 and, if it still fails after `VERIFY_RETRIES` rewrites, keeps the previous text instead of
 publishing it.
+
+## Production
+
+The live container's database already held GLM text (`glm-4.5-flash`) for all 35 English pages,
+written before the audit existed. Audited with the same code: 25 / 35 pages clean, 733 of 759
+judgeable numbers verified (96.6%), 26 unverified (9 off by a power of ten). That matches the
+one-shot GLM column above, not the local-model one.
 
 ## What this does not catch
 

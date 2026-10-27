@@ -91,8 +91,9 @@ a domain is purchased.
 `python -m global_monitor.cli verify-synthesis` (module `verify_synthesis.py`, read-only) looks up
 every number in each stored paragraph among the figures its prompt was built from and reports the
 ones with no counterpart, including figures that are off by a power of ten. On the first audit,
-only 9 of 35 local-model paragraphs had no unverified number; GLM with the audit-and-retry loop
-which is now part of generation, got 35 of 35. Method, results
+only 9 of 35 paragraphs written by the local fallback model (the dev database) had no
+unverified number; GLM one-shot got 28 of 35, and with the audit-and-retry loop that is now part
+of generation, 35 of 35. The live site's existing GLM text scored 25 of 35. Method, results
 and what the check cannot catch: [`docs/synthesis-verification.md`](docs/synthesis-verification.md).
 `backend/scripts/compare_synthesis.py` regenerates the pages with GLM (optionally with a
 verify-and-retry loop) and compares it with the stored text; it writes nothing to the database.

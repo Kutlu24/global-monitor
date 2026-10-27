@@ -178,7 +178,7 @@ def _classify(surface, value, step, hint, has_marker, figures, periods, derived,
     # Direct matches. The prompt shows figures at 4 significant digits, so a
     # paragraph can only be as exact as that; tolerance is the coarser of
     # (half the written last digit) and (0.5% of the figure's 4-sig-fig rounding).
-    # Constants that live in metric names/units ("$3.65/day", "per 1,000") are echoed, not invented.
+    # Constants that live in metric names/units ("$3.00/day", "per 1,000") are echoed, not invented.
     if value in constants:
         return NumberVerdict(surface, value, "incidental", "constant from a metric name")
     best, mismatch = None, None

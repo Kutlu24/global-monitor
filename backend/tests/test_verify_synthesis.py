@@ -51,7 +51,7 @@ def test_broken_decimal_is_recovered_and_counted():
 
 def test_metric_name_constants_are_not_flagged(seeded):
     _agg("eu", "poverty_headcount_pct", 4.8)
-    assert _verdicts("Poverty at $3.65 per day affects 4.8% of people.")["$3.65"] == "incidental"
+    assert _verdicts("Poverty at $3.00 per day affects 4.8% of people.")["$3.00"] == "incidental"
 
 
 def test_scientific_notation_copied_from_the_prompt_is_grounded(seeded):

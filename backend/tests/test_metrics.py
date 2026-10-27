@@ -45,3 +45,15 @@ def test_every_metric_cites_source_and_license():
 def test_seed_satisfies_database_check_constraints(seeded):
     # the schema has CHECK constraints on dimension/cadence/aggregation
     assert {m.metric_id for m in db.get_metrics()} == {m.metric_id for m in metrics.METRICS}
+
+
+def test_world_bank_codes_agree_between_catalog_and_ingestion():
+    """The metric catalog and the ingestion mapping each carry the World Bank code; the
+    female-labour metric once pointed at the family-workers indicator in both places."""
+    from global_monitor.ingestion import worldbank
+
+    catalog = {m.metric_id: m.source_dataset_code for m in metrics.METRICS if m.source == "world_bank"}
+    for mapping in (worldbank.INDICATORS, worldbank.RISK_INDICATORS):
+        for metric_id, code in mapping.items():
+            assert catalog[metric_id] == code, metric_id
+    assert catalog["female_labor_participation_pct"] == "SL.TLF.CACT.FE.ZS"
