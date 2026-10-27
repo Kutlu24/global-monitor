@@ -36,6 +36,31 @@ def seed_cmd() -> None:
     click.echo("seeded blocs, countries, membership, metrics")
 
 
+@cli.command("verify-synthesis")
+@click.option("--json", "as_json", is_flag=True, help="Emit the full per-number report as JSON.")
+def verify_synthesis_cmd(as_json: bool) -> None:
+    """Audit every stored bloc/compare paragraph: does each number in the
+    LLM text appear in the figures its prompt was built from? Read-only."""
+    import dataclasses
+    import json
+
+    from . import verify_synthesis as vs
+
+    reports = vs.verify_all()
+    summary = vs.summarize(reports)
+    if as_json:
+        click.echo(json.dumps({"summary": summary, "pages": [dataclasses.asdict(r) for r in reports]}, indent=2))
+        return
+    for r in reports:
+        bad = [n for n in r.numbers if n.verdict in ("ungrounded", "wrong_metric", "magnitude_error")]
+        flag = "ok " if r.clean else "BAD"
+        stale = " (stale: data changed since generation)" if r.stale else ""
+        click.echo(f"[{flag}] {r.page_key} [{r.model}] {len(r.numbers)} numbers, {len(bad)} unverified{stale}")
+        for n in bad:
+            click.echo(f"        {n.verdict}: {n.text} {n.detail}")
+    click.echo(json.dumps(summary))
+
+
 @cli.command("tension")
 def tension_cmd() -> None:
     """Manually trigger the GDELT-derived tension refresh (tension.py) -
