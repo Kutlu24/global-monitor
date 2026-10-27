@@ -101,6 +101,39 @@ def _generate_text(prompt: str) -> tuple[str, str, str]:
     return _call_ollama(prompt), "ollama", settings.ollama_model
 
 
+# A paragraph whose numbers are not in the prompt's data is sent back this many
+# times with the offending numbers listed. A small local model fails the audit
+# on ~80% of pages, GLM on ~20% (see docs/synthesis-verification.md).
+VERIFY_RETRIES = 2
+
+
+def _verified_text(page_key: str, prompt: str, text: str, provider: str, model: str):
+    """Audit `text` against the figures behind `page_key` (bloc:/compare: pages
+    only; others are returned unchecked) and ask for a rewrite while it has
+    numbers that are not in the data. Returns (text, provider, model, ok); ok is
+    False if the last draft still fails, in which case the caller must not
+    publish it."""
+    from . import verify_synthesis as vs  # imports this module, so not at top level
+
+    for attempt in range(VERIFY_RETRIES + 1):
+        row = SynthesisText(page_key=page_key, text=text, data_hash="", generated_at="", provider=provider, model=model)
+        report = vs.verify_page(row)
+        if report is None or report.clean:
+            return text, provider, model, True
+        if attempt == VERIFY_RETRIES:
+            break
+        logger.warning("Synthesis for %s has unverified numbers, asking for a rewrite (%d/%d)",
+                       page_key, attempt + 1, VERIFY_RETRIES)
+        try:
+            text, provider, model = _generate_text(vs.feedback_prompt(prompt, text, report))
+        except Exception:
+            logger.exception("Synthesis rewrite failed for %s", page_key)
+            break
+        if not text:
+            break
+    return text, provider, model, False
+
+
 def _maybe_generate(page_key: str, payload_for_hash: dict, prompt: str) -> None:
     """The actual hash-diff gate: skip the (real, costly) LLM call entirely
     if this page's underlying numbers haven't changed since the last run."""
@@ -114,6 +147,11 @@ def _maybe_generate(page_key: str, payload_for_hash: dict, prompt: str) -> None:
         logger.exception("Synthesis generation failed entirely for %s - leaving prior text in place", page_key)
         return
     if not text:
+        return
+    text, provider, model, ok = _verified_text(page_key, prompt, text, provider, model)
+    if not ok or not text:
+        logger.warning("Synthesis for %s still has unverified numbers after %d rewrites - keeping prior text",
+                       page_key, VERIFY_RETRIES)
         return
     db.upsert_synthesis(SynthesisText(
         page_key=page_key, text=text, data_hash=new_hash, generated_at=now(), provider=provider, model=model,

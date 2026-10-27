@@ -52,3 +52,34 @@ def test_broken_decimal_is_recovered_and_counted():
 def test_metric_name_constants_are_not_flagged(seeded):
     _agg("eu", "poverty_headcount_pct", 4.8)
     assert _verdicts("Poverty at $3.65 per day affects 4.8% of people.")["$3.65"] == "incidental"
+
+
+def test_scientific_notation_copied_from_the_prompt_is_grounded(seeded):
+    _agg("us", "gdp_current_usd", 30.7697e12)
+    assert _verdicts("The US GDP is 3.077e+13 USD.", "bloc:us")["3.077e+13"] == "grounded"
+
+
+def test_generation_rewrites_a_paragraph_with_unverified_numbers(seeded, monkeypatch):
+    from global_monitor import synthesis
+
+    _agg("eu", "military_exp_usd", 460.556e9)
+    drafts = iter(["The EU spends $4.606 billion.", "The EU spends $460.6 billion."])
+    prompts = []
+
+    def fake(prompt):
+        prompts.append(prompt)
+        return next(drafts), "t", "t"
+
+    monkeypatch.setattr(synthesis, "_generate_text", fake)
+    text, _, _, ok = synthesis._verified_text("bloc:eu", "P", "The EU spends $4.606 billion.", "t", "t")
+    assert ok and text == "The EU spends $460.6 billion."
+    assert "$4.606 billion" in prompts[0]  # the offending number is named in the rewrite request
+
+
+def test_generation_refuses_to_publish_a_paragraph_that_keeps_failing(seeded, monkeypatch):
+    from global_monitor import synthesis
+
+    _agg("eu", "military_exp_usd", 460.556e9)
+    monkeypatch.setattr(synthesis, "_generate_text", lambda p: ("The EU spends $4.606 billion.", "t", "t"))
+    *_, ok = synthesis._verified_text("bloc:eu", "P", "The EU spends $4.606 billion.", "t", "t")
+    assert ok is False

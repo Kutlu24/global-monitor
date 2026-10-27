@@ -35,10 +35,22 @@ _SCALES = {"trillion": 1e12, "billion": 1e9, "million": 1e6, "thousand": 1e3}
 
 _NUM_RE = re.compile(
     r"(?P<cur>\$|US\$|€)?\s?(?P<num>\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d+(?:\.\d+)?)"
+    r"(?P<exp>[eE][+-]?\d+)?"
     r"(?:\s?(?P<scale>trillion|billion|million|thousand)\b)?"
     r"(?P<pct>\s?%|\s?percent\b)?",
     re.IGNORECASE,
 )
+
+
+BAD_VERDICTS = ("ungrounded", "wrong_metric", "magnitude_error")
+
+
+def feedback_prompt(prompt: str, draft: str, report: "PageReport") -> str:
+    """The original prompt plus the rejected draft and the numbers that failed the audit."""
+    bad = ", ".join(sorted({n.text for n in report.numbers if n.verdict in BAD_VERDICTS}))
+    return (f"{prompt}\n\nYour previous draft was:\n{draft}\n\nThese numbers in it do not appear in the data "
+            f"above: {bad}. Rewrite the paragraph so every number is copied exactly from the data (same "
+            f"scale and unit), or leave the number out.")
 
 
 @dataclass
@@ -80,7 +92,7 @@ class PageReport:
 
     @property
     def clean(self) -> bool:
-        return not any(n.verdict in ("ungrounded", "wrong_metric", "magnitude_error") for n in self.numbers)
+        return not any(n.verdict in BAD_VERDICTS for n in self.numbers)
 
 
 # The small local model sometimes writes "5. 467" for 5.467; the figure is
@@ -100,6 +112,10 @@ def extract_numbers(text: str) -> list[tuple[str, float, float, str, bool]]:
         value = float(raw)
         decimals = len(raw.split(".")[1]) if "." in raw else 0
         step = 10 ** -decimals
+        if m.group("exp"):  # the prompt prints figures as 3.077e+13; models often copy that verbatim
+            e = int(m.group("exp")[1:])
+            value *= 10 ** e
+            step *= 10 ** e
         scale = m.group("scale")
         if scale:
             value *= _SCALES[scale.lower()]

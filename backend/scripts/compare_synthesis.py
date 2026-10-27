@@ -24,7 +24,6 @@ from global_monitor.synthesis import _COMPARE_PAIRS, _DIMENSIONS, _bloc_prompt, 
 
 MAX_RETRIES = 2
 API_ATTEMPTS = 4  # per call: rate limits and transient network errors get a backoff, then give up
-BAD = ("ungrounded", "wrong_metric", "magnitude_error")
 
 
 def _prompts() -> dict[str, str]:
@@ -67,13 +66,6 @@ def _audit(page_key: str, text: str, model: str):
     return vs.verify_page(row)
 
 
-def _feedback(prompt: str, draft: str, report) -> str:
-    bad = ", ".join(sorted({n.text for n in report.numbers if n.verdict in BAD}))
-    return (f"{prompt}\n\nYour previous draft was:\n{draft}\n\nThese numbers in it do not appear in the data "
-            f"above: {bad}. Rewrite the paragraph so every number is copied exactly from the data (same "
-            f"scale and unit), or leave the number out.")
-
-
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", default="synthesis_comparison.json")
@@ -103,7 +95,7 @@ def main() -> None:
             for _ in range(MAX_RETRIES):
                 if report.clean:
                     break
-                retry = _glm(_feedback(prompt, draft, report))
+                retry = _glm(vs.feedback_prompt(prompt, draft, report))
                 if not retry:
                     break
                 draft = retry
