@@ -34,9 +34,11 @@ static text.
 - **SIPRI military expenditure**: downloads and parses SIPRI's own yearly Excel file (no API at
   all) - all 48 countries. Deliberately fragile-tolerant: a parse failure logs loudly and keeps
   the last-known-good data rather than crashing.
-- **Not implemented**: OECD SDMX and IMF DataMapper - their real dataflow/API shapes need proper
-  documentation research rather than guessed endpoints, and World Bank already covers the core
-  indicators well enough for v1. Revisit if a specific gap they'd fill actually shows up.
+- **IMF WEO** (DataMapper API, `ingestion/imf_weo.py`): general government gross debt, used by the
+  risk model (see `docs/risk-model.md`).
+- **Not implemented**: OECD SDMX - its real dataflow/API shapes need proper documentation research
+  rather than guessed endpoints, and World Bank already covers the core indicators well enough
+  for v1. Revisit if a specific gap it would fill actually shows up.
 
 **Major Economies module** (`/countries`, `/country/{iso3}`) - a country-vs-country comparison,
 separate from bloc comparison: the top 20 advanced economies (IMF classification, by nominal
@@ -82,6 +84,17 @@ is only called when a page's underlying numbers actually change, plus a chunked 
 `/api/last-updated`. `SITE_URL`/`GLOBAL_MONITOR_DOMAIN` points at the live relay address
 (`https://global-monitor-render-relay.onrender.com`) so these URLs are correct now, not just once
 a domain is purchased.
+
+### Auditing the LLM text
+
+`synthesis.py` tells the model to use only the figures it is given, but a prompt is not a check.
+`python -m global_monitor.cli verify-synthesis` (module `verify_synthesis.py`, read-only) looks up
+every number in each stored paragraph among the figures its prompt was built from and reports the
+ones with no counterpart, including figures that are off by a power of ten. On the first audit,
+with the local fallback model, only 7 of 35 paragraphs had no unverified number. Method, results
+and what the check cannot catch: [`docs/synthesis-verification.md`](docs/synthesis-verification.md).
+`backend/scripts/compare_synthesis.py` regenerates the pages with GLM (optionally with a
+verify-and-retry loop) and compares it with the stored text; it writes nothing to the database.
 
 Three real bugs surfaced only by a genuine fresh-container-boot test (not by build exit codes):
 `list_blocs()` was missing the `synthesis` field the plural endpoint's callers actually use; no
