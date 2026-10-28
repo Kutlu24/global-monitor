@@ -5,6 +5,15 @@ from global_monitor.models import BlocAggregate
 EN = "The EU has a GDP of $21.24 trillion and spends 2.18% of GDP on defence."
 
 
+import pytest
+
+
+@pytest.fixture(autouse=True)
+def _one_figure_is_enough(monkeypatch):
+    """The sample paragraphs here state two figures; the figure-count rule has its own test."""
+    monkeypatch.setattr(synthesis, "MIN_FIGURES", 1)
+
+
 def _agg(metric_id, value):
     db.upsert_bloc_aggregate(BlocAggregate("eu", metric_id, "2025", value, 3, "2026-01-01T00:00:00+00:00"))
 
@@ -69,3 +78,16 @@ def test_a_failed_translation_keeps_a_current_one(seeded, monkeypatch):
     _drafts(monkeypatch, [bad, bad, bad])
     assert synthesis._translate_or_drop("bloc:eu", "es", EN, "h1") is False
     assert db.get_synthesis("bloc:eu|es").text == "actual"
+
+
+def test_a_paragraph_with_too_few_figures_is_sent_back(seeded, monkeypatch):
+    for metric_id, value in (("gdp_current_usd", 21.243e12), ("military_exp_pct_gdp", 2.1794),
+                             ("trade_pct_gdp", 40.1), ("life_expectancy_years", 80.9)):
+        _agg(metric_id, value)
+    monkeypatch.setattr(synthesis, "MIN_FIGURES", 4)
+    vague = "The EU is a large economy with strong trade and a long-lived population."
+    good = ("The EU has a GDP of $21.24 trillion, spends 2.18% of GDP on defence, trades 40.1% of GDP "
+            "and has a life expectancy of 80.9 years.")
+    prompts = _drafts(monkeypatch, [good])
+    text, _, _, ok = synthesis._verified_text("bloc:eu", "P", vague, "t", "t")
+    assert ok and text == good and "states only 0 figures" in prompts[0]

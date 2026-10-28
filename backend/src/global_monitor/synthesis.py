@@ -123,6 +123,17 @@ def _is_complete(text: str) -> bool:
     return text.rstrip().endswith(_SENTENCE_END)
 
 
+# A paragraph with no figures has nothing to be wrong about, so the number audit passes it. The
+# local fallback model does this: 4 of 18 pages it wrote on 2026-10-28 stated 0 to 3 figures.
+MIN_FIGURES = 4
+
+
+def _figure_count(text: str) -> int:
+    from . import verify_synthesis as vs
+
+    return sum(1 for surface, _v, _step, _klass, marker in vs.extract_numbers(text) if marker or "." in surface)
+
+
 def _verified_text(page_key: str, prompt: str, text: str, provider: str, model: str):
     """Audit `text` against the figures behind `page_key` (bloc:/compare: pages
     only for the numbers; every page for completeness) and ask for a rewrite while
@@ -136,13 +147,19 @@ def _verified_text(page_key: str, prompt: str, text: str, provider: str, model: 
         report = vs.verify_page(row)
         numbers_ok = report is None or report.clean
         complete = _is_complete(text)
-        if numbers_ok and complete:
+        enough = report is None or _figure_count(text) >= MIN_FIGURES
+        if numbers_ok and complete and enough:
             return text, provider, model, True
         if attempt == VERIFY_RETRIES:
             break
         logger.warning("Synthesis for %s is %s, asking for a rewrite (%d/%d)", page_key,
-                       "cut off" if not complete else "unverified", attempt + 1, VERIFY_RETRIES)
-        if not complete:
+                       "cut off" if not complete else ("unverified" if not numbers_ok else "too vague"),
+                       attempt + 1, VERIFY_RETRIES)
+        if numbers_ok and complete and not enough:
+            retry = (f"{prompt}\n\nYour previous draft states only {_figure_count(text)} figures:\n{text}\n\n"
+                     f"Write the paragraph again and state at least {MIN_FIGURES} of the real figures listed above, "
+                     "each with its unit.")
+        elif not complete:
             retry = (f"{prompt}\n\nYour previous draft stopped mid-sentence:\n{text}\n\n"
                      "Write the complete paragraph again, a little shorter, ending with a full stop.")
         else:

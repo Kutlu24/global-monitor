@@ -62,6 +62,7 @@ def test_scientific_notation_copied_from_the_prompt_is_grounded(seeded):
 def test_generation_rewrites_a_paragraph_with_unverified_numbers(seeded, monkeypatch):
     from global_monitor import synthesis
 
+    monkeypatch.setattr(synthesis, "MIN_FIGURES", 1)  # one-figure sample; the count rule is tested elsewhere
     _agg("eu", "military_exp_usd", 460.556e9)
     drafts = iter(["The EU spends $4.606 billion.", "The EU spends $460.6 billion."])
     prompts = []
