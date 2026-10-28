@@ -54,12 +54,21 @@ export const HEADLINE_METRIC: Record<Dimension, MetricSpec> = {
 // Every metric belonging to each dimension - used on
 // /compare/[pair]/[dimension].astro and /dimension/[dimension].astro.
 export const DIMENSION_METRICS: Record<Dimension, MetricSpec[]> = {
-  economic: [{ metric_id: "gdp_current_usd", label: "GDP (current US$)", format: usd, formatType: "usd" }],
+  economic: [
+    { metric_id: "gdp_current_usd", label: "GDP (current US$)", format: usd, formatType: "usd" },
+    { metric_id: "inflation_pct", label: "Inflation, average consumer prices (%)", format: pct, formatType: "pct" },
+    // Signed: the bar chart draws a negative value as a minimum-height bar; the label carries the value.
+    { metric_id: "fiscal_balance_pct_gdp", label: "Government net lending/borrowing (% of GDP)", format: pct, formatType: "pct" },
+    { metric_id: "fdi_inward_flow_usd", label: "Foreign direct investment, inward flow", format: usd, formatType: "usd" },
+    { metric_id: "fdi_inward_stock_usd", label: "Foreign direct investment, inward stock", format: usd, formatType: "usd" },
+    { metric_id: "oda_given_usd", label: "Official development assistance given (OECD DAC reporters only)", format: usd, formatType: "usd" },
+  ],
   trade: [
     { metric_id: "trade_exports_world_usd", label: "Exports to the world", format: usd, formatType: "usd" },
     { metric_id: "trade_imports_world_usd", label: "Imports from the world", format: usd, formatType: "usd" },
     { metric_id: "trade_pct_gdp", label: "Trade (% of GDP)", format: pct, formatType: "pct" },
     { metric_id: "trade_intra_bloc_exports_usd", label: "Intra-bloc exports", format: usd, formatType: "usd" },
+    { metric_id: "tariff_weighted_mean_pct", label: "Applied tariff, weighted mean (%)", format: pct, formatType: "pct" },
   ],
   social: [
     { metric_id: "population_total", label: "Population", format: people, formatType: "people" },
@@ -77,6 +86,15 @@ export const DIMENSION_METRICS: Record<Dimension, MetricSpec[]> = {
     // gave no hint why a plain "enrollment %" could read over 100.
     { metric_id: "secondary_enrollment_pct", label: "Secondary school enrollment (% gross)", format: pct, formatType: "pct" },
     { metric_id: "hdi", label: "Human Development Index", format: index01, formatType: "index" },
+    { metric_id: "food_insecurity_pct", label: "Moderate or severe food insecurity (% of population)", format: pct, formatType: "pct" },
+    // Worldwide Governance Indicators are signed estimates (about -2.5 to +2.5), so the bar chart
+    // draws a negative value as a minimum-height bar; the label carries the value.
+    { metric_id: "wgi_voice_accountability", label: "Voice and accountability (WGI)", format: index01, formatType: "index" },
+    { metric_id: "wgi_political_stability", label: "Political stability and absence of violence (WGI)", format: index01, formatType: "index" },
+    { metric_id: "wgi_government_effectiveness", label: "Government effectiveness (WGI)", format: index01, formatType: "index" },
+    { metric_id: "wgi_regulatory_quality", label: "Regulatory quality (WGI)", format: index01, formatType: "index" },
+    { metric_id: "wgi_rule_of_law", label: "Rule of law (WGI)", format: index01, formatType: "index" },
+    { metric_id: "wgi_control_of_corruption", label: "Control of corruption (WGI)", format: index01, formatType: "index" },
   ],
   military: [
     { metric_id: "military_exp_usd", label: "Military expenditure (current US$)", format: usd, formatType: "usd" },
