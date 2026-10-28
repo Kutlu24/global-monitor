@@ -249,14 +249,20 @@ output.
 
 ## Scenarios
 
-Six scenarios are kept. Weights are set deliberately per scenario and sum to
+Fifteen scenarios are kept: the original six plus nine added 2026-10-28 (Yemen and
+the Red Sea, EU fragmentation, oil decline, sea-level rise, a warming Siberia,
+a Taiwan war, an India-Pakistan war, and two Iran outcomes). The climate scenario
+was split: `climate-water-wars` is now only about water; land loss and shifting
+farmland are their own scenarios. Weights are set deliberately per scenario and sum to
 1.00 across the six structural criteria; exposure is no longer a weighted term
 in any of them. Equal weighting was tested in the prototype and produces
 defensible-but-absurd results (Peru, Colombia, Ecuador and Myanmar in the
 global top 8 for Russia-NATO, on low age-dependency and high forest share).
 
 Each scenario carries: `weights` over the six structural criteria, `epicentres`,
-`belligerents`, and an `explanation` that states what the scenario does and does
+`belligerents`, optional `direction_overrides` (a scenario-specific flip of one
+indicator's direction: `oil-decline-transition` treats a high fuel-export share
+as a weakness, the opposite of the Hormuz scenario), and an `explanation` that states what the scenario does and does
 not measure. The Hormuz scenario's explanation previously said isolation was
 "deliberately weighted 0", which stopped being true when exposure became a
 separate axis; all six explanations were re-checked for stale claims on
@@ -287,7 +293,7 @@ references it, so no country outside the bloc set could be stored. Added:
   them; 211 of 217 real countries have coordinates). Added as a nullable-column
   migration so existing databases upgrade in place.
 - `risk_scenarios`: scenario -> weights, epicentres, belligerents, explanation.
-  Held in code (`risk.py`), not in a table - the six scenarios are editorial
+  Held in code (`risk.py`), not in a table - the scenarios are editorial
   content, and a table would only split the definition across two places.
 - Risk scores are **computed, never stored**, and recomputed per request.
 
@@ -335,3 +341,20 @@ These are real and deliberately not papered over:
 All World Bank countries with coordinates: **211** (of 217 real entries).
 This includes all 29 of EU-27 + UK + Turkey, and the fragile states the user
 asked about, without any hand-picked allowlist.
+
+### Limits of the 2026-10-28 scenarios
+
+These are hypotheticals scored with the same World Bank / IMF / UNDP indicators as
+the rest, so each one inherits what those indicators cannot see. Specific cases:
+
+- `taiwan-war`: Taiwan is not a World Bank country record, so the epicentre itself is
+  not ranked. China and the US are flagged as parties.
+- `sea-level-island-states`: the model has no elevation or coastline data. Tuvalu, the
+  Marshall Islands, Palau, Nauru and Micronesia lack enough indicators and are unranked.
+- `yemen-red-sea-crisis`: Gulf fuel exporters rank high because "energy independence"
+  rewards fuel exports; Red Sea trade exposure is not measured.
+- `eu-fragmentation`: politics is not measured and no party is named. It asks only which
+  countries are structurally best placed to absorb a weaker single market.
+- `iran-regime-change` and `iran-regime-hardens`: the parties (Iran, Israel, US) are an
+  assumption of the scenario. The two differ only in weights and wording.
+- Fuel exporters are the one case where direction flips: see `direction_overrides` above.

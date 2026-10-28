@@ -218,6 +218,11 @@ class Scenario:
     # from the front. A model of how well a country holds together has no
     # business implying that the belligerent is doing well.
     belligerents: tuple[str, ...] = ()
+    # (metric_id, direction) pairs that replace the direction in CRITERIA for this
+    # scenario only. Needed when a scenario flips what counts as an advantage:
+    # fuel exports are resilience in a Hormuz shock and exposure when oil demand
+    # falls. Each override must be explained in `explanation`.
+    direction_overrides: tuple[tuple[str, int], ...] = ()
 
 
 _EARTH_RADIUS_KM = 6371.0
@@ -344,7 +349,7 @@ SCENARIOS: tuple[Scenario, ...] = (
     ),
     Scenario(
         slug="climate-water-wars",
-        name="Climate Crisis & Water Wars",
+        name="Water Crisis & Water Wars",
         weights={
             "economic_resilience": 0.11, "domestic_social_stability": 0.20,
             "infrastructure_health": 0.13, "climate_resilience": 0.39,
@@ -357,8 +362,10 @@ SCENARIOS: tuple[Scenario, ...] = (
             (-4.00, 22.00, "Kalahari / Zambezi drought belt"),
         ),
         explanation=(
-            "Climate resilience leads, followed by social stability: water "
-            "access and per-capita emissions pressure matter more than income."
+            "Freshwater stress in shared river basins. Climate resilience leads, "
+            "followed by social stability: water access and per-capita emissions "
+            "pressure matter more than income. Land loss and shifting farmland "
+            "from warming are separate scenarios (sea-level rise, warming Siberia)."
         ),
         not_measured="Actual freshwater availability per capita (no reliable free API for it).",
     ),
@@ -379,6 +386,259 @@ SCENARIOS: tuple[Scenario, ...] = (
             "infrastructure and a young population come out ahead."
         ),
         not_measured="R&D spend and human capital directly (only proxied via internet use and demographics).",
+    ),
+    Scenario(
+        slug="yemen-red-sea-crisis",
+        name="Yemen Crisis & Red Sea Shipping Disruption",
+        weights={
+            "economic_resilience": 0.26, "domestic_social_stability": 0.14,
+            "infrastructure_health": 0.10, "climate_resilience": 0.05,
+            "energy_independence": 0.30, "demographic_resilience": 0.15,
+        },
+        epicentres=(
+            (12.60, 43.30, "Bab-el-Mandeb strait"),
+            (14.80, 42.95, "Hodeidah coast"),
+            (12.00, 47.00, "Gulf of Aden"),
+            (30.50, 32.30, "Suez Canal"),
+        ),
+        explanation=(
+            "A prolonged Yemen conflict keeps the Bab-el-Mandeb route unsafe, so "
+            "Asia-Europe shipping reroutes around southern Africa. Economic "
+            "resilience and energy independence lead: import-dependent, "
+            "trade-exposed economies pay the freight and fuel premium. Exposure "
+            "is distance to the strait, the Yemeni coast, the Gulf of Aden and "
+            "the Suez Canal."
+        ),
+        belligerents=("YEM",),
+        not_measured=(
+            "Suez Canal revenue, shipping volumes, insurance costs and the share of "
+            "each country's trade that passes the Red Sea. None is in the source "
+            "data, so the score reflects general economic and energy buffers only."
+        ),
+    ),
+    Scenario(
+        slug="eu-fragmentation",
+        name="EU Fragmentation (Hard-Right Governments in France & Germany)",
+        weights={
+            "economic_resilience": 0.30, "domestic_social_stability": 0.22,
+            "infrastructure_health": 0.10, "climate_resilience": 0.08,
+            "energy_independence": 0.12, "demographic_resilience": 0.18,
+        },
+        epicentres=(
+            (48.86, 2.35, "Paris"),
+            (52.52, 13.40, "Berlin"),
+            (50.85, 4.35, "Brussels"),
+        ),
+        explanation=(
+            "A hypothetical, not a forecast: hard-right governments in France and "
+            "Germany try to deliver nationalist platforms and the EU weakens. The "
+            "model cannot measure politics. It asks which countries are "
+            "structurally best placed to absorb a weaker single market: economic "
+            "resilience and social stability lead, demographics (labour supply) "
+            "follows. Exposure is distance to Paris, Berlin and Brussels."
+        ),
+        not_measured=(
+            "Election outcomes, party platforms, treaty and single-market rules, "
+            "EU transfers and trade dependence on France and Germany. None is in "
+            "the source data, and no party is named or scored."
+        ),
+    ),
+    Scenario(
+        slug="oil-decline-transition",
+        name="Oil Decline & Energy Transition",
+        weights={
+            "economic_resilience": 0.24, "domestic_social_stability": 0.12,
+            "infrastructure_health": 0.08, "climate_resilience": 0.10,
+            "energy_independence": 0.38, "demographic_resilience": 0.08,
+        },
+        epicentres=(
+            (26.00, 51.00, "Persian Gulf producers"),
+            (61.00, 73.00, "West Siberian oil fields"),
+            (31.90, -102.00, "Permian Basin"),
+            (5.00, 6.00, "Niger Delta"),
+        ),
+        direction_overrides=(("fuel_exports_pct", -1),),
+        explanation=(
+            "Alternatives replace oil and its strategic weight fades. Energy "
+            "independence dominates, but fuel exports flip sign relative to the "
+            "Hormuz shock: a high share of fuel in merchandise exports is "
+            "treated as a weakness here, because the revenue base shrinks. Low "
+            "fossil-fuel use still counts in a country's favour. Exposure is "
+            "distance to major producing regions."
+        ),
+        not_measured=(
+            "Reserves, production costs, state revenue from oil, sovereign wealth "
+            "buffers and the pace of the transition. A rich producer with large "
+            "buffers is penalised the same as a poor one."
+        ),
+    ),
+    Scenario(
+        slug="sea-level-island-states",
+        name="Sea-Level Rise & Island States",
+        weights={
+            "economic_resilience": 0.25, "domestic_social_stability": 0.12,
+            "infrastructure_health": 0.15, "climate_resilience": 0.28,
+            "energy_independence": 0.05, "demographic_resilience": 0.15,
+        },
+        epicentres=(
+            (-8.52, 179.20, "Tuvalu and Kiribati atolls"),
+            (3.20, 73.20, "Maldives"),
+            (22.50, 90.30, "Ganges-Brahmaputra delta"),
+            (10.00, 106.00, "Mekong delta"),
+        ),
+        explanation=(
+            "Warming raises sea level and low-lying island states and deltas lose "
+            "land. Climate resilience leads, then economic resilience as a proxy "
+            "for the ability to pay for sea defences and relocation. Exposure is "
+            "distance to the most-cited low-lying regions, not a measure of "
+            "elevation."
+        ),
+        not_measured=(
+            "Elevation, coastline length, land area at risk and the population "
+            "living below the projected waterline. None is in the source data, "
+            "so a high-elevation inland country and a low island country with the "
+            "same indicators score the same. Tuvalu, the Marshall Islands, Palau, "
+            "Nauru and Micronesia lack enough indicators and appear as unranked, so "
+            "the most-cited cases are not in the ranking."
+        ),
+    ),
+    Scenario(
+        slug="siberia-thaw-china-russia",
+        name="Warming Siberia & China-Russia Friction",
+        weights={
+            "economic_resilience": 0.22, "domestic_social_stability": 0.12,
+            "infrastructure_health": 0.10, "climate_resilience": 0.22,
+            "energy_independence": 0.14, "demographic_resilience": 0.20,
+        },
+        epicentres=(
+            (62.00, 129.00, "Yakutia permafrost belt"),
+            (50.30, 127.50, "Amur-Heilongjiang border"),
+            (53.00, 70.00, "Northern Kazakhstan steppe"),
+        ),
+        belligerents=("RUS", "CHN"),
+        explanation=(
+            "Warming makes Siberian land farmable. Russia gains arable land and "
+            "China, short of it and with an ageing population, presses on a "
+            "thinly settled border, which raises tension between them. Climate "
+            "and demographic resilience weigh above average; Russia and China "
+            "are flagged as the parties, not scored differently."
+        ),
+        not_measured=(
+            "Arable land, permafrost extent, crop yields, border migration and "
+            "military balance. None is in the source data."
+        ),
+    ),
+    Scenario(
+        slug="taiwan-war",
+        name="Taiwan Crisis Escalating to War",
+        weights={
+            "economic_resilience": 0.32, "domestic_social_stability": 0.12,
+            "infrastructure_health": 0.13, "climate_resilience": 0.05,
+            "energy_independence": 0.26, "demographic_resilience": 0.12,
+        },
+        epicentres=(
+            (23.70, 120.90, "Taiwan Strait"),
+            (20.50, 121.00, "Luzon Strait"),
+            (24.45, 122.99, "Yonaguni and the Ryukyu chain"),
+            (12.00, 114.00, "South China Sea"),
+        ),
+        belligerents=("CHN", "USA"),
+        explanation=(
+            "The crisis becomes a blockade or war. Shipping and chip supply "
+            "break, so economic resilience and energy independence lead. Exposure "
+            "is distance to the strait, the Luzon Strait, the Ryukyu chain and the "
+            "South China Sea. Taiwan "
+            "itself is not a World Bank country record and is not ranked."
+        ),
+        not_measured=(
+            "Semiconductor dependence, shipping routes, alliance commitments and "
+            "military outcomes. China and the US are flagged as parties; Taiwan, "
+            "the epicentre, does not appear in this data."
+        ),
+    ),
+    Scenario(
+        slug="india-pakistan-war",
+        name="India-Pakistan Tension Escalating to War",
+        weights={
+            "economic_resilience": 0.20, "domestic_social_stability": 0.20,
+            "infrastructure_health": 0.12, "climate_resilience": 0.12,
+            "energy_independence": 0.16, "demographic_resilience": 0.20,
+        },
+        epicentres=(
+            (34.00, 74.50, "Kashmir and the Line of Control"),
+            (31.60, 74.60, "Punjab border crossing"),
+            (27.50, 68.50, "Indus basin"),
+            (23.60, 68.80, "Sir Creek and the Rann of Kutch"),
+        ),
+        belligerents=("IND", "PAK"),
+        explanation=(
+            "Border tension turns into open war between two nuclear-armed "
+            "states. Social stability and demographic resilience weigh above "
+            "average, since displacement and refugee flows are the main "
+            "spillover to neighbours; the Indus basin adds a water dimension. "
+            "Both parties are nuclear-armed and flagged on that axis, never "
+            "folded into a score."
+        ),
+        not_measured=(
+            "Nuclear use, military balance, refugee numbers, trade routes through "
+            "the region and Indus water-sharing arrangements."
+        ),
+    ),
+    Scenario(
+        slug="iran-regime-change",
+        name="Iran War: Regime Change",
+        weights={
+            "economic_resilience": 0.20, "domestic_social_stability": 0.20,
+            "infrastructure_health": 0.08, "climate_resilience": 0.06,
+            "energy_independence": 0.26, "demographic_resilience": 0.20,
+        },
+        epicentres=(
+            (35.70, 51.40, "Tehran"),
+            (26.60, 56.30, "Strait of Hormuz"),
+            (29.20, 50.30, "Kharg Island oil terminal"),
+            (33.50, 46.00, "Iran-Iraq border"),
+        ),
+        belligerents=("IRN", "ISR", "USA"),
+        explanation=(
+            "A war ends in the fall of the Iranian government. The regional "
+            "spillover is an oil-price spike, then displacement and instability "
+            "on Iran's borders. Energy independence leads, with social stability "
+            "and demographic resilience (refugee absorption) next. The parties "
+            "listed are an assumption of this scenario."
+        ),
+        not_measured=(
+            "Who replaces the government, refugee numbers, nuclear material, and "
+            "the actual Gulf export capacity. Neither this scenario nor the "
+            "next one says which outcome is likely."
+        ),
+    ),
+    Scenario(
+        slug="iran-regime-hardens",
+        name="Iran War: Regime Survives and Hardens",
+        weights={
+            "economic_resilience": 0.25, "domestic_social_stability": 0.10,
+            "infrastructure_health": 0.08, "climate_resilience": 0.06,
+            "energy_independence": 0.38, "demographic_resilience": 0.13,
+        },
+        epicentres=(
+            (35.70, 51.40, "Tehran"),
+            (26.60, 56.30, "Strait of Hormuz"),
+            (29.20, 50.30, "Kharg Island oil terminal"),
+            (33.50, 46.00, "Iran-Iraq border"),
+        ),
+        belligerents=("IRN", "ISR", "USA"),
+        explanation=(
+            "The war ends with the government in place and more securitised. "
+            "The lasting effect is a long confrontation: sanctions, a threatened "
+            "Hormuz route and proxy conflicts. Energy independence dominates "
+            "more than in the regime-change case, and economic resilience "
+            "follows; social spillover weighs less. The parties listed are an "
+            "assumption of this scenario."
+        ),
+        not_measured=(
+            "Sanctions design, proxy activity, nuclear programme status and the "
+            "actual closure risk of the strait."
+        ),
     ),
 )
 
@@ -455,10 +715,12 @@ def score(scenario: Scenario) -> dict:
 
     criterion_scores: dict[str, dict[str, float]] = {}
     missing: dict[str, set[str]] = {iso: set() for iso in iso3_list}
+    overrides = dict(scenario.direction_overrides)
 
     for criterion_key, spec in CRITERIA.items():
         percentiles: list[tuple[str, dict[str, float]]] = []
         for metric_id, direction, _w in spec["indicators"]:
+            direction = overrides.get(metric_id, direction)
             data = values.get(metric_id, {})
             if len(data) < 30:
                 raise RuntimeError(
@@ -558,6 +820,7 @@ def score(scenario: Scenario) -> dict:
             "explanation": scenario.explanation, "not_measured": scenario.not_measured,
             "epicentres": [{"lat": a, "lon": b, "label": c} for a, b, c in scenario.epicentres],
             "belligerents": list(scenario.belligerents),
+            "direction_overrides": dict(scenario.direction_overrides),
         },
         "criteria": {k: v["name"] for k, v in CRITERIA.items()},
         "weights": scenario.weights,

@@ -17,6 +17,7 @@ Arabic is the only RTL language; the frontend reads `RTL` from here to set
 """
 from __future__ import annotations
 
+from . import i18n_scenarios
 from .risk import CRITERIA, SCENARIOS
 
 LANGS: tuple[str, ...] = ("en", "tr", "de", "fr", "es", "ar", "zh", "ru")
@@ -548,6 +549,16 @@ EPICENTRE_LABEL: dict[str, dict[str, str]] = {
         "zh": "台湾半导体带", "ru": "Полупроводниковый пояс Тайваня",
     },
 }
+
+
+# Scenarios added after the first six live in i18n_scenarios.py. climate-water-wars keeps its
+# slug (it is in URLs) but is now only about water, so its name and explanation are replaced.
+SCENARIO_NAME.update(i18n_scenarios.NAME)
+SCENARIO_NAME["climate-water-wars"] = i18n_scenarios.RENAMED_NAME
+SCENARIO_EXPLANATION.update(i18n_scenarios.EXPLANATION)
+SCENARIO_EXPLANATION["climate-water-wars"] = i18n_scenarios.RENAMED_EXPLANATION
+SCENARIO_NOT_MEASURED.update(i18n_scenarios.NOT_MEASURED)
+EPICENTRE_LABEL.update(i18n_scenarios.EPICENTRE)
 
 
 def scenario_name(slug: str, lang: str) -> str:
