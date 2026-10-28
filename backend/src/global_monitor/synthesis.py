@@ -68,11 +68,15 @@ def _data_hash(payload: dict) -> str:
 GENERATION_MAX_TOKENS = 1200
 
 
-def _call_glm(prompt: str) -> str:
+def _call_glm(prompt: str, think: bool = True) -> str:
     client = OpenAI(api_key=settings.glm_api_key, base_url=settings.glm_base_url)
+    # A translation needs no reasoning trace; measured 2026-10-28 on a zh page: with thinking on,
+    # 2 of 4 calls used all 1200 tokens on reasoning and returned empty content, with it off
+    # 4 of 4 finished in about 250 tokens.
+    extra = {} if think else {"extra_body": {"thinking": {"type": "disabled"}}}
     resp = client.chat.completions.create(
         model=settings.glm_model, messages=[{"role": "user", "content": prompt}],
-        max_tokens=GENERATION_MAX_TOKENS,
+        max_tokens=GENERATION_MAX_TOKENS, **extra,
     )
     return (resp.choices[0].message.content or "").strip()
 
@@ -86,7 +90,7 @@ def _call_ollama(prompt: str) -> str:
     return (resp.choices[0].message.content or "").strip()
 
 
-def _generate_text(prompt: str) -> tuple[str, str, str]:
+def _generate_text(prompt: str, think: bool = True) -> tuple[str, str, str]:
     """Returns (text, provider, model). GLM first if a key is configured;
     any failure (network, quota, bad key) OR an empty response (confirmed
     real failure mode - see GENERATION_MAX_TOKENS's own comment: a
@@ -95,7 +99,7 @@ def _generate_text(prompt: str) -> tuple[str, str, str]:
     leaving the page with no synthesis text at all."""
     if settings.synthesis_provider == "glm" and settings.glm_api_key:
         try:
-            text = _call_glm(prompt)
+            text = _call_glm(prompt, think)
             if text:
                 return text, "glm", settings.glm_model
             logger.warning("GLM synthesis call returned empty content, falling back to Ollama")
@@ -184,7 +188,7 @@ def _translate(page_key: str, lang: str, english_text: str, data_hash: str) -> b
     while it has problems, and store it only if it passes. False leaves the prior text."""
     base = _TRANSLATE_PROMPT.format(language=NATIVE_NAME[lang]) + "\n\n" + english_text
     try:
-        text, provider, model = _generate_text(base)
+        text, provider, model = _generate_text(base, think=False)
     except Exception:
         logger.exception("Synthesis translation failed for %s [%s] - keeping prior text", page_key, lang)
         return False
@@ -200,7 +204,7 @@ def _translate(page_key: str, lang: str, english_text: str, data_hash: str) -> b
             return False
         try:
             text, provider, model = _generate_text(
-                f"{base}\n\nYour previous translation was:\n{text}\n\nIt was rejected because "
+                think=False, prompt=f"{base}\n\nYour previous translation was:\n{text}\n\nIt was rejected because "
                 f"{'; '.join(problems)}. Translate the English text again and fix this.")
         except Exception:
             logger.exception("Translation rewrite failed for %s [%s]", page_key, lang)

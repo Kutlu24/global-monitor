@@ -12,7 +12,7 @@ def _agg(metric_id, value):
 def _drafts(monkeypatch, drafts):
     it, prompts = iter(drafts), []
 
-    def fake(prompt):
+    def fake(prompt, think=True):
         prompts.append(prompt)
         return next(it), "t", "t"
 
