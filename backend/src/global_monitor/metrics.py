@@ -189,6 +189,51 @@ RISK_INPUT_METRICS = [
 METRICS = METRICS + RISK_INPUT_METRICS
 
 
+def _wgi(metric_id, name, code):
+    return Metric(metric_id=metric_id, dimension="social", name=f"{name} (WGI)", unit="estimate (-2.5 to +2.5)",
+                  source="world_bank", source_dataset_code=code, license="CC BY-4.0",
+                  update_cadence="annual", default_aggregation="weighted_mean", weight_metric_id="population_total")
+
+
+# Added 2026-10-28.
+NEW_SOURCE_METRICS = [
+    _wgi("wgi_voice_accountability", "Voice and accountability", "GOV_WGI_VA.EST"),
+    _wgi("wgi_political_stability", "Political stability and absence of violence", "GOV_WGI_PV.EST"),
+    _wgi("wgi_government_effectiveness", "Government effectiveness", "GOV_WGI_GE.EST"),
+    _wgi("wgi_regulatory_quality", "Regulatory quality", "GOV_WGI_RQ.EST"),
+    _wgi("wgi_rule_of_law", "Rule of law", "GOV_WGI_RL.EST"),
+    _wgi("wgi_control_of_corruption", "Control of corruption", "GOV_WGI_CC.EST"),
+    Metric(metric_id="tariff_weighted_mean_pct", dimension="trade", name="Applied tariff, weighted mean",
+           unit="%", source="world_bank", source_dataset_code="TM.TAX.MRCH.WM.AR.ZS",
+           license="CC BY-4.0 (World Bank republishing UN TRAINS: UNCTAD, WTO, ITC data)",
+           update_cadence="annual", default_aggregation="weighted_mean", weight_metric_id="trade_exports_world_usd"),
+    Metric(metric_id="inflation_pct", dimension="economic", name="Inflation, average consumer prices",
+           unit="% change", source="imf_weo", source_dataset_code="PCPIPCH",
+           license="IMF terms of use (free, non-commercial)",
+           update_cadence="annual", default_aggregation="weighted_mean", weight_metric_id="gdp_current_usd"),
+    Metric(metric_id="fiscal_balance_pct_gdp", dimension="economic", name="General government net lending/borrowing",
+           unit="% of GDP", source="imf_weo", source_dataset_code="GGXCNL_NGDP",
+           license="IMF terms of use (free, non-commercial)",
+           update_cadence="annual", default_aggregation="weighted_mean", weight_metric_id="gdp_current_usd"),
+    Metric(metric_id="food_insecurity_pct", dimension="social", name="Moderate or severe food insecurity",
+           unit="% of population, 3-year average", source="fao",
+           source_dataset_code="FAOSTAT Food Security Data", license="CC BY-NC-SA 3.0 IGO (FAO)",
+           update_cadence="annual", default_aggregation="weighted_mean", weight_metric_id="population_total"),
+    Metric(metric_id="fdi_inward_flow_usd", dimension="economic", name="Foreign direct investment, inward flow",
+           unit="USD", source="unctad", source_dataset_code="US.FdiFlowsStock",
+           license="UNCTADstat terms of use", update_cadence="annual", default_aggregation="sum"),
+    Metric(metric_id="fdi_inward_stock_usd", dimension="economic", name="Foreign direct investment, inward stock",
+           unit="USD", source="unctad", source_dataset_code="US.FdiFlowsStock",
+           license="UNCTADstat terms of use", update_cadence="annual", default_aggregation="sum"),
+    Metric(metric_id="oda_given_usd", dimension="economic",
+           name="Official development assistance given (OECD DAC reporters only)", unit="USD",
+           source="oecd_dac", source_dataset_code="DSD_DAC1@DF_DAC1 / 11010",
+           license="OECD terms and conditions", update_cadence="annual", default_aggregation="sum"),
+]
+
+METRICS = METRICS + NEW_SOURCE_METRICS
+
+
 def seed() -> None:
     for metric in METRICS:
         db.upsert_metric(metric)

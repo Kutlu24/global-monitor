@@ -7,12 +7,12 @@ from __future__ import annotations
 import logging
 
 from . import aggregate, blocs, db, major_economies, metrics, synthesis
-from .ingestion import comtrade, imf_weo, sipri, undp_hdi, worldbank
+from .ingestion import comtrade, fao, imf_weo, oecd_dac, sipri, undp_hdi, unctad, worldbank
 
 logger = logging.getLogger(__name__)
 
 CURRENT_PERIOD = "2023"  # UN Comtrade's most recent generally-complete annual data year
-SOURCES = ["worldbank", "worldbank_risk", "comtrade", "undp_hdi", "sipri"]
+SOURCES = ["worldbank", "worldbank_risk", "comtrade", "undp_hdi", "sipri", "imf_macro", "fao", "unctad", "oecd_dac"]
 
 
 def seed() -> None:
@@ -114,9 +114,25 @@ def run_source(source: str, iso3_list: list[str]) -> int:
         observations = sipri.fetch(iso3_list)
         db.upsert_observations(observations)
         return len(observations)
+    if source == "imf_macro":
+        observations = imf_weo.fetch_macro(iso3_list)
+        db.upsert_observations(observations)
+        return len(observations)
+    if source == "fao":
+        observations = fao.fetch(iso3_list)
+        db.upsert_observations(observations)
+        return len(observations)
+    if source == "unctad":
+        observations = unctad.fetch(iso3_list)
+        db.upsert_observations(observations)
+        return len(observations)
+    if source == "oecd_dac":
+        observations = oecd_dac.fetch(iso3_list, last_year=int(CURRENT_PERIOD) + 1)
+        db.upsert_observations(observations)
+        return len(observations)
     raise ValueError(
         f"Unknown source {source!r}. Implemented: {', '.join(SOURCES)} "
-        f"(OECD/IMF DataMapper are not yet implemented - see README)."
+        f"(WHO and the WTO API are not implemented: WHO's API answered 500/403 and WTO's needs a key)."
     )
 
 

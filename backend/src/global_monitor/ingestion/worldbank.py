@@ -27,6 +27,16 @@ INDICATORS: dict[str, str] = {
     "trade_pct_gdp": "NE.TRD.GNFS.ZS",
     "life_expectancy_years": "SP.DYN.LE00.IN",
     "secondary_enrollment_pct": "SE.SEC.ENRR",
+    # Worldwide Governance Indicators (World Bank source 3). Estimates on a -2.5..+2.5 scale.
+    "wgi_voice_accountability": "GOV_WGI_VA.EST",
+    "wgi_political_stability": "GOV_WGI_PV.EST",
+    "wgi_government_effectiveness": "GOV_WGI_GE.EST",
+    "wgi_regulatory_quality": "GOV_WGI_RQ.EST",
+    "wgi_rule_of_law": "GOV_WGI_RL.EST",
+    "wgi_control_of_corruption": "GOV_WGI_CC.EST",
+    # Applied tariff, weighted mean. The Bank republishes this from UN TRAINS (UNCTAD/WTO/ITC data);
+    # WTO's own API needs a subscription key.
+    "tariff_weighted_mean_pct": "TM.TAX.MRCH.WM.AR.ZS",
 }
 
 
@@ -247,11 +257,8 @@ def _fetch_indicator(iso3_list: list[str], indicator_code: str) -> list[dict]:
     years (`mrv=_MRV_WINDOW`), not just the single most recent one - see
     fetch()'s own comment for why `mrv=1` alone isn't safe."""
     countries = ";".join(iso3_list)
-    url = f"{BASE_URL}/country/{countries}/indicator/{indicator_code}"
     params = {"format": "json", "mrv": str(_MRV_WINDOW), "per_page": "1000"}
-    resp = httpx.get(url, params=params, timeout=30.0)
-    resp.raise_for_status()
-    payload = resp.json()
+    payload = _wb_get(f"/country/{countries}/indicator/{indicator_code}", params)
     # World Bank's own error shape: [{"message": [...]}] instead of the
     # normal [metadata, data] pair - surface it rather than crashing on
     # `payload[1]` with a confusing IndexError.

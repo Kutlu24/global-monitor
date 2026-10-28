@@ -62,7 +62,7 @@ def start(scheduler: AsyncIOScheduler | None = None) -> AsyncIOScheduler:
     scheduler.add_job(_run_and_maybe_rebuild, "cron", hour=3, kwargs={"sources": ["worldbank", "comtrade"]},
                        id="daily-ingest", replace_existing=True)
     scheduler.add_job(_run_and_maybe_rebuild, "cron", day_of_week="mon", hour=4,
-                       kwargs={"sources": ["undp_hdi", "sipri"]}, id="weekly-ingest", replace_existing=True)
+                       kwargs={"sources": ["undp_hdi", "sipri", "imf_macro", "fao", "unctad", "oecd_dac"]}, id="weekly-ingest", replace_existing=True)
     # worldbank_risk is the widest and slowest source - 211 countries x 20
     # indicators, ~120 paginated requests. All three of its publishers (WDI,
     # IMF WEO, UNDP HDR) update annually or semi-annually, so monthly is far

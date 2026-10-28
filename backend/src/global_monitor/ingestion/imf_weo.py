@@ -44,6 +44,13 @@ SERIES: dict[str, str] = {
     "govt_debt_pct_gdp": "GGXWDG_NGDP",
 }
 
+# Pulled for the tracked bloc/major-economy countries only (see fetch_macro), not for the risk
+# universe. Both are WEO series, so the projection hazard above applies and the year is pinned.
+MACRO_SERIES: dict[str, str] = {
+    "inflation_pct": "PCPIPCH",            # inflation, average consumer prices, % change
+    "fiscal_balance_pct_gdp": "GGXCNL_NGDP",  # general government net lending/borrowing, % of GDP
+}
+
 # Coverage floor. Measured 2026-09-28: GGXWDG_NGDP returned 226 countries
 # (vs 211 in the World Bank risk universe), so the floor sits below the
 # universe size on purpose - the IMF tracks economies the Bank does not.
@@ -51,9 +58,18 @@ _MIN_COVERAGE = 150
 
 
 def fetch(iso3_list: list[str]) -> list[Observation]:
+    return _pull(SERIES)
+
+
+def fetch_macro(iso3_list: list[str]) -> list[Observation]:
+    wanted = set(iso3_list)
+    return [o for o in _pull(MACRO_SERIES) if o.iso3 in wanted]
+
+
+def _pull(series: dict[str, str]) -> list[Observation]:
     fetched_at = now()
     observations: list[Observation] = []
-    for metric_id, code in SERIES.items():
+    for metric_id, code in series.items():
         resp = httpx.get(f"{DATAMAPPER}/{code}", timeout=90.0, follow_redirects=True)
         resp.raise_for_status()
         years_by_country: dict[str, dict[str, float]] = resp.json()["values"].get(code, {})

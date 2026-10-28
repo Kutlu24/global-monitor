@@ -34,18 +34,30 @@ static text.
 - **SIPRI military expenditure**: downloads and parses SIPRI's own yearly Excel file (no API at
   all) - all 48 countries. Deliberately fragile-tolerant: a parse failure logs loudly and keeps
   the last-known-good data rather than crashing.
-- **IMF WEO** (DataMapper API, `ingestion/imf_weo.py`): general government gross debt, used by the
-  risk model (see `docs/risk-model.md`).
-- **Not implemented**: OECD SDMX - its real dataflow/API shapes need proper documentation research
-  rather than guessed endpoints, and World Bank already covers the core indicators well enough
-  for v1. Revisit if a specific gap it would fill actually shows up.
+- **IMF WEO** (DataMapper API, `ingestion/imf_weo.py`): general government gross debt for the risk
+  model (see `docs/risk-model.md`), and inflation and the fiscal balance for the 48 tracked
+  countries. The year is pinned to 2024 so projections are never read as actuals.
+- **World Bank Worldwide Governance Indicators** (source 3, six `GOV_WGI_*.EST` series, -2.5 to
+  +2.5) and the **applied tariff rate** (`TM.TAX.MRCH.WM.AR.ZS`, which the Bank republishes from
+  UN TRAINS: UNCTAD, WTO and ITC data).
+- **FAOSTAT** (`ingestion/fao.py`): moderate or severe food insecurity, 3-year average. China and
+  India are not published. Undernourishment is not ingested, because FAO prints "<2.5" for
+  low-prevalence countries and a bloc mean would be biased by who is left.
+- **UNCTADstat** (`ingestion/unctad.py`): inward FDI flow and stock, from the public bulk file (a
+  7z archive, hence the `py7zr` dependency).
+- **OECD DAC** (`ingestion/oecd_dac.py`, via `sdmx.oecd.org`): net ODA given. Only DAC members
+  and a few other reporters have a value, so a bloc total sums the reporters among its members.
+- **Not implemented**: the **WTO** Timeseries API (needs a subscription key, answers 401 without
+  one; the tariff series above is the WTO-origin data reachable without a key) and **WHO GHO**
+  (`ghoapi.azureedge.net` answered 500 and `ghoapi.who.int` 403 on 2026-10-28). OECD datasets
+  other than DAC1 are not used: most cover OECD members only, which would leave BRICS blank.
 
 **Major Economies module** (`/countries`, `/country/{iso3}`) - a country-vs-country comparison,
 separate from bloc comparison: the top 20 advanced economies (IMF classification, by nominal
 GDP, sovereign states only). See `backend/src/global_monitor/major_economies.py`.
 
 **In-process scheduler** (`scheduler.py`, APScheduler via FastAPI's lifespan) - daily for World
-Bank/Comtrade, weekly for UNDP HDI/SIPRI, rebuilding the Astro site after any run that actually
+Bank/Comtrade, weekly for UNDP HDI/SIPRI and the IMF, FAO, UNCTAD and OECD sources, rebuilding the Astro site after any run that actually
 changes data. A `POST /api/admin/rebuild` (bearer-token gated) triggers the same thing manually.
 
 ## Milestone 3 — done
