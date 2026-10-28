@@ -101,3 +101,7 @@ Repairing existing rows: marking a row's `data_hash` as stale makes the next
 `generate_translations()` rebuild it through this gate. In production a small fallback model
 (`gemma2:2b`) often fails the gate for Chinese, Arabic and French; those rows stay stale-marked
 rather than being published wrong.
+
+A stale-marked row is still served (`_synthesis_payload` falls back to English only when the
+row is missing). Rows that could not be repaired were therefore deleted in production
+(37 rows, 2026-10-28), so those pages show English until a later run passes the gate.
