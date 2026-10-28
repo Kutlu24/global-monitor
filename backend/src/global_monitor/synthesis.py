@@ -38,7 +38,10 @@ TRANSLATE_LANGS: tuple[str, ...] = tuple(l for l in LANGS if l != DEFAULT_LANG)
 _TRANSLATE_PROMPT = """You are translating one paragraph of neutral, factual data-dashboard copy \
 from English into {language}. Translate the prose, and also render country names, bloc names and \
 metric names in their conventional {language} forms (e.g. "Germany" -> Almanya in Turkish). Keep \
-every number, unit and figure exactly as written. Keep the same length and the same factual, \
+every number, unit and figure exactly as written, with the same magnitude: English "billion" is \
+10^9 and "trillion" is 10^12, so use {language}'s word for exactly that size (Spanish "mil \
+millones" and "billones", German "Milliarden" and "Billionen", French "milliards" and \
+"billions", Chinese 十亿 and 万亿), and never drop the unit word. Keep the same length and the same factual, \
 non-promotional tone. Do not add anything that is not in the source. Return only the translated \
 paragraph, with no preamble, no quotation marks and no notes."""
 
@@ -107,31 +110,106 @@ def _generate_text(prompt: str) -> tuple[str, str, str]:
 VERIFY_RETRIES = 2
 
 
+_SENTENCE_END = (".", "!", "?", ")", '"', "\u201d", "\u00bb", "\u3002", "\uff01", "\uff1f")
+
+
+def _is_complete(text: str) -> bool:
+    """False for text that stops mid-sentence. A reasoning model that spends its token
+    budget thinking returns whatever fit, with no error (see GENERATION_MAX_TOKENS)."""
+    return text.rstrip().endswith(_SENTENCE_END)
+
+
 def _verified_text(page_key: str, prompt: str, text: str, provider: str, model: str):
     """Audit `text` against the figures behind `page_key` (bloc:/compare: pages
-    only; others are returned unchecked) and ask for a rewrite while it has
-    numbers that are not in the data. Returns (text, provider, model, ok); ok is
-    False if the last draft still fails, in which case the caller must not
-    publish it."""
+    only for the numbers; every page for completeness) and ask for a rewrite while
+    it has numbers that are not in the data or stops mid-sentence. Returns
+    (text, provider, model, ok); ok is False if the last draft still fails, in
+    which case the caller must not publish it."""
     from . import verify_synthesis as vs  # imports this module, so not at top level
 
     for attempt in range(VERIFY_RETRIES + 1):
         row = SynthesisText(page_key=page_key, text=text, data_hash="", generated_at="", provider=provider, model=model)
         report = vs.verify_page(row)
-        if report is None or report.clean:
+        numbers_ok = report is None or report.clean
+        complete = _is_complete(text)
+        if numbers_ok and complete:
             return text, provider, model, True
         if attempt == VERIFY_RETRIES:
             break
-        logger.warning("Synthesis for %s has unverified numbers, asking for a rewrite (%d/%d)",
-                       page_key, attempt + 1, VERIFY_RETRIES)
+        logger.warning("Synthesis for %s is %s, asking for a rewrite (%d/%d)", page_key,
+                       "cut off" if not complete else "unverified", attempt + 1, VERIFY_RETRIES)
+        if not complete:
+            retry = (f"{prompt}\n\nYour previous draft stopped mid-sentence:\n{text}\n\n"
+                     "Write the complete paragraph again, a little shorter, ending with a full stop.")
+        else:
+            retry = vs.feedback_prompt(prompt, text, report)
         try:
-            text, provider, model = _generate_text(vs.feedback_prompt(prompt, text, report))
+            text, provider, model = _generate_text(retry)
         except Exception:
             logger.exception("Synthesis rewrite failed for %s", page_key)
             break
         if not text:
             break
     return text, provider, model, False
+
+
+def _translation_problems(page_key: str, lang: str, english_text: str, text: str, data_hash: str) -> list[str]:
+    """What is wrong with a translation, as sentences a model can act on; empty means accept.
+    Dropped figures are not a reason to reject: that finding is too noisy (see
+    verify_translations.py)."""
+    from . import verify_translations as vt
+
+    row = SynthesisText(page_key=synthesis_key(page_key, lang), text=text, data_hash=data_hash,
+                        generated_at="", provider="", model="")
+    english = SynthesisText(page_key=page_key, text=english_text, data_hash=data_hash,
+                            generated_at="", provider="", model="")
+    r = vt.audit_translation(row, english)
+    problems = []
+    if r.same_as_en:
+        problems.append("it is identical to the English text")
+    if r.wrong_script:
+        problems.append(f"it is not written in {NATIVE_NAME[lang]}")
+    if r.truncated:
+        problems.append("it stops mid-sentence")
+    if r.scale_diff:
+        problems.append(f"these figures have the wrong magnitude or lost their unit word: {', '.join(r.scale_diff)} "
+                        "(English billion = 10^9, trillion = 10^12)")
+    if r.changed:
+        problems.append(f"these figures are not in the English text: {', '.join(r.changed)}")
+    return problems
+
+
+def _translate(page_key: str, lang: str, english_text: str, data_hash: str) -> bool:
+    """Translate one page into one language, audit it against the English text, send it back
+    while it has problems, and store it only if it passes. False leaves the prior text."""
+    base = _TRANSLATE_PROMPT.format(language=NATIVE_NAME[lang]) + "\n\n" + english_text
+    try:
+        text, provider, model = _generate_text(base)
+    except Exception:
+        logger.exception("Synthesis translation failed for %s [%s] - keeping prior text", page_key, lang)
+        return False
+    for attempt in range(VERIFY_RETRIES + 1):
+        if not text:
+            return False
+        problems = _translation_problems(page_key, lang, english_text, text, data_hash)
+        if not problems:
+            break
+        if attempt == VERIFY_RETRIES:
+            logger.warning("Translation of %s [%s] still has problems after %d rewrites (%s) - keeping prior text",
+                           page_key, lang, VERIFY_RETRIES, "; ".join(problems))
+            return False
+        try:
+            text, provider, model = _generate_text(
+                f"{base}\n\nYour previous translation was:\n{text}\n\nIt was rejected because "
+                f"{'; '.join(problems)}. Translate the English text again and fix this.")
+        except Exception:
+            logger.exception("Translation rewrite failed for %s [%s]", page_key, lang)
+            return False
+    db.upsert_synthesis(SynthesisText(
+        page_key=synthesis_key(page_key, lang), text=text, data_hash=data_hash, generated_at=now(),
+        provider=provider, model=model,
+    ))
+    return True
 
 
 def _maybe_generate(page_key: str, payload_for_hash: dict, prompt: str) -> None:
@@ -165,21 +243,10 @@ def _maybe_translate(page_key: str, english_text: str, data_hash: str) -> None:
     that language's previous text (or the English fallback the API serves)
     in place - one missing language never blocks the other six."""
     for lang in TRANSLATE_LANGS:
-        key = synthesis_key(page_key, lang)
-        existing = db.get_synthesis(key)
+        existing = db.get_synthesis(synthesis_key(page_key, lang))
         if existing is not None and existing.data_hash == data_hash:
             continue
-        prompt = _TRANSLATE_PROMPT.format(language=NATIVE_NAME[lang]) + "\n\n" + english_text
-        try:
-            text, provider, model = _generate_text(prompt)
-        except Exception:
-            logger.exception("Synthesis translation failed for %s [%s] - keeping prior text", page_key, lang)
-            continue
-        if not text:
-            continue
-        db.upsert_synthesis(SynthesisText(
-            page_key=key, text=text, data_hash=data_hash, generated_at=now(), provider=provider, model=model,
-        ))
+        _translate(page_key, lang, english_text, data_hash)
 
 
 def generate_translations() -> int:
@@ -196,19 +263,7 @@ def generate_translations() -> int:
             existing = db.get_synthesis(synthesis_key(row.page_key, lang))
             if existing is not None and existing.data_hash == row.data_hash:
                 continue
-            try:
-                text, provider, model = _generate_text(
-                    _TRANSLATE_PROMPT.format(language=NATIVE_NAME[lang]) + "\n\n" + row.text)
-            except Exception:
-                logger.exception("Synthesis backfill failed for %s [%s]", row.page_key, lang)
-                continue
-            if not text:
-                continue
-            db.upsert_synthesis(SynthesisText(
-                page_key=synthesis_key(row.page_key, lang), text=text, data_hash=row.data_hash,
-                generated_at=now(), provider=provider, model=model,
-            ))
-            done += 1
+            done += _translate(row.page_key, lang, row.text, row.data_hash)
     return done
 
 
