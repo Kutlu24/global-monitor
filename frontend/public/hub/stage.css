@@ -5,6 +5,9 @@
 .stage.on { display: block; }
 body.stage-on { height: 100svh; overflow: hidden; }
 body.stage-on .classic { display: none; }
+/* BaseLayout appends the Worldora cross-link cards after the slot; the slider already has
+   Worldora and Worldora Intelligence slides, so hide them while it is active. */
+body.stage-on #main > aside.gm-grid { display: none; }
 
 .stage {
   --accent: #5ec2b7;
