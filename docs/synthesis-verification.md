@@ -83,3 +83,21 @@ shows up as dropped, and `dropped` is noisier than the other findings.
 
 The English side has the same gap: two published paragraphs end mid-sentence
 (`compare:eu-vs-us:social`, `tension:bloc:usmca`), which the number audit cannot see.
+
+## The generation gate now covers both gaps
+
+- **Complete sentences.** `_is_complete` rejects a paragraph that does not end in a sentence
+  terminator. A reasoning model that runs out of `GENERATION_MAX_TOKENS` returns cut-off text
+  with no error, so the gate treats it like a failed number check: up to `VERIFY_RETRIES`
+  rewrites ("stopped mid-sentence" prompt), and the paragraph is not stored if it stays cut off.
+- **Translations.** `_translate` runs `verify_translations.audit_translation` on every new
+  translation before it is stored. A serious finding sends the text back for a rewrite (up to
+  `VERIFY_RETRIES`); a translation that still fails is not stored, so the page falls back to
+  English instead of showing a wrong figure. The translation prompt states that billion is
+  10^9 and trillion is 10^12.
+- Tests: `tests/test_synthesis_gate.py`.
+
+Repairing existing rows: marking a row's `data_hash` as stale makes the next
+`generate_translations()` rebuild it through this gate. In production a small fallback model
+(`gemma2:2b`) often fails the gate for Chinese, Arabic and French; those rows stay stale-marked
+rather than being published wrong.
