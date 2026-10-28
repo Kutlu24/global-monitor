@@ -391,6 +391,11 @@ def list_synthesis() -> list[SynthesisText]:
         return [SynthesisText(**dict(r)) for r in rows]
 
 
+def delete_synthesis(page_key: str) -> None:
+    with _conn() as conn:
+        conn.execute("DELETE FROM synthesis_text WHERE page_key = ?", (page_key,))
+
+
 def upsert_synthesis(s: SynthesisText) -> None:
     with _conn() as conn:
         conn.execute(

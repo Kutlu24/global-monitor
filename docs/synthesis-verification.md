@@ -105,3 +105,11 @@ rather than being published wrong.
 A stale-marked row is still served (`_synthesis_payload` falls back to English only when the
 row is missing). Rows that could not be repaired were therefore deleted in production
 (37 rows, 2026-10-28), so those pages show English until a later run passes the gate.
+
+## Tension pages (GDELT)
+
+The English text of `tension:*` pages is rewritten every two hours because its figures move, and
+each rewrite makes the stored translations stale. They are retranslated in the same cycle. If a
+retranslation fails the gate while the stored translation still belongs to the old figures,
+`_translate_or_drop` deletes that row, so the page serves the English text instead of a
+translation of numbers that no longer match. A translation that is current is never deleted.

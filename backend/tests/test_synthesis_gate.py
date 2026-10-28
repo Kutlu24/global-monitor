@@ -49,3 +49,23 @@ def test_translation_that_keeps_failing_is_not_stored(seeded, monkeypatch):
     _drafts(monkeypatch, [bad, bad, bad])
     assert synthesis._translate("bloc:eu", "es", EN, "h1") is False
     assert db.get_synthesis("bloc:eu|es") is None
+
+
+def test_a_failed_translation_drops_the_stale_one(seeded, monkeypatch):
+    from global_monitor.models import SynthesisText
+    bad = "La UE tiene un PIB de 21,24 mil millones $ y gasta 2,18 % en defensa."
+    db.upsert_synthesis(SynthesisText(page_key="bloc:eu|es", text="viejo", data_hash="h0",
+                                      generated_at="2026-01-01T00:00:00+00:00", provider="t", model="t"))
+    _drafts(monkeypatch, [bad, bad, bad])
+    assert synthesis._translate_or_drop("bloc:eu", "es", EN, "h1") is False
+    assert db.get_synthesis("bloc:eu|es") is None
+
+
+def test_a_failed_translation_keeps_a_current_one(seeded, monkeypatch):
+    from global_monitor.models import SynthesisText
+    bad = "La UE tiene un PIB de 21,24 mil millones $ y gasta 2,18 % en defensa."
+    db.upsert_synthesis(SynthesisText(page_key="bloc:eu|es", text="actual", data_hash="h1",
+                                      generated_at="2026-01-01T00:00:00+00:00", provider="t", model="t"))
+    _drafts(monkeypatch, [bad, bad, bad])
+    assert synthesis._translate_or_drop("bloc:eu", "es", EN, "h1") is False
+    assert db.get_synthesis("bloc:eu|es").text == "actual"

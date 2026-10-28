@@ -241,6 +241,20 @@ def _maybe_generate(page_key: str, payload_for_hash: dict, prompt: str) -> None:
     _maybe_translate(page_key, text, new_hash)
 
 
+def _translate_or_drop(page_key: str, lang: str, english_text: str, data_hash: str) -> bool:
+    """_translate, and if it fails while the stored translation belongs to older English
+    figures, delete that row: _synthesis_payload then serves the English text, which is
+    right, instead of a translation of numbers that no longer match."""
+    if _translate(page_key, lang, english_text, data_hash):
+        return True
+    key = synthesis_key(page_key, lang)
+    old = db.get_synthesis(key)
+    if old is not None and old.data_hash != data_hash:
+        logger.warning("Dropping stale translation %s: it no longer matches the English text", key)
+        db.delete_synthesis(key)
+    return False
+
+
 def _maybe_translate(page_key: str, english_text: str, data_hash: str) -> None:
     """Translate a page's freshly generated English text into the other seven
     languages, each gated on the same data hash. A failed translation leaves
@@ -250,7 +264,7 @@ def _maybe_translate(page_key: str, english_text: str, data_hash: str) -> None:
         existing = db.get_synthesis(synthesis_key(page_key, lang))
         if existing is not None and existing.data_hash == data_hash:
             continue
-        _translate(page_key, lang, english_text, data_hash)
+        _translate_or_drop(page_key, lang, english_text, data_hash)
 
 
 def generate_translations() -> int:
@@ -267,7 +281,7 @@ def generate_translations() -> int:
             existing = db.get_synthesis(synthesis_key(row.page_key, lang))
             if existing is not None and existing.data_hash == row.data_hash:
                 continue
-            done += _translate(row.page_key, lang, row.text, row.data_hash)
+            done += _translate_or_drop(row.page_key, lang, row.text, row.data_hash)
     return done
 
 
