@@ -52,7 +52,7 @@ const schema = datasetSchema({
           const m = country.metrics[metricId];
           return (
             <tr>
-              <td>{metricLabel(lang, metricId)}</td>
+              <td>{metricLabel(metricId)}</td>
               <td>{m ? `${format(m.value)} (${m.period})` : t("table.na")}</td>
             </tr>
           );

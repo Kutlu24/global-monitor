@@ -70,7 +70,7 @@ const schema = datasetSchema({
         const count = agg?.member_count ?? 0;
         return (
           <tr>
-            <td>{metricLabel(lang, m.metric_id, m.label)}</td>
+            <td>{metricLabel(m.metric_id, m.label)}</td>
             <td>{agg?.value != null ? `${m.format(agg.value)} (${agg.period})` : t("table.na")}</td>
             <td>{agg ? tn("home.members", count) : "—"}</td>
           </tr>

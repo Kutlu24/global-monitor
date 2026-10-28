@@ -22,7 +22,7 @@ const blocs = (await getBlocs(lang)).filter((b) => compareBlocIds.includes(b.blo
 const dimLabel = dimensionLabel(dimension);
 const metrics = DIMENSION_METRICS[dimension].map((m) => ({
   ...m,
-  label: metricLabel(lang, m.metric_id, m.label),
+  label: metricLabel(m.metric_id, m.label),
 }));
 const pageTitle = t("dimension.allBlocs", { dim: dimLabel });
 const description = pageTitle;

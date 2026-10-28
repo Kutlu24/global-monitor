@@ -34,7 +34,7 @@ function entityFor(bloc: typeof a) {
 // lib/metrics.ts on the island-boundary rule).
 const headlineMetrics = DIMENSIONS.map((d) => {
   const m = HEADLINE_METRIC[d];
-  return { ...m, label: metricShortLabel(lang, m.metric_id, m.label) };
+  return { ...m, label: metricShortLabel(m.metric_id, m.label) };
 });
 const description = t("compare.description", { a: a.name, b: b.name });
 const schema = datasetSchema({

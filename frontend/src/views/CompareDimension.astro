@@ -26,7 +26,7 @@ const dimLabel = dimensionLabel(dimension);
 // must receive plain strings (formatType only), never MetricSpec.format.
 const metrics = DIMENSION_METRICS[dimension].map((m) => ({
   ...m,
-  label: metricLabel(lang, m.metric_id, m.label),
+  label: metricLabel(m.metric_id, m.label),
 }));
 
 function entityFor(bloc: typeof a) {
