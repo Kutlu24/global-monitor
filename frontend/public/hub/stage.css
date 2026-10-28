@@ -8,8 +8,17 @@ body.stage-on .classic { display: none; }
 /* BaseLayout appends the Worldora cross-link cards after the slot; the slider already has
    Worldora and Worldora Intelligence slides, so hide them while it is active. */
 body.stage-on #main > aside.gm-grid { display: none; }
+/* BaseLayout's sidebar sits behind the fixed stage and shows through it. */
+body.stage-on .gm-sidebar { display: none; }
 
 .stage {
+  /* The stage is always dark. Pin its tokens here: the global light theme
+     (:root[data-theme="light"]) is more specific than the :root defaults
+     below and turned every stage label dark-on-dark. */
+  --bg: #101317;
+  --muted: #a3a3a0;
+  --text: #eceae4;
+  color: #eceae4;
   --accent: #5ec2b7;
   --accent-ink: #06201c;
   position: fixed;
