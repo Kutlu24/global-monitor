@@ -58,3 +58,28 @@ one-shot GLM column above, not the local-model one.
   not a guarantee for future pages.
 - A retry can make a model drop a fact rather than correct it; the audit only checks that the
   numbers left are in the data, not that the paragraph still says everything it should.
+
+## Auditing the translations
+
+`python -m global_monitor.cli verify-translations [--json]` checks every `page_key|lang`
+row against the English row of the same page (read-only, no LLM). It reads scale words in
+each language (trilyon, Milliarden, 万亿, трлн, "miles de millones") so a correct
+conversion is not flagged, and reports: `scale_diff` (same digits, different power of ten:
+Spanish "billón" for 10^9, a dropped "trillion", Chinese 亿 for 10^9), `changed` (a figure
+no English number explains), `dropped` (an English figure missing), `wrong_script`,
+`same_as_en`, `truncated` and `stale`.
+
+Result on the production database, 2026-10-28 (322 translation rows):
+
+| Provider | Rows | With a serious finding | Altered or mis-scaled figures | Truncated |
+|---|---|---|---|---|
+| glm-4.5-flash | 198 | 31 (16%) | 17 | 18 |
+| gemma2:2b | 124 | 55 (44%) | 51 | 10 |
+
+"Serious" is any of scale_diff, changed, truncated, wrong_script, same_as_en. A further 28
+rows only omit a figure, which is reported but not counted. Chinese and Arabic are worst
+for both providers. The check is a heuristic: a figure rewritten in prose ("a third")
+shows up as dropped, and `dropped` is noisier than the other findings.
+
+The English side has the same gap: two published paragraphs end mid-sentence
+(`compare:eu-vs-us:social`, `tension:bloc:usmca`), which the number audit cannot see.

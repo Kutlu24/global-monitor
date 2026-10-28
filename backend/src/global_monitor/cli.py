@@ -36,6 +36,34 @@ def seed_cmd() -> None:
     click.echo("seeded blocs, countries, membership, metrics")
 
 
+@cli.command("verify-translations")
+@click.option("--json", "as_json", is_flag=True, help="Emit the full per-row report as JSON.")
+def verify_translations_cmd(as_json: bool) -> None:
+    """Audit every translated paragraph against its English row: are all figures kept,
+    is the text in the right script, is it complete? Read-only."""
+    import dataclasses
+    import json
+
+    from . import verify_translations as vt
+
+    reports = vt.verify_all()
+    summary = vt.summarize(reports)
+    if as_json:
+        click.echo(json.dumps({"summary": summary, "rows": [dataclasses.asdict(r) for r in reports]}, indent=2,
+                              ensure_ascii=False))
+        return
+    for r in reports:
+        if r.clean:
+            continue
+        issues = [name for name, on in (("same_as_en", r.same_as_en), ("wrong_script", r.wrong_script),
+                                         ("truncated", r.truncated)) if on]
+        for name, vals in (("scale_diff", r.scale_diff), ("changed", r.changed), ("dropped", r.dropped)):
+            if vals:
+                issues.append(f"{name}={vals}")
+        click.echo(f"[BAD] {r.page_key} [{r.model}] " + " ".join(issues))
+    click.echo(json.dumps(summary, ensure_ascii=False))
+
+
 @cli.command("verify-synthesis")
 @click.option("--json", "as_json", is_flag=True, help="Emit the full per-number report as JSON.")
 def verify_synthesis_cmd(as_json: bool) -> None:
