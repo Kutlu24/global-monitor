@@ -102,6 +102,10 @@ export default function MetricCompareBars({ a, b, metrics }: Props) {
   const colorA = `var(--bloc-${a.id})`;
   const colorB = `var(--bloc-${b.id})`;
 
+  // One height for every tile of the chart: a tile with a negative value needs room below its
+  // zero line for the label, and uneven tiles would leave the grid ragged.
+  const anyNegative = metrics.some((m) => (a.values[m.metric_id] ?? 0) < 0 || (b.values[m.metric_id] ?? 0) < 0);
+
   return (
     <div
       className="gm-compare-bars"
@@ -132,7 +136,7 @@ export default function MetricCompareBars({ a, b, metrics }: Props) {
           const scale = span > 0 ? CHART_HEIGHT / span : 0;
           const hasNegative = lo < 0;
           const zeroY = LABEL_SPACE + hi * scale;
-          const svgHeight = hasNegative ? SVG_HEIGHT + LABEL_SPACE : SVG_HEIGHT;
+          const svgHeight = anyNegative ? SVG_HEIGHT + LABEL_SPACE : SVG_HEIGHT;
           const format = FORMATTERS[m.formatType];
           return (
             <div className="gm-metric-tile" key={m.metric_id}>
