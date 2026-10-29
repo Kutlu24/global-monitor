@@ -70,7 +70,7 @@
     });
     /* sources */
     txt(c, 'KEPT IN SYNC WITH', x, 898, '700 20px ' + MONO, a);
-    txt(c, 'World Bank · OECD · IMF · UN Comtrade · WTO · UNDP · SIPRI', x, 934, '400 21px ' + MONO, '#a3a3a0');
+    txt(c, 'World Bank · OECD · IMF · UN Comtrade · UNCTAD · FAO · UNDP · SIPRI', x, 934, '400 21px ' + MONO, '#a3a3a0');
   }
 
   /* ---- Current Tension: diverging conflict <-> cooperation gauges per bloc (shape only) ---- */
