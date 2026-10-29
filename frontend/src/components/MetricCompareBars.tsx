@@ -58,16 +58,22 @@ const BASELINE = LABEL_SPACE + CHART_HEIGHT;
 const SVG_HEIGHT = BASELINE;
 const TILE_WIDTH = BAR_WIDTH * 2 + BAR_GAP;
 
-function Bar({ value, max, color, label }: { value: number; max: number; color: string; label: string }) {
-  const height = max > 0 ? Math.max(2, (value / max) * CHART_HEIGHT) : 0;
-  const top = BASELINE - height;
-  const r = Math.min(4, height); // 4px rounded data-end, square at the baseline (skill spec)
+// A tile with a negative value gets a zero line: positive bars grow up from it,
+// negative ones hang down, and the label sits at the data end of each. A tile
+// of positive values keeps the zero line at the bottom, exactly as before.
+function Bar({ value, zeroY, scale, color, label }: { value: number; zeroY: number; scale: number; color: string; label: string }) {
+  const height = Math.max(2, Math.abs(value) * scale);
+  const r = Math.min(4, height); // 4px rounded data-end, square at the zero line (skill spec)
   const w = BAR_WIDTH;
-  // Rounded top corners only - a plain <rect rx> would round all four.
-  const path = `M0,${BASELINE} L0,${top + r} A${r},${r} 0 0 1 ${r},${top} L${w - r},${top} A${r},${r} 0 0 1 ${w},${top + r} L${w},${BASELINE} Z`;
+  const up = value >= 0;
+  const end = up ? zeroY - height : zeroY + height;
+  // Rounded data-end corners only - a plain <rect rx> would round all four.
+  const path = up
+    ? `M0,${zeroY} L0,${end + r} A${r},${r} 0 0 1 ${r},${end} L${w - r},${end} A${r},${r} 0 0 1 ${w},${end + r} L${w},${zeroY} Z`
+    : `M0,${zeroY} L0,${end - r} A${r},${r} 0 0 0 ${r},${end} L${w - r},${end} A${r},${r} 0 0 0 ${w},${end - r} L${w},${zeroY} Z`;
   return (
     <g>
-      <text x={w / 2} y={top - 7} textAnchor="middle" className="gm-bar-value">
+      <text x={w / 2} y={up ? end - 7 : end + 14} textAnchor="middle" className="gm-bar-value">
         {label}
       </text>
       <path d={path} fill={color} />
@@ -75,12 +81,12 @@ function Bar({ value, max, color, label }: { value: number; max: number; color: 
   );
 }
 
-function Missing() {
+function Missing({ baseline }: { baseline: number }) {
   // "N/A" is a different KIND of absence from a short bar, so it is set in
   // the faint text token at regular weight rather than being drawn as a
   // stub - a 2px stub would read as "a very small number".
   return (
-    <text x={BAR_WIDTH / 2} y={BASELINE - 7} textAnchor="middle" className="gm-bar-value gm-bar-value--na">
+    <text x={BAR_WIDTH / 2} y={baseline - 7} textAnchor="middle" className="gm-bar-value gm-bar-value--na">
       N/A
     </text>
   );
@@ -120,7 +126,13 @@ export default function MetricCompareBars({ a, b, metrics }: Props) {
           // height. Each tile is its own scale, which is the entire point of
           // small multiples - so a tile can be read within itself and never
           // against a neighbouring tile's geometry.
-          const max = Math.max(va ?? 0, vb ?? 0);
+          const hi = Math.max(0, va ?? 0, vb ?? 0);
+          const lo = Math.min(0, va ?? 0, vb ?? 0);
+          const span = hi - lo;
+          const scale = span > 0 ? CHART_HEIGHT / span : 0;
+          const hasNegative = lo < 0;
+          const zeroY = LABEL_SPACE + hi * scale;
+          const svgHeight = hasNegative ? SVG_HEIGHT + LABEL_SPACE : SVG_HEIGHT;
           const format = FORMATTERS[m.formatType];
           return (
             <div className="gm-metric-tile" key={m.metric_id}>
@@ -128,26 +140,26 @@ export default function MetricCompareBars({ a, b, metrics }: Props) {
               <div className="gm-metric-bars">
                 <svg
                   width={BAR_WIDTH}
-                  height={SVG_HEIGHT}
+                  height={svgHeight}
                   role="img"
                   aria-label={`${m.label}: ${a.name} ${va != null ? format(va) : "no data"}`}
                 >
                   {va != null ? (
-                    <Bar value={va} max={max} color="var(--color-a)" label={format(va)} />
+                    <Bar value={va} zeroY={zeroY} scale={scale} color="var(--color-a)" label={format(va)} />
                   ) : (
-                    <Missing />
+                    <Missing baseline={hasNegative ? zeroY : BASELINE} />
                   )}
                 </svg>
                 <svg
                   width={BAR_WIDTH}
-                  height={SVG_HEIGHT}
+                  height={svgHeight}
                   role="img"
                   aria-label={`${m.label}: ${b.name} ${vb != null ? format(vb) : "no data"}`}
                 >
                   {vb != null ? (
-                    <Bar value={vb} max={max} color="var(--color-b)" label={format(vb)} />
+                    <Bar value={vb} zeroY={zeroY} scale={scale} color="var(--color-b)" label={format(vb)} />
                   ) : (
-                    <Missing />
+                    <Missing baseline={hasNegative ? zeroY : BASELINE} />
                   )}
                 </svg>
               </div>

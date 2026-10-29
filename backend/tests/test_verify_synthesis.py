@@ -84,3 +84,21 @@ def test_generation_refuses_to_publish_a_paragraph_that_keeps_failing(seeded, mo
     monkeypatch.setattr(synthesis, "_generate_text", lambda p: ("The EU spends $4.606 billion.", "t", "t"))
     *_, ok = synthesis._verified_text("bloc:eu", "P", "The EU spends $4.606 billion.", "t", "t")
     assert ok is False
+
+
+def test_prompt_figures_are_written_in_words_not_scientific_notation(seeded):
+    from global_monitor import synthesis
+
+    assert synthesis._figure(31.0197e12) == "31.02 trillion"
+    assert synthesis._figure(-6.4e9) == "-6.4 billion"
+    assert synthesis._figure(54400.0) == "54400"
+    assert synthesis._figure(2.1794) == "2.179"
+    assert "e+" not in synthesis._figure(3.1e13)
+
+
+def test_a_figure_printed_in_words_is_grounded(seeded):
+    from global_monitor import synthesis
+
+    _agg("eu", "gdp_current_usd", 21.243e12)
+    text = f"The EU GDP is {synthesis._figure(21.243e12)} USD."
+    assert _verdicts(text)["21.24 trillion"] == "grounded"

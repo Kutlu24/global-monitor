@@ -85,12 +85,15 @@ def _aggregate_intra_bloc_trade(bloc_id: str, metric_id: str) -> list[tuple[str,
         return [(db.now()[:10], None, 0)]
     flows = db.get_trade_flows(bloc_id, metric_id)
     by_period: dict[str, list[float]] = defaultdict(list)
+    reporters: dict[str, set[str]] = defaultdict(set)
     for flow in flows:
         if flow.value is not None:
             by_period[flow.period].append(flow.value)
+            reporters[flow.period].add(flow.reporter_iso3)
     if not by_period:
         return []
-    return [(period, sum(values), len(values)) for period, values in by_period.items()]
+    # coverage is counted in member countries that reported, not in reporter-partner pairs
+    return [(period, sum(values), len(reporters[period])) for period, values in by_period.items()]
 
 
 def aggregate_metric(bloc_id: str, metric: Metric) -> None:

@@ -302,6 +302,15 @@ def generate_translations() -> int:
     return done
 
 
+def _figure(value: float) -> str:
+    """A figure as the paragraph should print it. Plain `:.4g` gives 3.102e+13 for
+    large values and the model copies that into the page, so scale it to words."""
+    for size, word in ((1e12, "trillion"), (1e9, "billion"), (1e6, "million")):
+        if abs(value) >= size:
+            return f"{value / size:.4g} {word}"
+    return f"{value:.0f}" if abs(value) >= 1e4 else f"{value:.4g}"
+
+
 def _bloc_snapshot(bloc_id: str) -> dict:
     return {m.metric_id: (a.value, a.period) for m in db.get_metrics()
             if (a := db.latest_bloc_aggregate(bloc_id, m.metric_id)) is not None}
@@ -312,7 +321,7 @@ def _bloc_prompt(bloc) -> str:
     for m in db.get_metrics():
         agg = db.latest_bloc_aggregate(bloc.bloc_id, m.metric_id)
         if agg is not None and agg.value is not None:
-            metric_lines.append(f"- {m.name}: {agg.value:.4g} {m.unit} ({agg.period})")
+            metric_lines.append(f"- {m.name}: {_figure(agg.value)} {m.unit} ({agg.period})")
     return (
         f"You are writing one short paragraph (100-150 words) for a public data dashboard page "
         f"about {bloc.name} ({bloc.description}). Using ONLY the real figures below, write a "
@@ -329,8 +338,8 @@ def _compare_prompt(a, b, dimension: str | None = None) -> str:
     for m in metrics:
         agg_a = db.latest_bloc_aggregate(a.bloc_id, m.metric_id)
         agg_b = db.latest_bloc_aggregate(b.bloc_id, m.metric_id)
-        va = f"{agg_a.value:.4g}" if agg_a and agg_a.value is not None else "N/A"
-        vb = f"{agg_b.value:.4g}" if agg_b and agg_b.value is not None else "N/A"
+        va = _figure(agg_a.value) if agg_a and agg_a.value is not None else "N/A"
+        vb = _figure(agg_b.value) if agg_b and agg_b.value is not None else "N/A"
         lines.append(f"- {m.name} ({m.unit}): {a.name}={va}, {b.name}={vb}")
     return (
         f"You are writing one short paragraph (100-150 words) comparing {a.name} and {b.name} on "
