@@ -1638,6 +1638,15 @@ tbody td:first-child {
 .gm-compare-bars svg {
   overflow: visible;
 }
+.gm-metric-bars svg {
+  overflow: visible;
+}
+
+.gm-zero-line {
+  stroke: var(--text-faint, #8b95a1);
+  stroke-width: 1;
+}
+
 .gm-metric-bars {
   display: flex;
   justify-content: center;

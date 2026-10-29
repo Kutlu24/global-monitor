@@ -149,6 +149,7 @@ export default function MetricCompareBars({ a, b, metrics }: Props) {
                   ) : (
                     <Missing baseline={hasNegative ? zeroY : BASELINE} />
                   )}
+                  {hasNegative && <line x1={-BAR_GAP / 2} x2={BAR_WIDTH + BAR_GAP / 2} y1={zeroY} y2={zeroY} className="gm-zero-line" />}
                 </svg>
                 <svg
                   width={BAR_WIDTH}
@@ -161,6 +162,7 @@ export default function MetricCompareBars({ a, b, metrics }: Props) {
                   ) : (
                     <Missing baseline={hasNegative ? zeroY : BASELINE} />
                   )}
+                  {hasNegative && <line x1={-BAR_GAP / 2} x2={BAR_WIDTH + BAR_GAP / 2} y1={zeroY} y2={zeroY} className="gm-zero-line" />}
                 </svg>
               </div>
             </div>
