@@ -56,12 +56,14 @@ const BAR_GAP = 12;
 const LABEL_SPACE = 20;
 const BASELINE = LABEL_SPACE + CHART_HEIGHT;
 const SVG_HEIGHT = BASELINE;
+// Half the clear space kept between the two value labels of a tile.
+const LABEL_GAP = 3;
 const TILE_WIDTH = BAR_WIDTH * 2 + BAR_GAP;
 
 // A tile with a negative value gets a zero line: positive bars grow up from it,
 // negative ones hang down, and the label sits at the data end of each. A tile
 // of positive values keeps the zero line at the bottom, exactly as before.
-function Bar({ value, zeroY, scale, color, label }: { value: number; zeroY: number; scale: number; color: string; label: string }) {
+function Bar({ value, zeroY, scale, color, label, side }: { value: number; zeroY: number; scale: number; color: string; label: string; side: "a" | "b" }) {
   const height = Math.max(2, Math.abs(value) * scale);
   const r = Math.min(4, height); // 4px rounded data-end, square at the zero line (skill spec)
   const w = BAR_WIDTH;
@@ -73,7 +75,10 @@ function Bar({ value, zeroY, scale, color, label }: { value: number; zeroY: numb
     : `M0,${zeroY} L0,${end - r} A${r},${r} 0 0 0 ${r},${end} L${w - r},${end} A${r},${r} 0 0 0 ${w},${end - r} L${w},${zeroY} Z`;
   return (
     <g>
-      <text x={w / 2} y={up ? end - 7 : end + 14} textAnchor="middle" className="gm-bar-value">
+      {/* Labels are wider than a bar, so two near-equal values would collide if
+          each were centred on its own bar. Anchor them away from the gap
+          instead: A's label ends and B's begins at the middle of the pair. */}
+      <text x={side === "a" ? w + BAR_GAP / 2 - LABEL_GAP : -BAR_GAP / 2 + LABEL_GAP} y={up ? end - 7 : end + 14} textAnchor={side === "a" ? "end" : "start"} className="gm-bar-value">
         {label}
       </text>
       <path d={path} fill={color} />
@@ -149,7 +154,7 @@ export default function MetricCompareBars({ a, b, metrics }: Props) {
                   aria-label={`${m.label}: ${a.name} ${va != null ? format(va) : "no data"}`}
                 >
                   {va != null ? (
-                    <Bar value={va} zeroY={zeroY} scale={scale} color="var(--color-a)" label={format(va)} />
+                    <Bar value={va} zeroY={zeroY} scale={scale} color="var(--color-a)" label={format(va)} side="a" />
                   ) : (
                     <Missing baseline={hasNegative ? zeroY : BASELINE} />
                   )}
@@ -162,7 +167,7 @@ export default function MetricCompareBars({ a, b, metrics }: Props) {
                   aria-label={`${m.label}: ${b.name} ${vb != null ? format(vb) : "no data"}`}
                 >
                   {vb != null ? (
-                    <Bar value={vb} zeroY={zeroY} scale={scale} color="var(--color-b)" label={format(vb)} />
+                    <Bar value={vb} zeroY={zeroY} scale={scale} color="var(--color-b)" label={format(vb)} side="b" />
                   ) : (
                     <Missing baseline={hasNegative ? zeroY : BASELINE} />
                   )}
