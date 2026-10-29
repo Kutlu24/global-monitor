@@ -229,6 +229,12 @@ NEW_SOURCE_METRICS = [
            name="Official development assistance given (OECD DAC reporters only)", unit="USD",
            source="oecd_dac", source_dataset_code="DSD_DAC1@DF_DAC1 / 11010",
            license="OECD terms and conditions", update_cadence="annual", default_aggregation="sum"),
+    Metric(metric_id="services_exports_usd", dimension="trade", name="Commercial services exports", unit="USD",
+           source="wto", source_dataset_code="ITS_CS_AX6 / SOX / world",
+           license="WTO terms of use", update_cadence="annual", default_aggregation="sum"),
+    Metric(metric_id="services_imports_usd", dimension="trade", name="Commercial services imports", unit="USD",
+           source="wto", source_dataset_code="ITS_CS_AM6 / SOX / world",
+           license="WTO terms of use", update_cadence="annual", default_aggregation="sum"),
 ]
 
 METRICS = METRICS + NEW_SOURCE_METRICS

@@ -47,10 +47,13 @@ static text.
   7z archive, hence the `py7zr` dependency).
 - **OECD DAC** (`ingestion/oecd_dac.py`, via `sdmx.oecd.org`): net ODA given. Only DAC members
   and a few other reporters have a value, so a bloc total sums the reporters among its members.
-- **Not implemented**: the **WTO** Timeseries API (needs a subscription key, answers 401 without
-  one; the tariff series above is the WTO-origin data reachable without a key) and **WHO GHO**
-  (`ghoapi.azureedge.net` answered 500 and `ghoapi.who.int` 403 on 2026-10-28). OECD datasets
-  other than DAC1 are not used: most cover OECD members only, which would leave BRICS blank.
+- **WTO Timeseries API** (`ingestion/wto.py`): commercial services exports and imports
+  (`ITS_CS_AX6` / `ITS_CS_AM6`, sector `SOX`, partner world), the services side of trade that
+  Comtrade (goods only) does not cover. Needs a free Standard subscription key from
+  apiportal.wto.org (`GLOBAL_MONITOR_WTO_API_KEY`, header `Ocp-Apim-Subscription-Key`); without
+  one the source fails loudly instead of storing nothing.
+- **Not implemented**: **WHO GHO** (`ghoapi.azureedge.net` answered 500 and `ghoapi.who.int` 403
+  on 2026-10-28). OECD datasets other than DAC1 are not used: most cover OECD members only, which would leave BRICS blank.
 
 **Major Economies module** (`/countries`, `/country/{iso3}`) - a country-vs-country comparison,
 separate from bloc comparison: the top 20 advanced economies (IMF classification, by nominal

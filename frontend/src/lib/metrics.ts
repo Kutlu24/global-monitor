@@ -66,6 +66,8 @@ export const DIMENSION_METRICS: Record<Dimension, MetricSpec[]> = {
   trade: [
     { metric_id: "trade_exports_world_usd", label: "Exports to the world", format: usd, formatType: "usd" },
     { metric_id: "trade_imports_world_usd", label: "Imports from the world", format: usd, formatType: "usd" },
+    { metric_id: "services_exports_usd", label: "Commercial services exports", format: usd, formatType: "usd" },
+    { metric_id: "services_imports_usd", label: "Commercial services imports", format: usd, formatType: "usd" },
     { metric_id: "trade_pct_gdp", label: "Trade (% of GDP)", format: pct, formatType: "pct" },
     { metric_id: "trade_intra_bloc_exports_usd", label: "Intra-bloc exports", format: usd, formatType: "usd" },
     { metric_id: "tariff_weighted_mean_pct", label: "Applied tariff, weighted mean (%)", format: pct, formatType: "pct" },

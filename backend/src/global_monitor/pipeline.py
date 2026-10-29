@@ -7,12 +7,12 @@ from __future__ import annotations
 import logging
 
 from . import aggregate, blocs, db, major_economies, metrics, synthesis
-from .ingestion import comtrade, fao, imf_weo, oecd_dac, sipri, undp_hdi, unctad, worldbank
+from .ingestion import comtrade, fao, imf_weo, oecd_dac, sipri, undp_hdi, unctad, worldbank, wto
 
 logger = logging.getLogger(__name__)
 
 CURRENT_PERIOD = "2023"  # UN Comtrade's most recent generally-complete annual data year
-SOURCES = ["worldbank", "worldbank_risk", "comtrade", "undp_hdi", "sipri", "imf_macro", "fao", "unctad", "oecd_dac"]
+SOURCES = ["worldbank", "worldbank_risk", "comtrade", "undp_hdi", "sipri", "imf_macro", "fao", "unctad", "oecd_dac", "wto"]
 
 
 def seed() -> None:
@@ -130,9 +130,13 @@ def run_source(source: str, iso3_list: list[str]) -> int:
         observations = oecd_dac.fetch(iso3_list, last_year=int(CURRENT_PERIOD) + 1)
         db.upsert_observations(observations)
         return len(observations)
+    if source == "wto":
+        observations = wto.fetch(iso3_list, last_year=int(CURRENT_PERIOD) + 1)
+        db.upsert_observations(observations)
+        return len(observations)
     raise ValueError(
         f"Unknown source {source!r}. Implemented: {', '.join(SOURCES)} "
-        f"(WHO and the WTO API are not implemented: WHO's API answered 500/403 and WTO's needs a key)."
+        f"(WHO is not implemented: its API answered 500/403)."
     )
 
 

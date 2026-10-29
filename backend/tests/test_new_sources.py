@@ -41,3 +41,24 @@ def test_unctad_reads_inward_stock_in_dollars_not_millions(monkeypatch):
     out = {o.metric_id: o for o in unctad.fetch(["USA"])}
     assert out["fdi_inward_stock_usd"].value == 100.0 * 1e6
     assert out["fdi_inward_flow_usd"].value == 7.0 * 1e6 and len(out) == 2
+
+
+def test_wto_takes_the_newest_year_in_dollars_and_skips_unknown_reporters():
+    from global_monitor.ingestion import wto
+
+    rows = [
+        {"ReportingEconomyCode": "840", "Year": 2023, "Value": 1017529.0},
+        {"ReportingEconomyCode": "840", "Year": 2024, "Value": 1125910.0},
+        {"ReportingEconomyCode": "999", "Year": 2024, "Value": 5.0},
+        {"ReportingEconomyCode": "076", "Year": 2024, "Value": None},
+    ]
+    assert wto._latest(rows, {"840": "USA", "076": "BRA"}) == {"USA": (2024, 1125910.0e6)}
+
+
+def test_wto_without_a_key_fails_loudly(monkeypatch):
+    import pytest
+    from global_monitor.ingestion import wto
+
+    monkeypatch.setattr(wto.settings, "wto_api_key", None)
+    with pytest.raises(RuntimeError, match="no API key"):
+        wto.fetch(["USA"], 2025)
