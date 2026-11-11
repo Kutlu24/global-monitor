@@ -20,8 +20,9 @@ chown -R user:user "$HOME/app/data"
 
 # dist/ is not on the volume, so a rebuilt/recreated container has none and every page 500s until the slow first
 # ingest+build below finishes. Put back the last good site (sitebuild.py snapshots it after each successful build).
-if [ ! -f "$HOME/app/frontend/dist/index.html" ] && [ -d "$HOME/app/data/dist-snapshot" ]; then
-  cp -a "$HOME/app/data/dist-snapshot" "$HOME/app/frontend/dist" && chown -R user:user "$HOME/app/frontend/dist" || true
+# Done as "user", not root, and only from a real directory: the snapshot sits on the data volume.
+if [ ! -f "$HOME/app/frontend/dist/index.html" ] && [ -d "$HOME/app/data/dist-snapshot" ] && [ ! -L "$HOME/app/data/dist-snapshot" ]; then
+  su -s /bin/sh user -c 'cp -a "$HOME/app/data/dist-snapshot" "$HOME/app/frontend/dist"' || true
 fi
 
 su -s /bin/sh user -c "python -m uvicorn global_monitor.api.app:app --host 0.0.0.0 --port ${PORT:-7860}" &
