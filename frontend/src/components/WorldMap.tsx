@@ -27,7 +27,9 @@ import { t as tRaw, type Lang } from "../i18n/ui";
 // Background / graticule / land / border are deliberately four values
 // rather than one gray: it is the same reason a chart needs an axis.
 
-const GEO_URL = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json";
+// Served from this site (public/geo/, world-atlas 2.0.2), not from a CDN: a visitor's browser then contacts nobody but
+// us, the map does not break when the CDN does, and the Content-Security-Policy can stay "same origin only".
+const GEO_URL = "/geo/countries-110m.json";
 
 export interface Highlight {
   iso3: string[];

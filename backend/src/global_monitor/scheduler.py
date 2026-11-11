@@ -17,23 +17,18 @@ scheduled.
 from __future__ import annotations
 
 import logging
-import subprocess
 from datetime import datetime
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
-from . import pipeline
-from .config import frontend_dir
+from . import pipeline, sitebuild
+
 
 logger = logging.getLogger(__name__)
 
 
 def _rebuild_frontend() -> None:
-    result = subprocess.run(["npm", "run", "build"], cwd=frontend_dir(), capture_output=True, text=True)
-    if result.returncode != 0:
-        logger.error("astro build failed after scheduled ingest:\n%s", result.stderr[-2000:])
-    else:
-        logger.info("astro build completed after scheduled ingest")
+    sitebuild.build()  # serialised and swapped in only when it succeeded; it logs its own outcome
 
 
 def _run_and_maybe_rebuild(sources: list[str]) -> None:

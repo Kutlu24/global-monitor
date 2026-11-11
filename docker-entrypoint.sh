@@ -40,6 +40,8 @@ done
 # finished with the actually-complete, fresh dataset - confirmed live
 # (2026-09-27) as a real race, not a hypothetical one.
 su -s /bin/sh user -c "python -m global_monitor.cli ingest all" || true
-su -s /bin/sh user -c "cd $HOME/app/frontend && API_URL=http://127.0.0.1:${PORT:-7860} npm run build"
+# Through the same locked, swap-on-success builder the scheduler uses (sitebuild.py): the tension refresh that fires at
+# boot can no longer write dist/ at the same time as this build.
+su -s /bin/sh user -c "API_URL=http://127.0.0.1:${PORT:-7860} python -m global_monitor.cli build-site" || true
 
 wait "$UVICORN_PID"

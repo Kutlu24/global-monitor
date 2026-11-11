@@ -28,6 +28,18 @@ def ingest(source: str) -> None:
     click.echo("done")
 
 
+@cli.command("build-site")
+def build_site_cmd() -> None:
+    """Rebuild the static site (API_URL from the environment). Waits for a running build; a failed build keeps the old site."""
+    from . import sitebuild
+
+    ok, err = sitebuild.build()
+    if not ok:
+        click.echo(err, err=True)
+        raise SystemExit(1)
+    click.echo("site built")
+
+
 @cli.command("seed")
 def seed_cmd() -> None:
     """Seed blocs/countries/membership/metrics only, no network calls -

@@ -108,7 +108,7 @@ const xDefault = new URL(alternatePath(path, DEFAULT_LANG, lang), Astro.site).to
     <link rel="preload" href={interLatin} as="font" type="font/woff2" crossorigin />
     <link rel="preload" href={monoLatin} as="font" type="font/woff2" crossorigin />
     {structuredData && (
-      <script type="application/ld+json" set:html={JSON.stringify(structuredData)} />
+      <script type="application/ld+json" set:html={JSON.stringify(structuredData).replace(/</g, "\\u003c")} />
     )}
     <!-- Named head slot: the hub page injects its stage.css here so the
          WebGL slider can load its own stylesheet without polluting every

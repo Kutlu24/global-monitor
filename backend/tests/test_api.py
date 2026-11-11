@@ -108,9 +108,47 @@ class TestAdminRebuildAuth:
         called = {}
         monkeypatch.setattr(app_mod.pipeline, "run_all", lambda: called.setdefault("ran", {"ok": True}))
 
-        class _R:  # stand-in for the `npm run build` subprocess result
-            returncode, stderr = 0, ""
-
-        monkeypatch.setattr(app_mod.subprocess, "run", lambda *a, **k: _R())
+        monkeypatch.setattr(app_mod.sitebuild, "build", lambda: (True, ""))  # stand-in for the real `npm run build`
         r = client.post("/api/admin/rebuild", headers={"Authorization": "Bearer s3cret"})
         assert r.status_code == 200 and called and r.json()["status"] == "rebuilt"
+        monkeypatch.setattr(app_mod.sitebuild, "build", lambda: (False, "boom"))
+        r = client.post("/api/admin/rebuild", headers={"Authorization": "Bearer s3cret"})
+        assert r.status_code == 500 and "previous site stays" in r.text
+
+
+def test_security_headers_on_api_and_pages(client):
+    for path in ("/api/health", "/no-such-page"):
+        h = client.get(path).headers
+        assert h["x-content-type-options"] == "nosniff" and h["x-frame-options"] == "SAMEORIGIN"
+        assert "connect-src 'self'" in h["content-security-policy"] and "object-src 'none'" in h["content-security-policy"]
+    assert "content-security-policy" not in client.get("/docs").headers
+
+
+@pytest.mark.parametrize("a,b", [("USA", "12"), ("US", "DEU"), ("<script>", "DEU"), ("USAA", "DEU"), ("ÜSA", "DEU")])
+def test_tension_query_rejects_non_country_codes(client, monkeypatch, a, b):
+    from global_monitor import tension
+    called = []
+    monkeypatch.setattr(tension, "query_pair", lambda *x: called.append(x))
+    assert client.get(f"/api/tension/query/{a}/{b}").status_code == 404
+    assert not called
+
+
+def test_only_one_rebuild_at_a_time(client, monkeypatch):
+    monkeypatch.setattr(settings, "admin_token", "t0ken")
+    assert app_mod._rebuild_lock.acquire(blocking=False)
+    try:
+        assert client.post("/api/admin/rebuild", headers={"Authorization": "Bearer t0ken"}).status_code == 409
+        assert client.post("/api/admin/rebuild", headers={"Authorization": "Bearer wrong"}).status_code == 401
+    finally:
+        app_mod._rebuild_lock.release()
+
+
+def test_the_site_loads_nothing_from_other_hosts():
+    """The CSP says 'self' only; a component that fetches from a CDN would silently break under it."""
+    import re
+    from pathlib import Path
+    src = Path(__file__).resolve().parents[2] / "frontend" / "src"
+    hits = [f"{p.name}: {m.group(0)}" for p in src.rglob("*") if p.suffix in {".tsx", ".ts", ".astro"}
+            for m in re.finditer(r"""(?:fetch\(|src=|GEO_URL\s*=\s*)["'`]https?://[^"'`]+""", p.read_text(encoding="utf-8"))]
+    assert hits == []
+    assert (src.parent / "public" / "geo" / "countries-110m.json").stat().st_size > 50_000

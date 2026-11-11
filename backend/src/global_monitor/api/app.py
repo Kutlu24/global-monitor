@@ -7,15 +7,16 @@ is mounted last, at "/", via StaticFiles - see the bottom of this file.
 """
 from __future__ import annotations
 
+import re
 import secrets
-import subprocess
+import threading
 from contextlib import asynccontextmanager
 from dataclasses import asdict
 
-from fastapi import FastAPI, Header, HTTPException, Query
+from fastapi import FastAPI, Header, HTTPException, Query, Request
 from fastapi.staticfiles import StaticFiles
 
-from .. import db, i18n, i18n_countries, major_economies, pipeline, risk, scheduler
+from .. import db, i18n, i18n_countries, major_economies, pipeline, risk, scheduler, sitebuild
 from ..config import frontend_dir, settings
 
 
@@ -27,6 +28,27 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Global Monitor", lifespan=lifespan)
+
+# Everything the pages need is served from this origin (fonts, map data, scripts), so the policy can say exactly that.
+# Inline script/style stay allowed because Astro emits them; what this stops is a planted external script, a form that
+# posts elsewhere, plugins, a re-pointed <base>, and other sites framing ours.
+_CSP = ("default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; "
+        "font-src 'self' data:; connect-src 'self'; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; "
+        "form-action 'self'; frame-ancestors 'self'")
+_ISO3 = re.compile(r"^[A-Za-z]{3}$")
+_rebuild_lock = threading.Lock()
+
+
+@app.middleware("http")
+async def _security_headers(request: Request, call_next):
+    resp = await call_next(request)
+    resp.headers.setdefault("X-Content-Type-Options", "nosniff")
+    resp.headers.setdefault("X-Frame-Options", "SAMEORIGIN")
+    resp.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+    resp.headers.setdefault("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
+    if not request.url.path.startswith(("/docs", "/redoc")):  # the interactive API page loads its script from a CDN
+        resp.headers.setdefault("Content-Security-Policy", _CSP)
+    return resp
 
 
 def _lang(lang: str | None) -> str:
@@ -262,6 +284,8 @@ def query_tension_countries(iso3_a: str, iso3_b: str, lang: str | None = Query(d
     per-click endpoint must stay cheap and fast."""
     from .. import tension
 
+    if not (_ISO3.match(iso3_a) and _ISO3.match(iso3_b)):  # public, called from the browser: only real country codes get any work
+        raise HTTPException(404, "Unknown country code")
     score = tension.query_pair(iso3_a, iso3_b)
     if score is None:
         raise HTTPException(503, "No GDELT data cached yet - try again in a few minutes")
@@ -315,10 +339,15 @@ def admin_rebuild(authorization: str | None = Header(default=None)) -> dict:
     parse issue. scheduler.py does this automatically on its own cadence;
     this exists for the human-in-the-loop case that doesn't wait for it."""
     _check_admin_token(authorization)
-    results = pipeline.run_all()
-    build = subprocess.run(["npm", "run", "build"], cwd=frontend_dir(), capture_output=True, text=True)
-    if build.returncode != 0:
-        raise HTTPException(500, f"astro build failed:\n{build.stderr[-2000:]}")
+    if not _rebuild_lock.acquire(blocking=False):  # two builds writing dist/ at once leave a half-built site
+        raise HTTPException(409, "A rebuild is already running")
+    try:
+        results = pipeline.run_all()
+        ok, err = sitebuild.build()
+    finally:
+        _rebuild_lock.release()
+    if not ok:
+        raise HTTPException(500, f"astro build failed (the previous site stays in place):\n{err}")
     return {"status": "rebuilt", "ingest_results": results}
 
 
