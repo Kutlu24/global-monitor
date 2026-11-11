@@ -16,8 +16,9 @@ import logging
 import os
 import shutil
 import subprocess
+from pathlib import Path
 
-from .config import frontend_dir
+from .config import frontend_dir, settings
 
 logger = logging.getLogger(__name__)
 STAGING, LIVE, OLD = "dist.next", "dist", "dist.old"
@@ -45,5 +46,21 @@ def build(api_url: str | None = None, timeout: int = 1800) -> tuple[bool, str]:
             live.rename(old)
         staging.rename(live)
         shutil.rmtree(old, ignore_errors=True)
+        _snapshot(live)
         logger.info("site build completed")
         return True, ""
+
+
+def _snapshot(live) -> None:
+    """Keep a copy of the good site on the data volume. dist/ lives in the container's own filesystem, so a rebuilt
+    or recreated container starts without one and every page 500s until the slow first ingest+build finishes; the
+    entrypoint restores this copy at start so the previous site is served meanwhile."""
+    try:
+        base = Path(settings.data_dir)
+        tmp, final = base / "dist-snapshot.tmp", base / "dist-snapshot"
+        shutil.rmtree(tmp, ignore_errors=True)
+        shutil.copytree(live, tmp)
+        shutil.rmtree(final, ignore_errors=True)
+        tmp.rename(final)
+    except OSError:
+        logger.warning("could not snapshot the site to the data volume", exc_info=True)

@@ -12,6 +12,8 @@ from global_monitor import sitebuild
 @pytest.fixture
 def site(tmp_path, monkeypatch):
     monkeypatch.setattr(sitebuild, "frontend_dir", lambda: tmp_path)
+    monkeypatch.setattr(sitebuild.settings, "data_dir", str(tmp_path / "data"))
+    (tmp_path / "data").mkdir()
     (tmp_path / "dist").mkdir()
     (tmp_path / "dist" / "index.html").write_text("old site")
     return tmp_path
@@ -72,3 +74,17 @@ def test_builds_never_overlap(site, monkeypatch):
     [t.start() for t in threads]; [t.join() for t in threads]
     assert overlaps == [1, 1, 1, 1]
     assert (site / "dist" / "index.html").read_text() == "new site"
+
+
+def test_a_good_build_is_snapshotted_to_the_data_volume(site, monkeypatch):
+    fake_npm(monkeypatch, good)
+    assert sitebuild.build("http://api") == (True, "")
+    assert (site / "data" / "dist-snapshot" / "index.html").read_text() == "new site"
+
+
+def test_a_failed_build_keeps_the_previous_snapshot(site, monkeypatch):
+    fake_npm(monkeypatch, good)
+    sitebuild.build()
+    fake_npm(monkeypatch, lambda cwd: SimpleNamespace(returncode=1, stderr="boom", stdout=""))
+    assert sitebuild.build()[0] is False
+    assert (site / "data" / "dist-snapshot" / "index.html").read_text() == "new site"

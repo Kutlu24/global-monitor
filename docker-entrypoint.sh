@@ -18,6 +18,12 @@ chown -R user:user "$HOME/app/data"
 # over frontend/node_modules (thousands of files) would needlessly stall
 # every container start for no benefit.
 
+# dist/ is not on the volume, so a rebuilt/recreated container has none and every page 500s until the slow first
+# ingest+build below finishes. Put back the last good site (sitebuild.py snapshots it after each successful build).
+if [ ! -f "$HOME/app/frontend/dist/index.html" ] && [ -d "$HOME/app/data/dist-snapshot" ]; then
+  cp -a "$HOME/app/data/dist-snapshot" "$HOME/app/frontend/dist" && chown -R user:user "$HOME/app/frontend/dist" || true
+fi
+
 su -s /bin/sh user -c "python -m uvicorn global_monitor.api.app:app --host 0.0.0.0 --port ${PORT:-7860}" &
 UVICORN_PID=$!
 trap 'kill -TERM "$UVICORN_PID" 2>/dev/null; wait "$UVICORN_PID"' TERM INT
